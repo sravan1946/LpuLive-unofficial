@@ -1,0 +1,463 @@
+import 'package:flutter/material.dart';
+import 'dart:async';
+import '../models/user_models.dart';
+import '../services/chat_services.dart';
+
+class DirectMessagesPage extends StatefulWidget {
+  const DirectMessagesPage({super.key});
+
+  @override
+  State<DirectMessagesPage> createState() => _DirectMessagesPageState();
+}
+
+class _DirectMessagesPageState extends State<DirectMessagesPage> {
+  final TextEditingController _messageController = TextEditingController();
+  final ChatApiService _apiService = ChatApiService();
+  final WebSocketChatService _wsService = WebSocketChatService();
+  late List<DirectMessage> _directMessages;
+  DirectMessage? _selectedDM;
+  List<ChatMessage> _dmMessages = [];
+  bool _isLoadingDM = false;
+  StreamSubscription<ChatMessage>? _messageSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeDMs();
+    _connectWebSocket();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _messageSubscription?.cancel();
+    _wsService.disconnect();
+    super.dispose();
+  }
+
+  void _initializeDMs() {
+    if (currentUser != null) {
+      _directMessages = [];
+
+      for (final group in currentUser!.groups) {
+        final dmMatch = RegExp(r'^\d+\s*:\s*\d+$').firstMatch(group.name);
+        if (dmMatch != null) {
+          final dm = DirectMessage(
+            dmName: group.name,
+            participants: group.name,
+            lastMessage: group.groupLastMessage,
+            lastMessageTime: group.lastMessageTime,
+            isActive: group.isActive,
+            isAdmin: group.isAdmin,
+          );
+          _directMessages.add(dm);
+        }
+      }
+    } else {
+      _directMessages = [];
+    }
+  }
+
+  Future<void> _connectWebSocket() async {
+    if (currentUser != null) {
+      try {
+        await _wsService.connect(currentUser!.chatToken);
+
+        _messageSubscription = _wsService.messageStream.listen((message) {
+          _handleNewMessage(message);
+        });
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to connect to chat server: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  void _handleNewMessage(ChatMessage message) {
+    setState(() {
+      final dmIndex = _directMessages.indexWhere((dm) => dm.dmName == message.sender);
+      if (dmIndex != -1) {
+        // If this message belongs to the currently selected DM, add it to the messages
+        if (_selectedDM != null && _selectedDM!.dmName == message.sender) {
+          final updatedMessages = [..._dmMessages, message];
+
+          // Sort messages by timestamp to maintain chronological order
+          updatedMessages.sort((a, b) {
+            try {
+              final dateA = DateTime.parse(a.timestamp);
+              final dateB = DateTime.parse(b.timestamp);
+              return dateA.compareTo(dateB);
+            } catch (e) {
+              return 0;
+            }
+          });
+
+          _dmMessages = updatedMessages;
+        }
+      }
+    });
+  }
+
+  Future<void> _selectDM(DirectMessage dm) async {
+    setState(() {
+      _selectedDM = dm;
+      _isLoadingDM = true;
+      _dmMessages = [];
+    });
+
+    try {
+      final messages = await _apiService.fetchChatMessages(dm.dmName, currentUser!.chatToken);
+      setState(() {
+        _dmMessages = messages;
+        _isLoadingDM = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingDM = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load DM messages: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final message = _messageController.text.trim();
+    if (message.isEmpty) return;
+
+    if (!_wsService.isConnected) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Not connected to chat server')),
+        );
+      }
+      return;
+    }
+
+    if (_selectedDM == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a DM first')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final groupId = _selectedDM!.dmName;
+
+      await _wsService.sendMessage(
+        message: message,
+        group: groupId,
+      );
+
+      _messageController.clear();
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send message: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        if (_selectedDM != null) {
+          setState(() {
+            _selectedDM = null;
+          });
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+          title: Text(_selectedDM != null
+              ? 'DM: ${_selectedDM!.participants}'
+              : 'Direct Messages'),
+          leading: _selectedDM != null
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    setState(() {
+                      _selectedDM = null;
+                    });
+                  },
+                  tooltip: 'Back to DM selection',
+                )
+              : null,
+        ),
+        body: _selectedDM == null
+            ? _buildDMList()
+            : _buildDMChat(),
+      ),
+    );
+  }
+
+  Widget _buildDMList() {
+    if (_directMessages.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.message, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No Direct Messages',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Direct messages will appear here',
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _directMessages.length,
+      itemBuilder: (context, index) {
+        final dm = _directMessages[index];
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: const Icon(Icons.person, color: Colors.white),
+            ),
+            title: Text('DM: ${dm.participants}'),
+            subtitle: Text(
+              dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  dm.lastMessageTime.isNotEmpty
+                      ? _formatTimestamp(dm.lastMessageTime)
+                      : '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                if (dm.isAdmin)
+                  const Icon(Icons.admin_panel_settings, color: Colors.orange, size: 16),
+              ],
+            ),
+            onTap: () => _selectDM(dm),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDMChat() {
+    return Column(
+      children: [
+        Expanded(
+          child: _isLoadingDM
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Loading DM messages...'),
+                    ],
+                  ),
+                )
+              : _dmMessages.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.message, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'No messages yet',
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Be the first to start the conversation!',
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _dmMessages.length,
+                      itemBuilder: (context, index) {
+                        final message = _dmMessages[index];
+                        return Align(
+                          alignment: message.isOwnMessage
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Row(
+                            mainAxisAlignment: message.isOwnMessage
+                                ? MainAxisAlignment.end
+                                : MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (!message.isOwnMessage) ...[
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  child: Text(
+                                    message.senderName.isNotEmpty
+                                        ? message.senderName[0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Flexible(
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: message.isOwnMessage
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  constraints: BoxConstraints(
+                                    maxWidth: MediaQuery.of(context).size.width * 0.7,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: message.isOwnMessage
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
+                                    children: [
+                                      if (!message.isOwnMessage)
+                                        Text(
+                                          message.senderName,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            color: Theme.of(context).colorScheme.primary,
+                                          ),
+                                        ),
+                                      Text(
+                                        message.message,
+                                        style: TextStyle(
+                                          color: message.isOwnMessage
+                                              ? Theme.of(context).colorScheme.onPrimary
+                                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatTimestamp(message.timestamp),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: message.isOwnMessage
+                                              ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7)
+                                              : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (message.isOwnMessage) ...[
+                                const SizedBox(width: 8),
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  child: Text(
+                                    currentUser?.name.isNotEmpty ?? false
+                                        ? currentUser!.name[0].toUpperCase()
+                                        : 'Y',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+        ),
+
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border(
+              top: BorderSide(color: Colors.grey.shade300),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _messageController,
+                  decoration: const InputDecoration(
+                    hintText: 'Type a message...',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (_) => _sendMessage(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.send),
+                onPressed: _sendMessage,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatTimestamp(String timestamp) {
+    try {
+      final dateTime = DateTime.parse(timestamp);
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+
+      if (difference.inDays > 0) {
+        return '${difference.inDays}d ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes}m ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      return timestamp;
+    }
+  }
+}
