@@ -8,6 +8,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('🏠 MyApp built - main app launched!');
     return MaterialApp(
       title: 'LPU Live Chat',
       theme: ThemeData(

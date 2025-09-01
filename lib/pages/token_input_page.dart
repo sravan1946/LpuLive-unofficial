@@ -11,6 +11,7 @@ class TokenInputApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('🔐 TokenInputApp built - login screen shown');
     return MaterialApp(
       title: 'LPU Live - Token Setup',
       theme: ThemeData(
@@ -205,18 +206,25 @@ class _TokenInputScreenState extends State<TokenInputScreen> {
                   : const Text('Continue to Chat'),
             ),
             const SizedBox(height: 16),
-            TextButton.icon(
-              icon: const Icon(Icons.web),
-              label: const Text('Login via Website'),
-              onPressed: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const WebViewLoginScreen()),
-                );
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
+             TextButton.icon(
+               icon: const Icon(Icons.web),
+               label: const Text('Login via Website'),
+               onPressed: () async {
+                 print('🌐 Starting webview login process...');
+                 // Clear local storage before opening webview
+                 await TokenStorage.clearToken();
+                 print('🗑️ Local storage cleared');
+                 if (mounted) {
+                   print('🚀 Navigating to WebViewLoginScreen');
+                   Navigator.of(context).pushReplacement(
+                     MaterialPageRoute(builder: (context) => const WebViewLoginScreen()),
+                   );
+                 }
+               },
+               style: TextButton.styleFrom(
+                 padding: const EdgeInsets.symmetric(vertical: 12),
+               ),
+             ),
             const SizedBox(height: 40),
           ],
         ),
