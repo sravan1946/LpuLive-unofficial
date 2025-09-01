@@ -474,79 +474,29 @@
   Widget build(BuildContext context) {
     developer.log('🔄 WebViewLoginScreen build called', name: 'WebViewLogin');
     return Scaffold(
-       appBar: AppBar(
-         title: Row(
-           children: [
-             const Text('LPU Live - Web Login'),
-             if (_isMonitoring) ...[
-               const SizedBox(width: 8),
-               const Icon(Icons.visibility, size: 16),
-               const SizedBox(width: 4),
-               Text('Monitoring (${_checkAttempts}s)', style: const TextStyle(fontSize: 12)),
-             ],
-           ],
-         ),
-         backgroundColor: _isMonitoring ? Colors.orange.shade100 : Theme.of(context).colorScheme.inversePrimary,
-         actions: [
-           IconButton(
-             icon: const Icon(Icons.bug_report),
-             onPressed: () async {
-               developer.log('🧪 Manual JavaScript test triggered', name: 'WebViewLogin');
-               await _testJavaScript();
-             },
-             tooltip: 'Test JavaScript',
-           ),
-           IconButton(
-             icon: const Icon(Icons.clear_all),
-             onPressed: () async {
-               developer.log('🗑️ Manual localStorage clear triggered', name: 'WebViewLogin');
-               await _clearWebViewLocalStorage();
-             },
-             tooltip: 'Clear WebView localStorage',
-           ),
-           if (_isMonitoring)
-           IconButton(
-             icon: const Icon(Icons.search),
-             onPressed: () {
-               developer.log('🔍 Manual AuthData check triggered', name: 'WebViewLogin');
-               _checkAttempts = 0;
-               _checkForAuthData();
-             },
-             tooltip: 'Check AuthData Now',
-           ),
-           IconButton(
-             icon: const Icon(Icons.play_arrow),
-             onPressed: () {
-               if (!_isMonitoring) {
-                 developer.log('▶️ Manual monitoring start triggered', name: 'WebViewLogin');
-                 _isMonitoring = true;
-                 _checkAttempts = 0;
-                 _checkForAuthData();
-               } else {
-                 developer.log('⏸️ Monitoring already active', name: 'WebViewLogin');
-               }
-             },
-             tooltip: 'Start Monitoring',
-           ),
-           IconButton(
-             icon: const Icon(Icons.refresh),
-             onPressed: () {
-               developer.log('🔄 Manual reload triggered', name: 'WebViewLogin');
-               _controller.reload();
-             },
-             tooltip: 'Refresh',
-           ),
-           IconButton(
-             icon: const Icon(Icons.arrow_back),
-             onPressed: () {
-               developer.log('⬅️ Back to token input', name: 'WebViewLogin');
-               Navigator.of(context).pushReplacement(
-                 MaterialPageRoute(builder: (context) => const TokenInputApp()),
-               );
-             },
-             tooltip: 'Back to Token Input',
-           ),
-         ],
+        appBar: AppBar(
+          title: const Text('LPU Live - Web Login'),
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                developer.log('🔄 Manual reload triggered', name: 'WebViewLogin');
+                _controller.reload();
+              },
+              tooltip: 'Refresh',
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                developer.log('⬅️ Back to token input', name: 'WebViewLogin');
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const TokenInputApp()),
+                );
+              },
+              tooltip: 'Back to Token Input',
+            ),
+          ],
        ),
       body: Stack(
         children: [
@@ -570,46 +520,7 @@
                 ),
               ),
             ),
-           // Debug status overlay
-           if (_isMonitoring)
-             Positioned(
-               top: 80,
-               right: 16,
-               child: Container(
-                 padding: const EdgeInsets.all(8),
-                 decoration: BoxDecoration(
-                   color: Colors.blue.shade100,
-                   borderRadius: BorderRadius.circular(8),
-                   border: Border.all(color: Colors.blue.shade300),
-                 ),
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     Row(
-                       children: [
-                         Icon(Icons.visibility, size: 16, color: Colors.blue.shade700),
-                         const SizedBox(width: 4),
-                         Text(
-                           'Monitoring',
-                           style: TextStyle(
-                             color: Colors.blue.shade700,
-                             fontWeight: FontWeight.bold,
-                             fontSize: 12,
-                           ),
-                         ),
-                       ],
-                     ),
-                     Text(
-                       '${_checkAttempts}s / 30s',
-                       style: TextStyle(
-                         color: Colors.blue.shade600,
-                         fontSize: 10,
-                       ),
-                     ),
-                   ],
-                 ),
-               ),
-             ),
+
            if (_errorMessage != null)
              Positioned(
                bottom: 0,
