@@ -7,7 +7,9 @@ import 'webview_login_page.dart';
 import 'chat_home_page.dart';
 
 class TokenInputApp extends StatelessWidget {
-  const TokenInputApp({super.key});
+  const TokenInputApp({super.key, this.autoLoggedOut = false});
+
+  final bool autoLoggedOut;
 
   @override
   Widget build(BuildContext context) {
@@ -34,13 +36,15 @@ class TokenInputApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const UnifiedLoginScreen(),
+      home: UnifiedLoginScreen(autoLoggedOut: autoLoggedOut),
     );
   }
 }
 
 class UnifiedLoginScreen extends StatefulWidget {
-  const UnifiedLoginScreen({super.key});
+  const UnifiedLoginScreen({super.key, this.autoLoggedOut = false});
+
+  final bool autoLoggedOut;
 
   @override
   State<UnifiedLoginScreen> createState() => _UnifiedLoginScreenState();
@@ -49,8 +53,33 @@ class UnifiedLoginScreen extends StatefulWidget {
 class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
   final TextEditingController _tokenController = TextEditingController();
   bool _isProcessing = false;
+  bool _hasShownLogoutMessage = false;
   String? _errorMessage;
   bool _showTokenInput = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Show logout notification only if user was automatically logged out
+    if (widget.autoLoggedOut) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_hasShownLogoutMessage) {
+          _showLogoutNotification();
+          _hasShownLogoutMessage = true;
+        }
+      });
+    }
+  }
+
+  void _showLogoutNotification() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Your session has expired. Please login again.'),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
 
   @override
   void dispose() {

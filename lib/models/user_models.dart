@@ -173,5 +173,81 @@ class DirectMessage {
   });
 }
 
+class Contact {
+  final String userid;
+  final String? avatar;
+  final String name;
+  final String? userimageurl;
+  final String category;
+
+  Contact({
+    required this.userid,
+    this.avatar,
+    required this.name,
+    this.userimageurl,
+    required this.category,
+  });
+
+  factory Contact.fromJson(Map<String, dynamic> json) {
+    return Contact(
+      userid: json['userid'] ?? '',
+      avatar: json['avatar'],
+      name: json['name'] ?? '',
+      userimageurl: json['userimageurl'],
+      category: json['category'] ?? '',
+    );
+  }
+}
+
+class SearchResult {
+  final String message;
+  final String? category;
+  final String? regID;
+  final String? error;
+
+  SearchResult({
+    required this.message,
+    this.category,
+    this.regID,
+    this.error,
+  });
+
+  factory SearchResult.fromJson(Map<String, dynamic> json) {
+    return SearchResult(
+      message: json['message'] ?? '',
+      category: json['category'],
+      regID: json['regID'],
+      error: json['error'],
+    );
+  }
+
+  bool get isSuccess => error == null;
+}
+
+class CreateGroupResult {
+  final String statusCode;
+  final String message;
+  final String? name;
+  final dynamic data;
+
+  CreateGroupResult({
+    required this.statusCode,
+    required this.message,
+    this.name,
+    this.data,
+  });
+
+  factory CreateGroupResult.fromJson(Map<String, dynamic> json) {
+    return CreateGroupResult(
+      statusCode: json['statusCode'] ?? '',
+      message: json['message'] ?? '',
+      name: json['name'],
+      data: json['data'],
+    );
+  }
+
+  bool get isSuccess => statusCode == '200';
+}
+
 // Global variable to store parsed token data
 User? currentUser;

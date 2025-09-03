@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
+import '../pages/token_input_page.dart';
+import 'new_dm_page.dart';
 
 class DirectMessagesPage extends StatefulWidget {
   const DirectMessagesPage({super.key});
@@ -19,6 +21,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   List<ChatMessage> _dmMessages = [];
   bool _isLoadingDM = false;
   StreamSubscription<ChatMessage>? _messageSubscription;
+  StreamSubscription<Map<String, dynamic>>? _systemMessageSubscription;
 
   @override
   void initState() {
@@ -27,10 +30,49 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     _connectWebSocket();
   }
 
+  void _handleSystemMessage(Map<String, dynamic> message) {
+    if (message['type'] == 'force_disconnect') {
+      debugPrint('🚪 [DirectMessagesPage] Force disconnect received');
+      _handleForceDisconnect(message);
+    }
+  }
+
+  void _handleForceDisconnect(Map<String, dynamic> message) async {
+    debugPrint('🚪 [DirectMessagesPage] Handling force disconnect');
+
+    // Disconnect WebSocket
+    _wsService.disconnect();
+
+    // Clear token
+    await TokenStorage.clearToken();
+
+    // Show notification
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message['message'] ?? 'You have been disconnected from another device.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+
+      // Navigate to login after a short delay
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const TokenInputApp(autoLoggedOut: true)),
+            (route) => false,
+          );
+        }
+      });
+    }
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
     _messageSubscription?.cancel();
+    _systemMessageSubscription?.cancel();
     _wsService.disconnect();
     super.dispose();
   }
@@ -65,6 +107,10 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
         _messageSubscription = _wsService.messageStream.listen((message) {
           _handleNewMessage(message);
+        });
+
+        _systemMessageSubscription = _wsService.systemMessageStream.listen((message) {
+          _handleSystemMessage(message);
         });
       } catch (e) {
         if (mounted) {
@@ -123,6 +169,17 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           SnackBar(content: Text('Failed to load DM messages: $e')),
         );
       }
+    }
+  }
+
+  Future<void> _startNewDM() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (context) => const NewDMPage()),
+    );
+
+    // If a new DM was created successfully, refresh the DM list
+    if (result == true) {
+      _initializeDMs();
     }
   }
 
@@ -206,66 +263,92 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
   Widget _buildDMList() {
     if (_directMessages.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.message, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'No Direct Messages',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
+      return Stack(
+        children: [
+          const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.message, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'No Direct Messages',
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Direct messages will appear here',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+              ],
             ),
-            SizedBox(height: 8),
-            Text(
-              'Direct messages will appear here',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+          ),
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton(
+              onPressed: _startNewDM,
+              child: const Icon(Icons.add),
+              tooltip: 'Start New DM',
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _directMessages.length,
-      itemBuilder: (context, index) {
-        final dm = _directMessages[index];
+    return Stack(
+      children: [
+        ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _directMessages.length,
+          itemBuilder: (context, index) {
+            final dm = _directMessages[index];
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: const Icon(Icons.person, color: Colors.white),
-            ),
-            title: Text('DM: ${dm.participants}'),
-            subtitle: Text(
-              dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  dm.lastMessageTime.isNotEmpty
-                      ? _formatTimestamp(dm.lastMessageTime)
-                      : '',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  child: const Icon(Icons.person, color: Colors.white),
                 ),
-                if (dm.isAdmin)
-                  const Icon(Icons.admin_panel_settings, color: Colors.orange, size: 16),
-              ],
-            ),
-            onTap: () => _selectDM(dm),
+                title: Text('DM: ${dm.participants}'),
+                subtitle: Text(
+                  dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      dm.lastMessageTime.isNotEmpty
+                          ? _formatTimestamp(dm.lastMessageTime)
+                          : '',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    if (dm.isAdmin)
+                      const Icon(Icons.admin_panel_settings, color: Colors.orange, size: 16),
+                  ],
+                ),
+                onTap: () => _selectDM(dm),
+              ),
+            );
+          },
+        ),
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton(
+            onPressed: _startNewDM,
+            child: const Icon(Icons.add),
+            tooltip: 'Start New DM',
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
