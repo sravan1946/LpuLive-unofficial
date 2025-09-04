@@ -5,6 +5,7 @@ import '../services/chat_services.dart';
 import '../utils/timestamp_utils.dart';
 import 'token_input_page.dart';
 import 'new_dm_page.dart';
+import 'chat_page.dart';
 
 class DirectMessagesPage extends StatefulWidget {
   final WebSocketChatService wsService;
@@ -19,9 +20,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   final TextEditingController _messageController = TextEditingController();
   final ChatApiService _apiService = ChatApiService();
   late List<DirectMessage> _directMessages;
-  DirectMessage? _selectedDM;
-  List<ChatMessage> _dmMessages = [];
-  bool _isLoadingDM = false;
+  DirectMessage? _selectedDM; // kept for state/back compat but not used for inline view
+  List<ChatMessage> _dmMessages = []; // no longer used inline
+  bool _isLoadingDM = false; // no longer used inline
   StreamSubscription<ChatMessage>? _messageSubscription;
   StreamSubscription<Map<String, dynamic>>? _systemMessageSubscription;
 
@@ -145,104 +146,45 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   }
 
   void _handleNewMessage(ChatMessage message) {
+    final exists = _directMessages.indexWhere((dm) => dm.dmName == message.sender);
+    if (exists == -1) return;
+
     setState(() {
-      final dmIndex = _directMessages.indexWhere((dm) => dm.dmName == message.sender);
-      if (dmIndex != -1) {
-        // If this message belongs to the currently selected DM, add it to the messages
-        if (_selectedDM != null && _selectedDM!.dmName == message.sender) {
-          final updatedMessages = [..._dmMessages, message];
-
-          // Sort messages by timestamp to maintain chronological order
-          updatedMessages.sort((a, b) {
-            try {
-              final dateA = DateTime.parse(a.timestamp);
-              final dateB = DateTime.parse(b.timestamp);
-              return dateA.compareTo(dateB);
-            } catch (e) {
-              return 0;
-            }
-          });
-
-          _dmMessages = updatedMessages;
-        }
-
-        // Update the group's last message in the token
-        if (currentUser != null) {
-          for (int i = 0; i < currentUser!.groups.length; i++) {
-            if (currentUser!.groups[i].name == message.sender) {
-              currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-                groupLastMessage: message.message,
-                lastMessageTime: message.timestamp,
-              );
-              // Also update the corresponding DirectMessage
-              final dmIndex = _directMessages.indexWhere((dm) => dm.dmName == message.sender);
-              if (dmIndex != -1) {
-                _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
-                  lastMessage: message.message,
-                  lastMessageTime: message.timestamp,
-                );
-              }
-            }
+      if (currentUser != null) {
+        for (int i = 0; i < currentUser!.groups.length; i++) {
+          if (currentUser!.groups[i].name == message.sender) {
+            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
+              groupLastMessage: message.message,
+              lastMessageTime: message.timestamp,
+            );
           }
         }
-        }
+      }
 
-        // Save updated user data to token storage
-        TokenStorage.saveCurrentUser();
-      });
+      final dmIndex = _directMessages.indexWhere((dm) => dm.dmName == message.sender);
+      if (dmIndex != -1) {
+        _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
+          lastMessage: message.message,
+          lastMessageTime: message.timestamp,
+        );
+      }
 
-    // Sort after setState completes to ensure proper re-rendering
-    _sortDirectMessages();
+      _sortDirectMessages();
+      TokenStorage.saveCurrentUser();
+    });
   }
 
   Future<void> _selectDM(DirectMessage dm) async {
-    setState(() {
-      _selectedDM = dm;
-      _isLoadingDM = true;
-      _dmMessages = [];
-    });
-
-    try {
-      final messages = await _apiService.fetchChatMessages(dm.dmName, currentUser!.chatToken);
-      setState(() {
-        _dmMessages = messages;
-        _isLoadingDM = false;
-      });
-
-      // Update the group's last message in the token if messages were loaded
-      if (messages.isNotEmpty && currentUser != null) {
-        final lastMsg = messages.last;
-        for (int i = 0; i < currentUser!.groups.length; i++) {
-          if (currentUser!.groups[i].name == dm.dmName) {
-            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-              groupLastMessage: lastMsg.message,
-              lastMessageTime: lastMsg.timestamp,
-            );
-            // Also update the corresponding DirectMessage
-            final dmIndex = _directMessages.indexWhere((d) => d.dmName == dm.dmName);
-            if (dmIndex != -1) {
-              _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
-                lastMessage: lastMsg.message,
-                lastMessageTime: lastMsg.timestamp,
-              );
-            }
-          }
-        }
-        _sortDirectMessages(); // Re-sort after updating timestamps
-
-        // Save updated user data to token storage
-        TokenStorage.saveCurrentUser();
-      }
-    } catch (e) {
-      setState(() {
-        _isLoadingDM = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load DM messages: $e')),
-        );
-      }
-    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ChatPage(
+          groupId: dm.dmName,
+          title: 'DM: ${dm.participants}',
+          wsService: widget.wsService,
+          isReadOnly: false,
+        ),
+      ),
+    );
   }
 
   Future<void> _startNewDM() async {
@@ -326,38 +268,12 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        if (_selectedDM != null) {
-          setState(() {
-            _selectedDM = null;
-          });
-          return false;
-        }
-        return true;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: Text(_selectedDM != null
-              ? 'DM: ${_selectedDM!.participants}'
-              : 'Direct Messages'),
-          leading: _selectedDM != null
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    setState(() {
-                      _selectedDM = null;
-                    });
-                  },
-                  tooltip: 'Back to DM selection',
-                )
-              : null,
-        ),
-        body: _selectedDM == null
-            ? _buildDMList()
-            : _buildDMChat(),
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Direct Messages'),
       ),
+      body: _buildDMList(),
     );
   }
 
@@ -453,177 +369,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     );
   }
 
-  Widget _buildDMChat() {
-    return Column(
-      children: [
-        Expanded(
-          child: _isLoadingDM
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Loading DM messages...'),
-                    ],
-                  ),
-                )
-              : _dmMessages.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.message, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'No messages yet',
-                            style: TextStyle(color: Colors.grey, fontSize: 16),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Be the first to start the conversation!',
-                            style: TextStyle(color: Colors.grey, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _dmMessages.length,
-                      itemBuilder: (context, index) {
-                        final message = _dmMessages[index];
-                        return Align(
-                          alignment: message.isOwnMessage
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Row(
-                            mainAxisAlignment: message.isOwnMessage
-                                ? MainAxisAlignment.end
-                                : MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (!message.isOwnMessage) ...[
-                                CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: Theme.of(context).colorScheme.primary,
-                                  child: Text(
-                                    message.senderName.isNotEmpty
-                                        ? message.senderName[0].toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              Flexible(
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: message.isOwnMessage
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  constraints: BoxConstraints(
-                                    maxWidth: MediaQuery.of(context).size.width * 0.7,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: message.isOwnMessage
-                                        ? CrossAxisAlignment.end
-                                        : CrossAxisAlignment.start,
-                                    children: [
-                                      if (!message.isOwnMessage)
-                                        Text(
-                                          message.senderName,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: Theme.of(context).colorScheme.primary,
-                                          ),
-                                        ),
-                                      Text(
-                                        message.message,
-                                        style: TextStyle(
-                                          color: message.isOwnMessage
-                                              ? Theme.of(context).colorScheme.onPrimary
-                                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _formatTimestamp(message.timestamp),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: message.isOwnMessage
-                                              ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7)
-                                              : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              if (message.isOwnMessage) ...[
-                                const SizedBox(width: 8),
-                                CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: Theme.of(context).colorScheme.primary,
-                                  child: Text(
-                                    currentUser?.name.isNotEmpty ?? false
-                                        ? currentUser!.name[0].toUpperCase()
-                                        : 'Y',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-        ),
-
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            border: Border(
-              top: BorderSide(color: Colors.grey.shade300),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  decoration: const InputDecoration(
-                    hintText: 'Type a message...',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _sendMessage(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.send),
-                onPressed: _sendMessage,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  // Inline chat UI removed; ChatPage handles chat display
 
   String _formatTimestamp(String timestamp) {
     try {

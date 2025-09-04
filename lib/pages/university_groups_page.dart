@@ -5,6 +5,7 @@ import '../services/chat_services.dart';
 import '../widgets/network_image.dart';
 import '../utils/timestamp_utils.dart';
 import 'token_input_page.dart';
+import 'chat_page.dart';
 
 class UniversityGroupsPage extends StatefulWidget {
   final WebSocketChatService wsService;
@@ -64,26 +65,24 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
   void _sortCourseGroups() {
     _courseGroups.sort((a, b) {
-      // Parse timestamps, handling empty strings and invalid formats
-      DateTime? timeA = _parseTimestamp(a.lastMessageTime);
-      DateTime? timeB = _parseTimestamp(b.lastMessageTime);
+      final DateTime? timeA = _parseTimestamp(a.lastMessageTime);
+      final DateTime? timeB = _parseTimestamp(b.lastMessageTime);
 
-      // Primary sort: by timestamp (most recent first)
-      // Groups with timestamps come before groups without timestamps
-      if (timeA != null && timeB != null) {
-        // Both have timestamps - compare them (most recent first)
-        return timeB.compareTo(timeA);
-      } else if (timeA != null && timeB == null) {
-        // A has timestamp, B doesn't - A comes first
-        return -1;
-      } else if (timeA == null && timeB != null) {
-        // B has timestamp, A doesn't - B comes first
-        return 1;
-      } else {
-        // Both don't have timestamps - fall through to secondary sort
-        // Secondary sort: by name (alphabetical) - for groups without timestamps
-        return a.courseName.compareTo(b.courseName);
+      final hasTimeA = timeA != null;
+      final hasTimeB = timeB != null;
+
+      // Put items with time first
+      if (hasTimeA != hasTimeB) {
+        return hasTimeA ? -1 : 1; // true before false
       }
+
+      // If both have time, sort by time desc (most recent first)
+      if (hasTimeA && hasTimeB) {
+        return timeB.compareTo(timeA);
+      }
+
+      // If both have no time, sort by name asc
+      return a.courseName.compareTo(b.courseName);
     });
   }
 
@@ -93,7 +92,17 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
   void _setupWebSocketSubscription() {
     _messageSubscription = widget.wsService.messageStream.listen((message) {
-      _handleNewMessage(message);
+      // Update cached last message time for list and re-sort
+      final targetName = (message.group != null && message.group!.isNotEmpty)
+          ? message.group!
+          : message.sender;
+      final index = _courseGroups.indexWhere((c) => c.courseName == targetName);
+      if (index != -1) {
+        final course = _courseGroups[index];
+        _courseGroups[index] = course.copyWith(lastMessageTime: message.timestamp);
+        _sortCourseGroups();
+        setState(() {});
+      }
     });
   }
 
@@ -148,75 +157,18 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     _sortCourseGroups();
   }
 
-  Future<void> _loadCourseMessages(CourseGroup course) async {
-    if (currentUser == null) return;
-
-    setState(() {
-      _selectedCourse = course.copyWith(isLoading: true);
-      final index = _courseGroups.indexWhere((c) => c.courseCode == course.courseCode);
-      if (index != -1) {
-        _courseGroups[index] = course.copyWith(isLoading: true);
-      }
-    });
-
-    try {
-      final messages = await _apiService.fetchChatMessages(
-        course.courseName,
-        currentUser!.chatToken,
-      );
-
-      setState(() {
-        final index = _courseGroups.indexWhere((c) => c.courseCode == course.courseCode);
-        if (index != -1) {
-          _courseGroups[index] = course.copyWith(
-            messages: messages,
-            isLoading: false,
-          );
-        }
-        _selectedCourse = course.copyWith(
-          messages: messages,
-          isLoading: false,
-        );
-
-        // Update the group's last message in the token if messages were loaded
-        if (messages.isNotEmpty && currentUser != null) {
-          final lastMsg = messages.last;
-          for (int i = 0; i < currentUser!.groups.length; i++) {
-            if (currentUser!.groups[i].name == course.courseName) {
-              currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-                groupLastMessage: lastMsg.message,
-                lastMessageTime: lastMsg.timestamp,
-              );
-              // Also update the corresponding CourseGroup
-              final courseIndex = _courseGroups.indexWhere((c) => c.courseName == course.courseName);
-              if (courseIndex != -1) {
-                _courseGroups[courseIndex] = _courseGroups[courseIndex].copyWith(
-                  lastMessageTime: lastMsg.timestamp,
-                );
-              }
-            }
-          }
-          _sortCourseGroups(); // Re-sort after updating timestamps
-        }
-
-        // Save updated user data to token storage
-        TokenStorage.saveCurrentUser();
-      });
-    } catch (e) {
-      setState(() {
-        final index = _courseGroups.indexWhere((c) => c.courseCode == course.courseCode);
-        if (index != -1) {
-          _courseGroups[index] = course.copyWith(isLoading: false);
-        }
-        _selectedCourse = course.copyWith(isLoading: false);
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load messages: $e')),
-        );
-      }
-    }
+  Future<void> _openCourseChat(CourseGroup course) async {
+    final isWritable = _isGroupWritable(course);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ChatPage(
+          groupId: course.courseName,
+          title: course.courseName.replaceFirst(RegExp(r'^[A-Z]+\d+\s*-\s*'), ''),
+          wsService: widget.wsService,
+          isReadOnly: !isWritable,
+        ),
+      ),
+    );
   }
 
   Future<void> _sendMessage() async {
@@ -435,229 +387,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 )
               : null,
         ),
-        body: _selectedCourse == null
-            ? _buildCourseList()
-            : Column(
-                children: [
-                  Expanded(
-                    child: _selectedCourse!.isLoading
-                        ? const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                CircularProgressIndicator(),
-                                SizedBox(height: 16),
-                                Text('Loading course messages...'),
-                              ],
-                            ),
-                          )
-                        : _selectedCourse!.messages.isEmpty
-                            ? const Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.chat, size: 64, color: Colors.grey),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      'No messages yet',
-                                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Be the first to start the conversation!',
-                                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.all(16),
-                                itemCount: _selectedCourse!.messages.length,
-                                itemBuilder: (context, index) {
-                                  final message = _selectedCourse!.messages[index];
-                                  return Align(
-                                    alignment: message.isOwnMessage
-                                        ? Alignment.centerRight
-                                        : Alignment.centerLeft,
-                                    child: Row(
-                                      mainAxisAlignment: message.isOwnMessage
-                                          ? MainAxisAlignment.end
-                                          : MainAxisAlignment.start,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        if (!message.isOwnMessage) ...[
-                                          SafeNetworkImage(
-                                            imageUrl: message.userImage ?? '',
-                                            width: 32,
-                                            height: 32,
-                                            errorWidget: CircleAvatar(
-                                              radius: 16,
-                                              backgroundColor: Theme.of(context).colorScheme.primary,
-                                              child: Text(
-                                                message.senderName.isNotEmpty
-                                                    ? message.senderName[0].toUpperCase()
-                                                    : '?',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        Flexible(
-                                          child: Container(
-                                            margin: const EdgeInsets.only(bottom: 8),
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: message.isOwnMessage
-                                                  ? Theme.of(context).colorScheme.primary
-                                                  : Theme.of(context).colorScheme.surfaceContainerHighest,
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            constraints: BoxConstraints(
-                                              maxWidth: MediaQuery.of(context).size.width * 0.7,
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment: message.isOwnMessage
-                                                  ? CrossAxisAlignment.end
-                                                  : CrossAxisAlignment.start,
-                                              children: [
-                                                if (!message.isOwnMessage)
-                                                  Text(
-                                                    message.senderName,
-                                                    style: TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 12,
-                                                      color: Theme.of(context).colorScheme.primary,
-                                                    ),
-                                                  ),
-                                                Text(
-                                                  message.message,
-                                                  style: TextStyle(
-                                                    color: message.isOwnMessage
-                                                        ? Theme.of(context).colorScheme.onPrimary
-                                                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  _formatTimestamp(message.timestamp),
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: message.isOwnMessage
-                                                        ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7)
-                                                        : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                        if (message.isOwnMessage) ...[
-                                          const SizedBox(width: 8),
-                                          SafeNetworkImage(
-                                            imageUrl: currentUser?.userImageUrl ?? '',
-                                            width: 32,
-                                            height: 32,
-                                            errorWidget: CircleAvatar(
-                                              radius: 16,
-                                              backgroundColor: Theme.of(context).colorScheme.primary,
-                                              child: Text(
-                                                currentUser?.name.isNotEmpty ?? false
-                                                    ? currentUser!.name[0].toUpperCase()
-                                                    : 'Y',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                  ),
-
-                  if (_selectedCourse != null && _isGroupWritable(_selectedCourse!))
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        border: Border(
-                          top: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _messageController,
-                              decoration: InputDecoration(
-                                hintText: 'Type a message in ${_selectedCourse!.courseCode}...',
-                                border: const OutlineInputBorder(),
-                              ),
-                              onSubmitted: (_) => _sendMessage(),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.send),
-                            onPressed: _sendMessage,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (_selectedCourse != null && !_isGroupWritable(_selectedCourse!))
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        border: Border(
-                          top: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.visibility,
-                                    color: Colors.grey.shade600,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'This group is read-only',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+        body: _buildCourseList(),
       ),
     );
   }
@@ -753,7 +483,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                   ),
               ],
             ),
-            onTap: () => _loadCourseMessages(course),
+            onTap: () => _openCourseChat(course),
           ),
         );
       },

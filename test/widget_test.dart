@@ -6,8 +6,8 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
   import 'package:flutter_test/flutter_test.dart';
-  import 'package:lpulive/pages/token_input_page.dart';
-  import 'package:lpulive/pages/chat_home_page.dart';
+  import 'package:lpulive_unofficial/pages/token_input_page.dart';
+  import 'package:lpulive_unofficial/pages/chat_home_page.dart';
 
  void main() {
    testWidgets('Token input screen loads correctly', (WidgetTester tester) async {

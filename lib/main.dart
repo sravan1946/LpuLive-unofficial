@@ -4,6 +4,7 @@ import 'models/user_models.dart';
 import 'services/chat_services.dart';
 import 'pages/token_input_page.dart';
 import 'pages/chat_home_page.dart';
+import 'pages/splash_page.dart';
 
 class TokenValidationApp extends StatelessWidget {
   const TokenValidationApp({super.key});
@@ -172,9 +173,9 @@ void main() async {
       print('⏳ Showing validation loading screen...');
       runApp(const TokenValidationApp());
 
-      // Validate token by making an API call
+      // Show animated splash then validate in parallel and route
+      runApp(const SplashApp());
       final isTokenValid = await _validateToken(savedToken);
-
       if (isTokenValid) {
         print('✅ Token validated, launching main app');
         runApp(const MyApp());
@@ -198,4 +199,19 @@ void main() async {
 
   print('🔐 No valid token, showing login screen');
   runApp(const TokenInputApp(autoLoggedOut: false));
+}
+
+class SplashApp extends StatelessWidget {
+  const SplashApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      routes: {
+        '/login': (_) => const TokenInputApp(),
+      },
+      home: const SplashPage(),
+    );
+  }
 }
