@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'university_groups_page.dart';
 import 'personal_groups_page.dart';
 import 'direct_messages_page.dart';
+import '../services/chat_services.dart';
+import '../models/user_models.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -46,15 +48,34 @@ class ChatHomePage extends StatefulWidget {
 class _ChatHomePageState extends State<ChatHomePage> {
   int _selectedIndex = 0;
   late final List<Widget> _pages;
+  final WebSocketChatService _wsService = WebSocketChatService();
 
   @override
   void initState() {
     super.initState();
+    _connectWebSocket();
     _pages = [
-      const UniversityGroupsPage(),
-      const PersonalGroupsPage(),
-      const DirectMessagesPage(),
+      UniversityGroupsPage(wsService: _wsService),
+      PersonalGroupsPage(wsService: _wsService),
+      DirectMessagesPage(wsService: _wsService),
     ];
+  }
+
+  @override
+  void dispose() {
+    _wsService.disconnect();
+    super.dispose();
+  }
+
+  Future<void> _connectWebSocket() async {
+    if (currentUser != null) {
+      try {
+        await _wsService.connect(currentUser!.chatToken);
+        print('✅ [ChatHomePage] WebSocket connected successfully');
+      } catch (e) {
+        print('❌ [ChatHomePage] Failed to connect WebSocket: $e');
+      }
+    }
   }
 
   void _onItemTapped(int index) {

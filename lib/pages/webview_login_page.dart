@@ -56,10 +56,6 @@
    }
 
     Future<void> _testJavaScript() async {
-      if (_controller == null) {
-        return;
-      }
-
       try {
         const String testScript = '''
           (function() {
@@ -88,10 +84,6 @@
     }
 
     Future<void> _clearWebViewLocalStorage() async {
-      if (_controller == null) {
-        return;
-      }
-
       try {
         // First test if JavaScript is working
         await _testJavaScript();
@@ -260,10 +252,6 @@
     }
 
      Future<void> _checkForAuthData() async {
-       if (_controller == null) {
-         return;
-       }
-
        if (_checkAttempts >= _maxCheckAttempts) {
          setState(() {
            _isMonitoring = false;

@@ -132,13 +132,11 @@ Future<bool> _validateToken(String storedToken) async {
       print('🚪 Invalid token (400/404), user needs to login again');
 
       // Show logout notification to user
-      if (WidgetsBinding.instance != null) {
-        WidgetsBinding.instance!.addPostFrameCallback((_) {
-          // We can't show snackbar here since we don't have a BuildContext
-          // The notification will be shown when the login screen loads
-          print('📢 User will be notified: Your session has expired. Please login again.');
-        });
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // We can't show snackbar here since we don't have a BuildContext
+        // The notification will be shown when the login screen loads
+        print('📢 User will be notified: Your session has expired. Please login again.');
+      });
 
       return false;
     }

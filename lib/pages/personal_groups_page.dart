@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class PersonalGroupsPage extends StatelessWidget {
-  const PersonalGroupsPage({super.key});
+  final dynamic wsService; // Placeholder for future use
+
+  const PersonalGroupsPage({super.key, required this.wsService});
 
   @override
   Widget build(BuildContext context) {

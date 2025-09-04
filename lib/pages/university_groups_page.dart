@@ -3,10 +3,13 @@ import 'dart:async';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../widgets/network_image.dart';
+import '../utils/timestamp_utils.dart';
 import 'token_input_page.dart';
 
 class UniversityGroupsPage extends StatefulWidget {
-  const UniversityGroupsPage({super.key});
+  final WebSocketChatService wsService;
+
+  const UniversityGroupsPage({super.key, required this.wsService});
 
   @override
   State<UniversityGroupsPage> createState() => _UniversityGroupsPageState();
@@ -15,7 +18,6 @@ class UniversityGroupsPage extends StatefulWidget {
 class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   final TextEditingController _messageController = TextEditingController();
   final ChatApiService _apiService = ChatApiService();
-  final WebSocketChatService _wsService = WebSocketChatService();
   late List<CourseGroup> _courseGroups;
   CourseGroup? _selectedCourse;
   StreamSubscription<ChatMessage>? _messageSubscription;
@@ -24,59 +26,80 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   void initState() {
     super.initState();
     _initializeGroups();
-    _connectWebSocket();
+    _setupWebSocketSubscription();
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _messageSubscription?.cancel();
-    _wsService.disconnect();
     super.dispose();
   }
 
   void _initializeGroups() {
     if (currentUser != null) {
       _courseGroups = [];
+      final seenNames = <String>{};
 
       for (final group in currentUser!.groups) {
         final courseMatch = RegExp(r'^([A-Z]+\d+)\s*-\s*([A-Z]+\d+)$').firstMatch(group.name);
-        if (courseMatch != null) {
+        if (courseMatch != null && !seenNames.contains(group.name)) {
           final courseCode = courseMatch.group(1)!;
           final courseGroup = CourseGroup(
             courseName: group.name,
             courseCode: courseCode,
             messages: [],
+            lastMessageTime: group.lastMessageTime,
           );
           _courseGroups.add(courseGroup);
+          seenNames.add(group.name);
         }
       }
+
+      _sortCourseGroups();
     } else {
       _courseGroups = [];
     }
   }
 
-  Future<void> _connectWebSocket() async {
-    if (currentUser != null) {
-      try {
-        await _wsService.connect(currentUser!.chatToken);
+  void _sortCourseGroups() {
+    _courseGroups.sort((a, b) {
+      // Parse timestamps, handling empty strings and invalid formats
+      DateTime? timeA = _parseTimestamp(a.lastMessageTime);
+      DateTime? timeB = _parseTimestamp(b.lastMessageTime);
 
-        _messageSubscription = _wsService.messageStream.listen((message) {
-          _handleNewMessage(message);
-        });
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to connect to chat server: $e')),
-          );
-        }
+      // Primary sort: by timestamp (most recent first)
+      // Groups with timestamps come before groups without timestamps
+      if (timeA != null && timeB != null) {
+        // Both have timestamps - compare them (most recent first)
+        return timeB.compareTo(timeA);
+      } else if (timeA != null && timeB == null) {
+        // A has timestamp, B doesn't - A comes first
+        return -1;
+      } else if (timeA == null && timeB != null) {
+        // B has timestamp, A doesn't - B comes first
+        return 1;
+      } else {
+        // Both don't have timestamps - fall through to secondary sort
+        // Secondary sort: by name (alphabetical) - for groups without timestamps
+        return a.courseName.compareTo(b.courseName);
       }
-    }
+    });
+  }
+
+  DateTime? _parseTimestamp(String timestamp) {
+    return TimestampUtils.parseTimestamp(timestamp);
+  }
+
+  void _setupWebSocketSubscription() {
+    _messageSubscription = widget.wsService.messageStream.listen((message) {
+      _handleNewMessage(message);
+    });
   }
 
   void _handleNewMessage(ChatMessage message) {
     setState(() {
-      final courseIndex = _courseGroups.indexWhere((course) => course.courseName == message.sender);
+      final courseIndex = _courseGroups.indexWhere((course) => course.courseName == message.group);
       if (courseIndex != -1) {
         final course = _courseGroups[courseIndex];
         final updatedMessages = [...course.messages, message];
@@ -96,8 +119,33 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
         if (_selectedCourse?.courseCode == course.courseCode) {
           _selectedCourse = course.copyWith(messages: updatedMessages);
         }
-      }
-    });
+
+        // Update the group's last message in the token
+        if (currentUser != null) {
+          for (int i = 0; i < currentUser!.groups.length; i++) {
+            if (currentUser!.groups[i].name == message.group) {
+              currentUser!.groups[i] = currentUser!.groups[i].copyWith(
+                groupLastMessage: message.message,
+                lastMessageTime: message.timestamp,
+              );
+              // Also update the corresponding CourseGroup
+              final courseIndex = _courseGroups.indexWhere((course) => course.courseName == message.group);
+              if (courseIndex != -1) {
+                _courseGroups[courseIndex] = _courseGroups[courseIndex].copyWith(
+                  lastMessageTime: message.timestamp,
+                );
+              }
+            }
+          }
+        }
+        }
+
+        // Save updated user data to token storage
+        TokenStorage.saveCurrentUser();
+      });
+
+    // Sort after setState completes to ensure proper re-rendering
+    _sortCourseGroups();
   }
 
   Future<void> _loadCourseMessages(CourseGroup course) async {
@@ -129,6 +177,30 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
           messages: messages,
           isLoading: false,
         );
+
+        // Update the group's last message in the token if messages were loaded
+        if (messages.isNotEmpty && currentUser != null) {
+          final lastMsg = messages.last;
+          for (int i = 0; i < currentUser!.groups.length; i++) {
+            if (currentUser!.groups[i].name == course.courseName) {
+              currentUser!.groups[i] = currentUser!.groups[i].copyWith(
+                groupLastMessage: lastMsg.message,
+                lastMessageTime: lastMsg.timestamp,
+              );
+              // Also update the corresponding CourseGroup
+              final courseIndex = _courseGroups.indexWhere((c) => c.courseName == course.courseName);
+              if (courseIndex != -1) {
+                _courseGroups[courseIndex] = _courseGroups[courseIndex].copyWith(
+                  lastMessageTime: lastMsg.timestamp,
+                );
+              }
+            }
+          }
+          _sortCourseGroups(); // Re-sort after updating timestamps
+        }
+
+        // Save updated user data to token storage
+        TokenStorage.saveCurrentUser();
       });
     } catch (e) {
       setState(() {
@@ -151,7 +223,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
 
-    if (!_wsService.isConnected) {
+    if (!widget.wsService.isConnected) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Not connected to chat server')),
@@ -172,10 +244,36 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     try {
       final groupId = _selectedCourse!.courseName;
 
-      await _wsService.sendMessage(
+      await widget.wsService.sendMessage(
         message: message,
         group: groupId,
       );
+
+      // Update the group's last message in the token
+      if (currentUser != null) {
+        final timestamp = DateTime.now().toIso8601String();
+        for (int i = 0; i < currentUser!.groups.length; i++) {
+          if (currentUser!.groups[i].name == groupId) {
+            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
+              groupLastMessage: message,
+              lastMessageTime: timestamp,
+            );
+            // Also update the corresponding CourseGroup
+            final courseIndex = _courseGroups.indexWhere((course) => course.courseName == groupId);
+            if (courseIndex != -1) {
+              _courseGroups[courseIndex] = _courseGroups[courseIndex].copyWith(
+                lastMessageTime: timestamp,
+              );
+            }
+          }
+        }
+        _sortCourseGroups(); // Re-sort after updating timestamps
+      }
+
+      // Save updated user data to token storage
+      await TokenStorage.saveCurrentUser();
+
+      setState(() {}); // Trigger rebuild to update the list with new last message
 
       _messageController.clear();
 
@@ -591,8 +689,25 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       itemCount: _courseGroups.length,
       itemBuilder: (context, index) {
         final course = _courseGroups[index];
+        final group = currentUser?.groups.firstWhere(
+          (g) => g.name == course.courseName,
+          orElse: () => Group(
+            name: course.courseName,
+            groupLastMessage: '',
+            lastMessageTime: '',
+            isActive: false,
+            isAdmin: false,
+            inviteStatus: '',
+            isTwoWay: false,
+            isOneToOne: false,
+          ),
+        );
+
+        final lastMessage = group!.groupLastMessage.isNotEmpty ? group.groupLastMessage : 'No messages yet';
+        final lastMessageTime = course.lastMessageTime.isNotEmpty ? course.lastMessageTime : '';
 
         return Card(
+          key: ValueKey(course.courseName),
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             leading: CircleAvatar(
@@ -601,9 +716,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
             ),
             title: Text(course.courseName),
             subtitle: Text(
-              course.messages.isNotEmpty
-                  ? course.messages.last.message
-                  : 'No messages yet',
+              lastMessage,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -622,8 +735,8 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                       ),
                     const SizedBox(width: 4),
                     Text(
-                      course.messages.isNotEmpty
-                          ? _formatTimestamp(course.messages.last.timestamp)
+                      lastMessageTime.isNotEmpty
+                          ? _formatTimestamp(lastMessageTime)
                           : '',
                       style: TextStyle(
                         fontSize: 12,

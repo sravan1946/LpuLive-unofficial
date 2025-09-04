@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -5,10 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
-import 'dart:async';
 import 'package:uuid/uuid.dart';
 import '../models/user_models.dart';
-import 'dart:convert';
 
 // Token Storage Service
 class TokenStorage {
@@ -28,6 +27,26 @@ class TokenStorage {
   static Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+  }
+
+  // Save current user data back to token storage
+  static Future<void> saveCurrentUser() async {
+    if (currentUser == null) return;
+
+    try {
+      // Convert user data back to JSON
+      final userJson = currentUser!.toJson();
+
+      // Convert to base64 encoded string
+      final jsonString = jsonEncode(userJson);
+      final base64Token = base64Encode(utf8.encode(jsonString));
+
+      // Save to storage
+      await saveToken(base64Token);
+      debugPrint('✅ [TokenStorage] User data saved to storage');
+    } catch (e) {
+      debugPrint('❌ [TokenStorage] Failed to save user data: $e');
+    }
   }
 }
 

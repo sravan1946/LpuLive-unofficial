@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
-import '../pages/token_input_page.dart';
+import '../utils/timestamp_utils.dart';
+import 'token_input_page.dart';
 import 'new_dm_page.dart';
 
 class DirectMessagesPage extends StatefulWidget {
-  const DirectMessagesPage({super.key});
+  final WebSocketChatService wsService;
+
+  const DirectMessagesPage({super.key, required this.wsService});
 
   @override
   State<DirectMessagesPage> createState() => _DirectMessagesPageState();
@@ -15,7 +18,6 @@ class DirectMessagesPage extends StatefulWidget {
 class _DirectMessagesPageState extends State<DirectMessagesPage> {
   final TextEditingController _messageController = TextEditingController();
   final ChatApiService _apiService = ChatApiService();
-  final WebSocketChatService _wsService = WebSocketChatService();
   late List<DirectMessage> _directMessages;
   DirectMessage? _selectedDM;
   List<ChatMessage> _dmMessages = [];
@@ -27,7 +29,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   void initState() {
     super.initState();
     _initializeDMs();
-    _connectWebSocket();
+    _setupWebSocketSubscriptions();
   }
 
   void _handleSystemMessage(Map<String, dynamic> message) {
@@ -41,7 +43,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     debugPrint('🚪 [DirectMessagesPage] Handling force disconnect');
 
     // Disconnect WebSocket
-    _wsService.disconnect();
+    widget.wsService.disconnect();
 
     // Clear token
     await TokenStorage.clearToken();
@@ -73,17 +75,17 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     _messageController.dispose();
     _messageSubscription?.cancel();
     _systemMessageSubscription?.cancel();
-    _wsService.disconnect();
     super.dispose();
   }
 
   void _initializeDMs() {
     if (currentUser != null) {
       _directMessages = [];
+      final seenNames = <String>{};
 
       for (final group in currentUser!.groups) {
         final dmMatch = RegExp(r'^\d+\s*:\s*\d+$').firstMatch(group.name);
-        if (dmMatch != null) {
+        if (dmMatch != null && !seenNames.contains(group.name)) {
           final dm = DirectMessage(
             dmName: group.name,
             participants: group.name,
@@ -93,33 +95,53 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
             isAdmin: group.isAdmin,
           );
           _directMessages.add(dm);
+          seenNames.add(group.name);
         }
       }
+
+      _sortDirectMessages();
     } else {
       _directMessages = [];
     }
   }
 
-  Future<void> _connectWebSocket() async {
-    if (currentUser != null) {
-      try {
-        await _wsService.connect(currentUser!.chatToken);
+  void _sortDirectMessages() {
+    _directMessages.sort((a, b) {
+      // Parse timestamps, handling empty strings and invalid formats
+      DateTime? timeA = _parseTimestamp(a.lastMessageTime);
+      DateTime? timeB = _parseTimestamp(b.lastMessageTime);
 
-        _messageSubscription = _wsService.messageStream.listen((message) {
-          _handleNewMessage(message);
-        });
-
-        _systemMessageSubscription = _wsService.systemMessageStream.listen((message) {
-          _handleSystemMessage(message);
-        });
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to connect to chat server: $e')),
-          );
-        }
+      // Primary sort: by timestamp (most recent first)
+      // Groups with timestamps come before groups without timestamps
+      if (timeA != null && timeB != null) {
+        // Both have timestamps - compare them (most recent first)
+        return timeB.compareTo(timeA);
+      } else if (timeA != null && timeB == null) {
+        // A has timestamp, B doesn't - A comes first
+        return -1;
+      } else if (timeA == null && timeB != null) {
+        // B has timestamp, A doesn't - B comes first
+        return 1;
+      } else {
+        // Both don't have timestamps - fall through to secondary sort
+        // Secondary sort: by name (alphabetical) - for groups without timestamps
+        return a.dmName.compareTo(b.dmName);
       }
-    }
+    });
+  }
+
+  DateTime? _parseTimestamp(String timestamp) {
+    return TimestampUtils.parseTimestamp(timestamp);
+  }
+
+  void _setupWebSocketSubscriptions() {
+    _messageSubscription = widget.wsService.messageStream.listen((message) {
+      _handleNewMessage(message);
+    });
+
+    _systemMessageSubscription = widget.wsService.systemMessageStream.listen((message) {
+      _handleSystemMessage(message);
+    });
   }
 
   void _handleNewMessage(ChatMessage message) {
@@ -143,8 +165,34 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
           _dmMessages = updatedMessages;
         }
-      }
-    });
+
+        // Update the group's last message in the token
+        if (currentUser != null) {
+          for (int i = 0; i < currentUser!.groups.length; i++) {
+            if (currentUser!.groups[i].name == message.sender) {
+              currentUser!.groups[i] = currentUser!.groups[i].copyWith(
+                groupLastMessage: message.message,
+                lastMessageTime: message.timestamp,
+              );
+              // Also update the corresponding DirectMessage
+              final dmIndex = _directMessages.indexWhere((dm) => dm.dmName == message.sender);
+              if (dmIndex != -1) {
+                _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
+                  lastMessage: message.message,
+                  lastMessageTime: message.timestamp,
+                );
+              }
+            }
+          }
+        }
+        }
+
+        // Save updated user data to token storage
+        TokenStorage.saveCurrentUser();
+      });
+
+    // Sort after setState completes to ensure proper re-rendering
+    _sortDirectMessages();
   }
 
   Future<void> _selectDM(DirectMessage dm) async {
@@ -160,6 +208,31 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         _dmMessages = messages;
         _isLoadingDM = false;
       });
+
+      // Update the group's last message in the token if messages were loaded
+      if (messages.isNotEmpty && currentUser != null) {
+        final lastMsg = messages.last;
+        for (int i = 0; i < currentUser!.groups.length; i++) {
+          if (currentUser!.groups[i].name == dm.dmName) {
+            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
+              groupLastMessage: lastMsg.message,
+              lastMessageTime: lastMsg.timestamp,
+            );
+            // Also update the corresponding DirectMessage
+            final dmIndex = _directMessages.indexWhere((d) => d.dmName == dm.dmName);
+            if (dmIndex != -1) {
+              _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
+                lastMessage: lastMsg.message,
+                lastMessageTime: lastMsg.timestamp,
+              );
+            }
+          }
+        }
+        _sortDirectMessages(); // Re-sort after updating timestamps
+
+        // Save updated user data to token storage
+        TokenStorage.saveCurrentUser();
+      }
     } catch (e) {
       setState(() {
         _isLoadingDM = false;
@@ -187,7 +260,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
 
-    if (!_wsService.isConnected) {
+    if (!widget.wsService.isConnected) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Not connected to chat server')),
@@ -208,10 +281,37 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     try {
       final groupId = _selectedDM!.dmName;
 
-      await _wsService.sendMessage(
+      await widget.wsService.sendMessage(
         message: message,
         group: groupId,
       );
+
+      // Update the group's last message in the token
+      if (currentUser != null) {
+        final timestamp = DateTime.now().toIso8601String();
+        for (int i = 0; i < currentUser!.groups.length; i++) {
+          if (currentUser!.groups[i].name == groupId) {
+            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
+              groupLastMessage: message,
+              lastMessageTime: timestamp,
+            );
+            // Also update the corresponding DirectMessage
+            final dmIndex = _directMessages.indexWhere((dm) => dm.dmName == groupId);
+            if (dmIndex != -1) {
+              _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
+                lastMessage: message,
+                lastMessageTime: timestamp,
+              );
+            }
+          }
+        }
+        _sortDirectMessages(); // Re-sort after updating timestamps
+      }
+
+      // Save updated user data to token storage
+      await TokenStorage.saveCurrentUser();
+
+      setState(() {}); // Trigger rebuild to update the list with new last message
 
       _messageController.clear();
 
@@ -288,8 +388,8 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
             right: 16,
             child: FloatingActionButton(
               onPressed: _startNewDM,
-              child: const Icon(Icons.add),
               tooltip: 'Start New DM',
+              child: const Icon(Icons.add),
             ),
           ),
         ],
@@ -304,9 +404,10 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           itemBuilder: (context, index) {
             final dm = _directMessages[index];
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
+        return Card(
+          key: ValueKey(dm.dmName),
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   child: const Icon(Icons.person, color: Colors.white),
@@ -344,8 +445,8 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           right: 16,
           child: FloatingActionButton(
             onPressed: _startNewDM,
-            child: const Icon(Icons.add),
             tooltip: 'Start New DM',
+            child: const Icon(Icons.add),
           ),
         ),
       ],

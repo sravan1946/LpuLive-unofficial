@@ -54,6 +54,20 @@ class User {
       isChatSuspended: isChatSuspended,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'ChatToken': chatToken,
+      'Name': name,
+      'Department': department,
+      'Category': category,
+      'UserImageUrl': userImageUrl,
+      'Groups': groups.map((group) => group.toJson()).toList(),
+      'CreateGroups': createGroups,
+      'OneToOne': oneToOne,
+      'IsChatSuspended': isChatSuspended,
+    };
+  }
 }
 
 class Group {
@@ -80,14 +94,49 @@ class Group {
   factory Group.fromJson(Map<String, dynamic> json) {
     return Group(
       name: json['name'] ?? '',
-      groupLastMessage: json['groupLastMessage'] ?? '',
-      lastMessageTime: json['lastMessageTime'] ?? '',
+      groupLastMessage: json['groupLastMessage'] ?? json['lastMessage'] ?? '',
+      lastMessageTime: json['lastMessageTime'] ?? json['timestamp'] ?? '',
       isActive: json['isActive'] ?? false,
       isAdmin: json['isAdmin'] ?? false,
       inviteStatus: json['inviteStatus'] ?? '',
       isTwoWay: json['isTwoWay'] ?? false,
       isOneToOne: json['isOneToOne'] ?? false,
     );
+  }
+
+  Group copyWith({
+    String? name,
+    String? groupLastMessage,
+    String? lastMessageTime,
+    bool? isActive,
+    bool? isAdmin,
+    String? inviteStatus,
+    bool? isTwoWay,
+    bool? isOneToOne,
+  }) {
+    return Group(
+      name: name ?? this.name,
+      groupLastMessage: groupLastMessage ?? this.groupLastMessage,
+      lastMessageTime: lastMessageTime ?? this.lastMessageTime,
+      isActive: isActive ?? this.isActive,
+      isAdmin: isAdmin ?? this.isAdmin,
+      inviteStatus: inviteStatus ?? this.inviteStatus,
+      isTwoWay: isTwoWay ?? this.isTwoWay,
+      isOneToOne: isOneToOne ?? this.isOneToOne,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'groupLastMessage': groupLastMessage,
+      'lastMessageTime': lastMessageTime,
+      'isActive': isActive,
+      'isAdmin': isAdmin,
+      'inviteStatus': inviteStatus,
+      'isTwoWay': isTwoWay,
+      'isOneToOne': isOneToOne,
+    };
   }
 }
 
@@ -100,6 +149,7 @@ class ChatMessage {
   final bool isOwnMessage;
   final String? userImage;
   final String? category;
+  final String? group;
 
   ChatMessage({
     required this.id,
@@ -110,6 +160,7 @@ class ChatMessage {
     required this.isOwnMessage,
     this.userImage,
     this.category,
+    this.group,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -125,6 +176,7 @@ class ChatMessage {
       isOwnMessage: userId == currentUserId,
       userImage: json['UserImage'],
       category: json['Category'],
+      group: json['group'] ?? '',
     );
   }
 }
@@ -134,23 +186,27 @@ class CourseGroup {
   final String courseCode;
   final List<ChatMessage> messages;
   final bool isLoading;
+  final String lastMessageTime;
 
   CourseGroup({
     required this.courseName,
     required this.courseCode,
     required this.messages,
     this.isLoading = false,
+    this.lastMessageTime = '',
   });
 
   CourseGroup copyWith({
     List<ChatMessage>? messages,
     bool? isLoading,
+    String? lastMessageTime,
   }) {
     return CourseGroup(
       courseName: courseName,
       courseCode: courseCode,
       messages: messages ?? this.messages,
       isLoading: isLoading ?? this.isLoading,
+      lastMessageTime: lastMessageTime ?? this.lastMessageTime,
     );
   }
 }
@@ -171,6 +227,24 @@ class DirectMessage {
     required this.isActive,
     required this.isAdmin,
   });
+
+  DirectMessage copyWith({
+    String? dmName,
+    String? participants,
+    String? lastMessage,
+    String? lastMessageTime,
+    bool? isActive,
+    bool? isAdmin,
+  }) {
+    return DirectMessage(
+      dmName: dmName ?? this.dmName,
+      participants: participants ?? this.participants,
+      lastMessage: lastMessage ?? this.lastMessage,
+      lastMessageTime: lastMessageTime ?? this.lastMessageTime,
+      isActive: isActive ?? this.isActive,
+      isAdmin: isAdmin ?? this.isAdmin,
+    );
+  }
 }
 
 class Contact {
