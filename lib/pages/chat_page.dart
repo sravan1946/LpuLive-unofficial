@@ -3,6 +3,8 @@ import 'dart:async';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../widgets/network_image.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -362,22 +364,9 @@ class _ChatPageState extends State<ChatPage> {
                                                   color: scheme.primary,
                                                 ),
                                               ),
-                                            DefaultTextStyle.merge(
-                                              style: TextStyle(
-                                                height: 1.35,
-                                                fontSize: 14,
-                                                color: message.isOwnMessage
-                                                    ? scheme.onPrimary
-                                                    : Theme.of(
-                                                        context,
-                                                      ).colorScheme.onSurface,
-                                              ),
-                                              child: Text(
-                                                message.message,
-                                                textAlign: TextAlign.start,
-                                                softWrap: true,
-                                                overflow: TextOverflow.visible,
-                                              ),
+                                            _MessageBody(
+                                              message: message,
+                                              isOwn: message.isOwnMessage,
                                             ),
                                             const SizedBox(height: 4),
                                             Row(
@@ -573,5 +562,206 @@ class _ChatPatternPainter extends CustomPainter {
         oldDelegate.secondaryDotColor != secondaryDotColor ||
         oldDelegate.spacing != spacing ||
         oldDelegate.radius != radius;
+  }
+}
+
+class _MessageBody extends StatelessWidget {
+  final ChatMessage message;
+  final bool isOwn;
+  const _MessageBody({required this.message, required this.isOwn});
+
+  bool _isImageUrl(String s) {
+    final u = s.toLowerCase();
+    return u.endsWith('.png') ||
+        u.endsWith('.jpg') ||
+        u.endsWith('.jpeg') ||
+        u.endsWith('.gif') ||
+        u.endsWith('.webp');
+  }
+
+  bool _isDocUrl(String s) {
+    final u = s.toLowerCase();
+    return u.endsWith('.pdf') ||
+        u.endsWith('.doc') ||
+        u.endsWith('.docx') ||
+        u.endsWith('.ppt') ||
+        u.endsWith('.pptx') ||
+        u.endsWith('.xls') ||
+        u.endsWith('.xlsx');
+  }
+
+  List<InlineSpan> _linkify(BuildContext context, String text) {
+    final scheme = Theme.of(context).colorScheme;
+    final regex = RegExp(r'(https?:\/\/[^\s]+)', caseSensitive: false);
+    final spans = <InlineSpan>[];
+    int last = 0;
+    for (final match in regex.allMatches(text)) {
+      if (match.start > last) {
+        spans.add(TextSpan(text: text.substring(last, match.start)));
+      }
+      final url = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: url,
+          style: TextStyle(
+            decoration: TextDecoration.underline,
+            color: isOwn
+                ? Theme.of(context).colorScheme.onPrimary
+                : scheme.primary,
+            fontWeight: FontWeight.w600,
+          ),
+          recognizer: (TapGestureRecognizer()..onTap = () => _openUrl(url)),
+        ),
+      );
+      last = match.end;
+    }
+    if (last < text.length) {
+      spans.add(TextSpan(text: text.substring(last)));
+    }
+    return spans;
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = message.message.trim();
+    final scheme = Theme.of(context).colorScheme;
+    // If message is a bare URL, try media rendering first
+    final parsed = Uri.tryParse(text);
+    final looksLikeUrl =
+        parsed != null &&
+        parsed.hasScheme &&
+        (text.startsWith('http://') || text.startsWith('https://'));
+    if (looksLikeUrl) {
+      if (_isImageUrl(text)) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 2, bottom: 2),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SafeNetworkImage(
+              imageUrl: text,
+              width: 220,
+              height: 220,
+              fit: BoxFit.cover,
+              highQuality: true,
+              errorWidget: Container(
+                width: 220,
+                height: 160,
+                color: scheme.surface,
+                alignment: Alignment.center,
+                child: const Icon(Icons.broken_image_outlined),
+              ),
+            ),
+          ),
+        );
+      }
+      if (_isDocUrl(text)) {
+        return _DocumentTile(url: text, isOwn: isOwn);
+      }
+      // Generic link tile
+      return GestureDetector(
+        onTap: () => _openUrl(text),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.link,
+              size: 16,
+              color: isOwn
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : scheme.primary,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                text,
+                style: TextStyle(
+                  decoration: TextDecoration.underline,
+                  color: isOwn
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : scheme.primary,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Rich text linkify inside normal text
+    return DefaultTextStyle.merge(
+      style: TextStyle(
+        height: 1.35,
+        fontSize: 14,
+        color: isOwn
+            ? Theme.of(context).colorScheme.onPrimary
+            : Theme.of(context).colorScheme.onSurface,
+      ),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(),
+          children: _linkify(context, text),
+        ),
+      ),
+    );
+  }
+}
+
+class _DocumentTile extends StatelessWidget {
+  final String url;
+  final bool isOwn;
+  const _DocumentTile({required this.url, required this.isOwn});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      },
+      child: Container(
+        width: 260,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isOwn
+              ? scheme.primary.withValues(alpha: 0.15)
+              : scheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outline),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.picture_as_pdf_outlined,
+              color: isOwn ? scheme.onPrimary : scheme.primary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                url.split('/').last,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isOwn ? scheme.onPrimary : scheme.onSurface,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.download_rounded,
+              color: isOwn ? scheme.onPrimary : scheme.primary,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
