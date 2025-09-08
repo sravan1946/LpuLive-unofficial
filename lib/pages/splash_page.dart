@@ -10,7 +10,8 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
+class _SplashPageState extends State<SplashPage>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _fadeIn;
   late final Animation<double> _scaleIn;
@@ -18,15 +19,23 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
     _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-    _scaleIn = Tween<double>(begin: 0.98, end: 1.02).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _scaleIn = Tween<double>(
+      begin: 0.98,
+      end: 1.02,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     Future.delayed(const Duration(milliseconds: 1800), () async {
       final savedToken = await TokenStorage.getToken();
       if (!mounted) return;
       if (savedToken != null) {
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MyApp()));
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const MyApp()));
       } else {
         Navigator.of(context).pushReplacementNamed('/login');
       }
@@ -53,7 +62,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
               builder: (context, _) {
                 final t = _controller.value;
                 return CustomPaint(
-                  painter: _RadialGlowPainter(color.primary.withOpacity(0.08 + 0.04 * t)),
+                  painter: _RadialGlowPainter(
+                    color.primary.withOpacity(0.12 + 0.06 * t),
+                  ),
                 );
               },
             ),
@@ -110,7 +121,7 @@ class _AnimatedChatBubbles extends StatelessWidget {
             width: 88,
             height: 48,
             decoration: BoxDecoration(
-              color: color.primaryContainer,
+              color: color.primary,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Center(
@@ -119,15 +130,16 @@ class _AnimatedChatBubbles extends StatelessWidget {
                 builder: (context, _) {
                   // Typing dots
                   final t = controller.value;
-                  double dot(double phase) => 1 + 0.2 * (MathUtils.sin((t + phase) * 2 * 3.1415));
+                  double dot(double phase) =>
+                      1 + 0.2 * (MathUtils.sin((t + phase) * 2 * 3.1415));
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _dot(color.primary, scale: dot(0.00)),
+                      _dot(color.onPrimary, scale: dot(0.00)),
                       const SizedBox(width: 6),
-                      _dot(color.primary, scale: dot(0.20)),
+                      _dot(color.onPrimary, scale: dot(0.20)),
                       const SizedBox(width: 6),
-                      _dot(color.primary, scale: dot(0.40)),
+                      _dot(color.onPrimary, scale: dot(0.40)),
                     ],
                   );
                 },
@@ -144,7 +156,7 @@ class _AnimatedChatBubbles extends StatelessWidget {
                 width: 18,
                 height: 14,
                 decoration: BoxDecoration(
-                  color: color.primaryContainer,
+                  color: color.primary,
                   borderRadius: BorderRadius.circular(6),
                 ),
               ),
@@ -183,7 +195,8 @@ class _RadialGlowPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RadialGlowPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _RadialGlowPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class MathUtils {
@@ -201,5 +214,3 @@ class MathUtils {
     return x - (x3 / 6) + (x5 / 120) - (x7 / 5040);
   }
 }
-
-
