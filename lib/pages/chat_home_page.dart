@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'university_groups_page.dart';
 import 'personal_groups_page.dart';
 import 'direct_messages_page.dart';
@@ -13,27 +14,11 @@ class MyApp extends StatelessWidget {
     print('🏠 MyApp built - main app launched!');
     return MaterialApp(
       title: 'LPU Live Chat',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
+      theme: lpuTheme,
+      darkTheme: lpuDarkTheme,
+      themeMode: ThemeMode.system,
       home: const ChatHomePage(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -86,27 +71,29 @@ class _ChatHomePageState extends State<ChatHomePage> {
 
   Future<bool> _showExitConfirmation(BuildContext context) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Exit App'),
-        content: const Text('Are you sure you want to exit the app?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Exit App'),
+            content: const Text('Are you sure you want to exit the app?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Exit'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return WillPopScope(
       onWillPop: () async {
         if (_selectedIndex != 0) {
@@ -119,28 +106,29 @@ class _ChatHomePageState extends State<ChatHomePage> {
       },
       child: Scaffold(
         body: _pages[_selectedIndex],
-        bottomNavigationBar: BottomNavigationBar(
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              icon: Icon(Icons.school),
+        bottomNavigationBar: NavigationBar(
+          backgroundColor: scheme.surface,
+          elevation: 3,
+          indicatorColor: scheme.primary.withOpacity(0.12),
+          onDestinationSelected: _onItemTapped,
+          selectedIndex: _selectedIndex,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.school_outlined),
+              selectedIcon: Icon(Icons.school),
               label: 'University',
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.group),
+            NavigationDestination(
+              icon: Icon(Icons.group_outlined),
+              selectedIcon: Icon(Icons.group),
               label: 'Personal',
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.message),
+            NavigationDestination(
+              icon: Icon(Icons.forum_outlined),
+              selectedIcon: Icon(Icons.forum),
               label: 'DMs',
             ),
           ],
-          currentIndex: _selectedIndex,
-          selectedItemColor: Theme.of(context).colorScheme.primary,
-          unselectedItemColor: Colors.grey,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          elevation: 8,
         ),
       ),
     );

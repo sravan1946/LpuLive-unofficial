@@ -43,6 +43,7 @@ class SafeNetworkImage extends StatelessWidget {
   final BoxFit? fit;
   final Widget? placeholder;
   final Widget? errorWidget;
+  final bool highQuality; // enables higher filter quality and DPR-aware decode
 
   const SafeNetworkImage({
     super.key,
@@ -52,11 +53,20 @@ class SafeNetworkImage extends StatelessWidget {
     this.fit,
     this.placeholder,
     this.errorWidget,
+    this.highQuality = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final cached = _InMemoryImageCache.get(imageUrl);
+    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final cacheWidth = highQuality && width != null
+        ? (width! * devicePixelRatio).round()
+        : null;
+    final cacheHeight = highQuality && height != null
+        ? (height! * devicePixelRatio).round()
+        : null;
+
     if (cached != null) {
       return Image.memory(
         cached,
@@ -64,6 +74,10 @@ class SafeNetworkImage extends StatelessWidget {
         height: height,
         fit: fit ?? BoxFit.cover,
         gaplessPlayback: true,
+        isAntiAlias: true,
+        filterQuality: highQuality ? FilterQuality.high : FilterQuality.low,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
       );
     }
 
@@ -71,28 +85,30 @@ class SafeNetworkImage extends StatelessWidget {
       future: _InMemoryImageCache.getOrFetch(imageUrl),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return placeholder ?? const SizedBox(
-            width: 32,
-            height: 32,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          );
+          return placeholder ??
+              const SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              );
         }
 
         final bytes = snapshot.data;
         if (snapshot.hasError || bytes == null) {
-          return errorWidget ?? Container(
-            width: width ?? 32,
-            height: height ?? 32,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              Icons.person,
-              color: Colors.grey[600],
-              size: (width ?? 32) * 0.6,
-            ),
-          );
+          return errorWidget ??
+              Container(
+                width: width ?? 32,
+                height: height ?? 32,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.person,
+                  color: Colors.grey[600],
+                  size: (width ?? 32) * 0.6,
+                ),
+              );
         }
 
         return Image.memory(
@@ -101,20 +117,25 @@ class SafeNetworkImage extends StatelessWidget {
           height: height,
           fit: fit ?? BoxFit.cover,
           gaplessPlayback: true,
+          isAntiAlias: true,
+          filterQuality: highQuality ? FilterQuality.high : FilterQuality.low,
+          cacheWidth: cacheWidth,
+          cacheHeight: cacheHeight,
           errorBuilder: (context, error, stack) {
-            return errorWidget ?? Container(
-              width: width ?? 32,
-              height: height ?? 32,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                Icons.person,
-                color: Colors.grey[600],
-                size: (width ?? 32) * 0.6,
-              ),
-            );
+            return errorWidget ??
+                Container(
+                  width: width ?? 32,
+                  height: height ?? 32,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.person,
+                    color: Colors.grey[600],
+                    size: (width ?? 32) * 0.6,
+                  ),
+                );
           },
         );
       },

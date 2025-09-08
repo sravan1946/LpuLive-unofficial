@@ -16,7 +16,7 @@
  }
 
   class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
-   WebViewController? _controller;
+   late final WebViewController _controller;
   bool _isLoading = true;
     String? _errorMessage;
     bool _isMonitoring = false;
@@ -34,8 +34,7 @@
 
      try {
        // Get current URL
-       final currentUrl = await _controller?.currentUrl();
-      if (_controller == null) return;
+       final currentUrl = await _controller.currentUrl();
        if (currentUrl != null) {
          bool isChatUrl = currentUrl.contains('/chat') || currentUrl.contains('chat') ||
                          currentUrl.contains('Chat') || currentUrl.contains('CHAT');
@@ -70,8 +69,7 @@
           })();
         ''';
 
-        final result = await _controller?.runJavaScriptReturningResult(testScript);
-      if (_controller == null) return;
+        final result = await _controller.runJavaScriptReturningResult(testScript);
 
         if (!result.toString().contains('JS_WORKING')) {
           setState(() {
@@ -103,8 +101,7 @@
           })();
         ''';
 
-        final result = await _controller?.runJavaScriptReturningResult(clearScript);
-      if (_controller == null) return;
+        final result = await _controller.runJavaScriptReturningResult(clearScript);
 
         if (result.toString().contains('ERROR')) {
           setState(() {
@@ -138,7 +135,7 @@
             },
             onPageFinished: (String url) async {
               // If we're in redirecting mode, don't change the loading state
-              if (!_isRedirecting && _controller != null) {
+              if (!_isRedirecting) {
                 setState(() {
                   _isLoading = false;
                 });
@@ -321,8 +318,7 @@
      ''';
 
       try {
-        final result = await _controller?.runJavaScriptReturningResult(script);
-    if (_controller == null) return;
+        final result = await _controller.runJavaScriptReturningResult(script);
         final authData = result.toString().replaceAll('"', '');
 
         if (authData.startsWith('SUCCESS:')) {
@@ -464,7 +460,7 @@
              IconButton(
                icon: const Icon(Icons.refresh),
                onPressed: () {
-                 _controller?.reload();
+                 _controller.reload();
                },
                tooltip: 'Refresh',
              ),
@@ -482,8 +478,8 @@
        body: Stack(
          children: [
            // Only show WebView when not redirecting
-            if (!_isRedirecting && _controller != null)
-              WebViewWidget(controller: _controller!)
+            if (!_isRedirecting)
+              WebViewWidget(controller: _controller)
            else ...[
              // Show redirecting screen and keep WebView running invisibly
              Container(
@@ -508,7 +504,7 @@
              Opacity(
                opacity: 0.0,
                child: IgnorePointer(
-                 child: _controller != null ? WebViewWidget(controller: _controller!) : Container(),
+                 child: WebViewWidget(controller: _controller),
                ),
              ),
            ],
