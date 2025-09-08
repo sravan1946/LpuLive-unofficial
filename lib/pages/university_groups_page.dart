@@ -280,6 +280,37 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (currentUser!.userImageUrl != null &&
+                  currentUser!.userImageUrl!.isNotEmpty) ...[
+                Center(
+                  child: CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    child: ClipOval(
+                      child: SafeNetworkImage(
+                        imageUrl: currentUser!.userImageUrl!,
+                        width: 68,
+                        height: 68,
+                        fit: BoxFit.cover,
+                        highQuality: true,
+                        errorWidget: Center(
+                          child: Text(
+                            currentUser!.displayName.isNotEmpty
+                                ? currentUser!.displayName[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               _buildInfoRow('Name', currentUser!.name),
               _buildInfoRow('Display Name', currentUser!.displayName),
               _buildInfoRow('Registration Number', currentUser!.id),
@@ -298,8 +329,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 'Chat Suspended',
                 currentUser!.isChatSuspended ? 'Yes' : 'No',
               ),
-              if (currentUser!.userImageUrl != null)
-                _buildInfoRow('Profile Image', currentUser!.userImageUrl!),
             ],
           ),
         ),

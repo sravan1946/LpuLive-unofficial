@@ -240,195 +240,221 @@ class _ChatPageState extends State<ChatPage> {
                         colors: [scheme.surface, scheme.surfaceVariant],
                       ),
                     ),
-                    child: RefreshIndicator(
-                      onRefresh: _loadMessages,
-                      child: ListView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[index];
-                          final String currentSender = message.sender;
-                          final String? previousSender = index > 0
-                              ? _messages[index - 1].sender
-                              : null;
-                          final bool isNewBlock =
-                              previousSender == null ||
-                              previousSender != currentSender;
-                          final bool showLeftAvatar =
-                              !message.isOwnMessage && isNewBlock;
-                          final bool showRightAvatar =
-                              message.isOwnMessage && isNewBlock;
-                          const double avatarSize = 32;
-                          const double avatarGap = 8;
-                          return Align(
-                            alignment: message.isOwnMessage
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Row(
-                              mainAxisAlignment: message.isOwnMessage
-                                  ? MainAxisAlignment.end
-                                  : MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (!message.isOwnMessage)
-                                  if (showLeftAvatar) ...[
-                                    SafeNetworkImage(
-                                      imageUrl: message.userImage ?? '',
-                                      width: avatarSize,
-                                      height: avatarSize,
-                                      errorWidget: CircleAvatar(
-                                        radius: avatarSize / 2,
-                                        backgroundColor: scheme.primary,
-                                        child: Text(
-                                          message.senderName.isNotEmpty
-                                              ? message.senderName[0]
-                                                    .toUpperCase()
-                                              : '?',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(width: avatarGap),
-                                  ] else
-                                    const SizedBox(
-                                      width: avatarSize + avatarGap,
-                                    ),
-                                Flexible(
-                                  child: Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: message.isOwnMessage
-                                          ? scheme.primary
-                                          : Theme.of(
-                                              context,
-                                            ).colorScheme.surfaceVariant,
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: const Radius.circular(14),
-                                        topRight: const Radius.circular(14),
-                                        bottomLeft: message.isOwnMessage
-                                            ? const Radius.circular(14)
-                                            : const Radius.circular(4),
-                                        bottomRight: message.isOwnMessage
-                                            ? const Radius.circular(4)
-                                            : const Radius.circular(14),
-                                      ),
-                                    ),
-                                    constraints: BoxConstraints(
-                                      maxWidth:
-                                          MediaQuery.of(context).size.width *
-                                          0.7,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: message.isOwnMessage
-                                          ? CrossAxisAlignment.end
-                                          : CrossAxisAlignment.start,
-                                      children: [
-                                        if (!message.isOwnMessage && isNewBlock)
-                                          Text(
-                                            message.senderName,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 12,
-                                              color: scheme.primary,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _ChatPatternPainter(
+                              dotColor: scheme.primary.withValues(alpha: 0.06),
+                              secondaryDotColor: scheme.onSurfaceVariant
+                                  .withValues(alpha: 0.045),
+                              spacing: 26,
+                              radius: 1.2,
+                            ),
+                          ),
+                        ),
+                        RefreshIndicator(
+                          onRefresh: _loadMessages,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, index) {
+                              final message = _messages[index];
+                              final String currentSender = message.sender;
+                              final String? previousSender = index > 0
+                                  ? _messages[index - 1].sender
+                                  : null;
+                              final bool isNewBlock =
+                                  previousSender == null ||
+                                  previousSender != currentSender;
+                              final bool showLeftAvatar =
+                                  !message.isOwnMessage && isNewBlock;
+                              final bool showRightAvatar =
+                                  message.isOwnMessage && isNewBlock;
+                              const double avatarSize = 32;
+                              const double avatarGap = 8;
+                              return Align(
+                                alignment: message.isOwnMessage
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: Row(
+                                  mainAxisAlignment: message.isOwnMessage
+                                      ? MainAxisAlignment.end
+                                      : MainAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (!message.isOwnMessage)
+                                      if (showLeftAvatar) ...[
+                                        SafeNetworkImage(
+                                          imageUrl: message.userImage ?? '',
+                                          width: avatarSize,
+                                          height: avatarSize,
+                                          errorWidget: CircleAvatar(
+                                            radius: avatarSize / 2,
+                                            backgroundColor: scheme.primary,
+                                            child: Text(
+                                              message.senderName.isNotEmpty
+                                                  ? message.senderName[0]
+                                                        .toUpperCase()
+                                                  : '?',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
-                                        DefaultTextStyle.merge(
-                                          style: TextStyle(
-                                            height: 1.35,
-                                            fontSize: 14,
-                                            color: message.isOwnMessage
-                                                ? scheme.onPrimary
-                                                : Theme.of(
-                                                    context,
-                                                  ).colorScheme.onSurface,
-                                          ),
-                                          child: Text(
-                                            message.message,
-                                            textAlign: TextAlign.start,
-                                            softWrap: true,
-                                            overflow: TextOverflow.visible,
+                                          highQuality: true,
+                                          fit: BoxFit.cover,
+                                        ),
+                                        SizedBox(width: avatarGap),
+                                      ] else
+                                        const SizedBox(
+                                          width: avatarSize + avatarGap,
+                                        ),
+                                    Flexible(
+                                      child: Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: message.isOwnMessage
+                                              ? scheme.primary
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.surfaceVariant,
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: const Radius.circular(14),
+                                            topRight: const Radius.circular(14),
+                                            bottomLeft: message.isOwnMessage
+                                                ? const Radius.circular(14)
+                                                : const Radius.circular(4),
+                                            bottomRight: message.isOwnMessage
+                                                ? const Radius.circular(4)
+                                                : const Radius.circular(14),
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
+                                        constraints: BoxConstraints(
+                                          maxWidth:
+                                              MediaQuery.of(
+                                                context,
+                                              ).size.width *
+                                              0.7,
+                                        ),
+                                        child: Column(
                                           crossAxisAlignment:
-                                              CrossAxisAlignment.end,
+                                              message.isOwnMessage
+                                              ? CrossAxisAlignment.end
+                                              : CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              _formatTimestamp(
-                                                message.timestamp,
+                                            if (!message.isOwnMessage &&
+                                                isNewBlock)
+                                              Text(
+                                                message.senderName,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 12,
+                                                  color: scheme.primary,
+                                                ),
                                               ),
+                                            DefaultTextStyle.merge(
                                               style: TextStyle(
-                                                height: 1.0,
-                                                fontSize: 10,
+                                                height: 1.35,
+                                                fontSize: 14,
                                                 color: message.isOwnMessage
                                                     ? scheme.onPrimary
-                                                          .withValues(
-                                                            alpha: 0.7,
-                                                          )
-                                                    : Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurfaceVariant,
+                                                    : Theme.of(
+                                                        context,
+                                                      ).colorScheme.onSurface,
+                                              ),
+                                              child: Text(
+                                                message.message,
+                                                textAlign: TextAlign.start,
+                                                softWrap: true,
+                                                overflow: TextOverflow.visible,
                                               ),
                                             ),
-                                            if (message.isOwnMessage) ...[
-                                              const SizedBox(width: 4),
-                                              Icon(
-                                                Icons.done_all,
-                                                size: 14,
-                                                color: scheme.onPrimary
-                                                    .withValues(alpha: 0.8),
-                                              ),
-                                            ],
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  _formatTimestamp(
+                                                    message.timestamp,
+                                                  ),
+                                                  style: TextStyle(
+                                                    height: 1.0,
+                                                    fontSize: 10,
+                                                    color: message.isOwnMessage
+                                                        ? scheme.onPrimary
+                                                              .withValues(
+                                                                alpha: 0.7,
+                                                              )
+                                                        : Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
+                                                  ),
+                                                ),
+                                                if (message.isOwnMessage) ...[
+                                                  const SizedBox(width: 4),
+                                                  Icon(
+                                                    Icons.done_all,
+                                                    size: 14,
+                                                    color: scheme.onPrimary
+                                                        .withValues(alpha: 0.8),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
                                           ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                if (message.isOwnMessage)
-                                  if (showRightAvatar) ...[
-                                    SizedBox(width: avatarGap),
-                                    SafeNetworkImage(
-                                      imageUrl: currentUser?.userImageUrl ?? '',
-                                      width: avatarSize,
-                                      height: avatarSize,
-                                      errorWidget: CircleAvatar(
-                                        radius: avatarSize / 2,
-                                        backgroundColor: scheme.primary,
-                                        child: Text(
-                                          (currentUser?.name.isNotEmpty ??
-                                                  false)
-                                              ? currentUser!.name[0]
-                                                    .toUpperCase()
-                                              : 'Y',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
                                         ),
                                       ),
                                     ),
-                                  ] else
-                                    const SizedBox(
-                                      width: avatarGap + avatarSize,
-                                    ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                                    if (message.isOwnMessage)
+                                      if (showRightAvatar) ...[
+                                        SizedBox(width: avatarGap),
+                                        SafeNetworkImage(
+                                          imageUrl:
+                                              currentUser?.userImageUrl ?? '',
+                                          width: avatarSize,
+                                          height: avatarSize,
+                                          errorWidget: CircleAvatar(
+                                            radius: avatarSize / 2,
+                                            backgroundColor: scheme.primary,
+                                            child: Text(
+                                              (currentUser?.name.isNotEmpty ??
+                                                      false)
+                                                  ? currentUser!.name[0]
+                                                        .toUpperCase()
+                                                  : 'Y',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          highQuality: true,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ] else
+                                        const SizedBox(
+                                          width: avatarGap + avatarSize,
+                                        ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
           ),
@@ -506,5 +532,46 @@ class _ChatPageState extends State<ChatPage> {
         ],
       ),
     );
+  }
+}
+
+class _ChatPatternPainter extends CustomPainter {
+  final Color dotColor;
+  final Color secondaryDotColor;
+  final double spacing;
+  final double radius;
+
+  _ChatPatternPainter({
+    required this.dotColor,
+    required this.secondaryDotColor,
+    this.spacing = 24,
+    this.radius = 1.2,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paintPrimary = Paint()..color = dotColor;
+    final paintSecondary = Paint()..color = secondaryDotColor;
+
+    // Offset grid pattern of small dots
+    for (double y = 0; y < size.height; y += spacing) {
+      for (double x = 0; x < size.width; x += spacing) {
+        final isAlt =
+            (((x / spacing).floor() + (y / spacing).floor()) % 2) == 0;
+        canvas.drawCircle(
+          Offset(x, y),
+          radius,
+          isAlt ? paintPrimary : paintSecondary,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ChatPatternPainter oldDelegate) {
+    return oldDelegate.dotColor != dotColor ||
+        oldDelegate.secondaryDotColor != secondaryDotColor ||
+        oldDelegate.spacing != spacing ||
+        oldDelegate.radius != radius;
   }
 }
