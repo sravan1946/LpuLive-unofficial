@@ -364,10 +364,13 @@ class _ChatPageState extends State<ChatPage> {
                                                   color: scheme.primary,
                                                 ),
                                               ),
-                                            _MessageBody(
-                                              message: message,
-                                              isOwn: message.isOwnMessage,
-                                            ),
+                                            if (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)
+                                              _MediaBubble(message: message)
+                                            else
+                                              _MessageBody(
+                                                message: message,
+                                                isOwn: message.isOwnMessage,
+                                              ),
                                             const SizedBox(height: 4),
                                             Row(
                                               mainAxisSize: MainAxisSize.min,
@@ -707,6 +710,95 @@ class _MessageBody extends StatelessWidget {
         text: TextSpan(
           style: const TextStyle(),
           children: _linkify(context, text),
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaBubble extends StatelessWidget {
+  final ChatMessage message;
+  const _MediaBubble({required this.message});
+
+  bool get _isImage => (message.mediaType ?? '').startsWith('image/');
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final url = message.mediaUrl ?? '';
+    final name = message.mediaName ?? url.split('/').last;
+
+    if (_isImage) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 2, bottom: 2),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SafeNetworkImage(
+            imageUrl: url,
+            width: 220,
+            height: 220,
+            fit: BoxFit.cover,
+            highQuality: true,
+            errorWidget: Container(
+              width: 220,
+              height: 160,
+              color: scheme.surface,
+              alignment: Alignment.center,
+              child: const Icon(Icons.broken_image_outlined),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Generic document bubble
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      },
+      child: Container(
+        width: 260,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outline),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              (message.mediaType ?? '').contains('pdf')
+                  ? Icons.picture_as_pdf_outlined
+                  : Icons.insert_drive_file_outlined,
+              color: scheme.primary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: scheme.onSurface),
+                  ),
+                  if (message.mediaType != null)
+                    Text(
+                      message.mediaType!,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.download_rounded, color: scheme.primary, size: 18),
+          ],
         ),
       ),
     );

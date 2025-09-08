@@ -66,15 +66,17 @@ class CustomHttpClient {
         final request = await client.getUrl(Uri.parse(url));
         final response = await request.close();
 
-        // Convert HttpClientResponse to http.Response
-        final responseBody = await response.transform(utf8.decoder).join();
+        // Read raw bytes to preserve binary data
+        final bytes = await consolidateHttpClientResponseBytes(response);
+
+        // Collect headers
         final headers = <String, String>{};
         response.headers.forEach((key, values) {
           headers[key] = values.join(', ');
         });
 
-        final httpResponse = http.Response(
-          responseBody,
+        final httpResponse = http.Response.bytes(
+          bytes,
           response.statusCode,
           headers: headers,
         );
@@ -95,9 +97,11 @@ class ChatApiService {
   Future<List<ChatMessage>> fetchChatMessages(String courseName, String chatToken) async {
     try {
       final encodedCourse = Uri.encodeComponent(courseName);
-      final url = '$_baseUrl/api/chats?course=$encodedCourse&page=1&chat_token=$chatToken';
-
+      final url = '$_baseUrl/api/chats?course=$encodedCourse&page=1&chat_token=$chatToken';      debugPrint('🌐 [ChatApiService] Making HTTP request to: $url');
       final response = await http.get(Uri.parse(url));
+      debugPrint('📥 [ChatApiService] Response Status: ${response.statusCode}');
+      debugPrint('📥 [ChatApiService] Response Headers: ${response.headers}');
+      debugPrint('📥 [ChatApiService] Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -242,7 +246,7 @@ class ChatApiService {
         'Members': members,
         'one_To_One': true,
       };
-
+      
       debugPrint('🌐 [ChatApiService] Making HTTP request to: $url');
       debugPrint('📤 [ChatApiService] Headers: {"Content-Type": "application/json"}');
       debugPrint('📤 [ChatApiService] Body: ${jsonEncode(requestBody)}');
@@ -304,12 +308,14 @@ class WebSocketChatService {
   Future<void> connect(String chatToken) async {
     try {
       final wsUrl = '$_wsBaseUrl/ws/chat/?chat_token=$chatToken';
+      debugPrint('🔌 [WebSocket] Connecting to: $wsUrl');
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
        _channel!.stream.listen(
          (message) {
            try {
              final Map<String, dynamic> data = jsonDecode(message);
+             debugPrint('📡 [WebSocket] Message received (${message.toString().length} chars)');
 
              // Check if this is a system message (force_disconnect, etc.)
              if (data.containsKey('type')) {
@@ -363,6 +369,7 @@ class WebSocketChatService {
     };
 
     try {
+      debugPrint('📤 [WebSocket] Sending message: ${jsonEncode(messageData)}');
       _channel!.sink.add(jsonEncode(messageData));
     } catch (e) {
       throw Exception('Failed to send message: $e');

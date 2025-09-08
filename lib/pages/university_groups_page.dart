@@ -431,7 +431,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                       Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: Icon(
-                          Icons.visibility_off_rounded,
+                          Icons.lock_outline,
                           size: 14,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),

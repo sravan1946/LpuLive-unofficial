@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../utils/timestamp_utils.dart';
 import 'token_input_page.dart';
 import 'new_dm_page.dart';
 import 'chat_page.dart';
+import '../widgets/network_image.dart';
+
+// Persistent caches (per app session)
+final Map<String, Contact> _contactsCacheById = {};
+final Map<String, _DmMeta> _dmMetaCacheByGroup = {};
+final Map<String, String> _avatarCacheByUserId = {};
+bool _contactsLoaded = false;
+bool _avatarsLoaded = false;
+const String _kAvatarCacheKey = 'dm_avatar_cache_v1';
 
 class DirectMessagesPage extends StatefulWidget {
   final WebSocketChatService wsService;
@@ -23,12 +34,62 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   StreamSubscription<ChatMessage>? _messageSubscription;
   StreamSubscription<Map<String, dynamic>>? _systemMessageSubscription;
   String _query = '';
+  final ChatApiService _apiService = ChatApiService();
+
+  // Track in-flight loads to avoid duplicate fetches
+  final Set<String> _dmMetaLoading = {};
 
   @override
   void initState() {
     super.initState();
     _initializeDMs();
     _setupWebSocketSubscriptions();
+    _loadContactsIfNeeded();
+    _loadAvatarCacheIfNeeded();
+  }
+
+  void _safeRebuild() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _loadAvatarCacheIfNeeded() async {
+    if (_avatarsLoaded) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kAvatarCacheKey);
+      if (raw != null && raw.isNotEmpty) {
+        final Map<String, dynamic> m = jsonDecode(raw);
+        _avatarCacheByUserId.clear();
+        for (final e in m.entries) {
+          final k = e.key;
+          final v = e.value?.toString();
+          if (v != null && v.isNotEmpty) {
+            _avatarCacheByUserId[k] = v;
+          }
+        }
+      }
+    } catch (_) {
+      // ignore
+    } finally {
+      _avatarsLoaded = true;
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _saveAvatarForUser(String userId, String? url) async {
+    if (userId.isEmpty || url == null || url.isEmpty) return;
+    final existing = _avatarCacheByUserId[userId];
+    if (existing == url) return;
+    _avatarCacheByUserId[userId] = url;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kAvatarCacheKey, jsonEncode(_avatarCacheByUserId));
+    } catch (_) {
+      // ignore
+    }
   }
 
   void _handleSystemMessage(Map<String, dynamic> message) {
@@ -107,6 +168,97 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     } else {
       _directMessages = [];
     }
+  }
+
+  Future<void> _loadContactsIfNeeded() async {
+    if (currentUser == null) return;
+    if (_contactsLoaded) return;
+    try {
+      final contacts = await _apiService.fetchContacts(currentUser!.chatToken);
+      setState(() {
+        for (final c in contacts) {
+          _contactsCacheById[c.userid] = c;
+        }
+        _contactsLoaded = true;
+      });
+    } catch (e) {
+      // Non-fatal. We'll fall back to messages endpoint per DM as needed.
+    }
+  }
+
+  // Derive the other participant's ID from the DM name (format: "<idA> : <idB>")
+  String _otherUserIdForDm(String dmName) {
+    final parts = dmName.split(RegExp(r'\s*:\s*'));
+    if (parts.length != 2) return dmName;
+    final idA = parts[0];
+    final idB = parts[1];
+    final me = currentUser?.id;
+    if (me == idA) return idB;
+    if (me == idB) return idA;
+    return idB;
+  }
+
+  // Lazy-load meta (name/avatar) via messages endpoint, but only if contacts didn't have it
+  Future<void> _ensureDmMetaLoaded(String groupId) async {
+    if (currentUser == null) return;
+    if (_dmMetaCacheByGroup.containsKey(groupId) || _dmMetaLoading.contains(groupId)) return;
+
+    final otherId = _otherUserIdForDm(groupId);
+    final contact = _contactsCacheById[otherId];
+    final cachedAvatar = _avatarCacheByUserId[otherId];
+    if (contact != null || (cachedAvatar != null && cachedAvatar.isNotEmpty)) {
+      // Contacts may have name; avatar may be from persistent cache
+      final name = (contact != null && contact.name.isNotEmpty) ? contact.name : otherId;
+      final avatarUrl = (contact?.userimageurl ?? contact?.avatar) ?? cachedAvatar;
+      _dmMetaCacheByGroup[groupId] = _DmMeta(name: name, avatarUrl: avatarUrl);
+      _safeRebuild();
+      return;
+    }
+
+    _dmMetaLoading.add(groupId);
+    try {
+      final msgs = await _apiService.fetchChatMessages(groupId, currentUser!.chatToken);
+      String name = otherId;
+      String? avatar;
+      if (msgs.isNotEmpty) {
+        // Try to find a message from the other participant
+        final other = msgs.firstWhere(
+          (m) => !m.isOwnMessage,
+          orElse: () => msgs.last,
+        );
+        if (!other.isOwnMessage) {
+          if (other.senderName.isNotEmpty) name = other.senderName;
+          avatar = other.userImage;
+        }
+      }
+      _dmMetaCacheByGroup[groupId] = _DmMeta(name: name, avatarUrl: avatar);
+      // Persist avatar by userId for future sessions
+      await _saveAvatarForUser(otherId, avatar);
+      _safeRebuild();
+    } catch (_) {
+      // Ignore; fallback to ID
+    } finally {
+      _dmMetaLoading.remove(groupId);
+    }
+  }
+
+  String _displayNameForDm(DirectMessage dm) {
+    final meta = _dmMetaCacheByGroup[dm.dmName];
+    if (meta != null && meta.name.isNotEmpty) return meta.name;
+    final otherId = _otherUserIdForDm(dm.dmName);
+    final contact = _contactsCacheById[otherId];
+    if (contact != null && contact.name.isNotEmpty) return contact.name;
+    return otherId;
+  }
+
+  String? _avatarUrlForDm(DirectMessage dm) {
+    final meta = _dmMetaCacheByGroup[dm.dmName];
+    if (meta != null && meta.avatarUrl != null && meta.avatarUrl!.isNotEmpty) return meta.avatarUrl;
+    final otherId = _otherUserIdForDm(dm.dmName);
+    final contact = _contactsCacheById[otherId];
+    final fromContacts = contact?.userimageurl ?? contact?.avatar;
+    if (fromContacts != null && fromContacts.isNotEmpty) return fromContacts;
+    return _avatarCacheByUserId[otherId];
   }
 
   void _sortDirectMessages() {
@@ -188,7 +340,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       MaterialPageRoute(
         builder: (context) => ChatPage(
           groupId: dm.dmName,
-          title: 'DM: ${dm.participants}',
+          title: _displayNameForDm(dm),
           wsService: widget.wsService,
           isReadOnly: false,
         ),
@@ -212,11 +364,11 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final filtered = _directMessages
-        .where(
-          (dm) =>
-              _query.isEmpty ||
-              dm.participants.toLowerCase().contains(_query.toLowerCase()),
-        )
+        .where((dm) {
+          if (_query.isEmpty) return true;
+          final name = _displayNameForDm(dm).toLowerCase();
+          return name.contains(_query.toLowerCase());
+        })
         .toList();
 
     return Scaffold(
@@ -270,16 +422,85 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       itemCount: data.length,
       itemBuilder: (context, index) {
         final dm = data[index];
+        // Kick off lazy load of meta for this group (no-op if already cached)
+        _ensureDmMetaLoaded(dm.dmName);
+        final displayName = _displayNameForDm(dm);
+        final avatarUrl = _avatarUrlForDm(dm);
+
+        // Derive status from currentUser group metadata
+        String? status;
+        try {
+          final grp = currentUser?.groups.firstWhere((g) => g.name == dm.dmName);
+          status = grp?.inviteStatus.isNotEmpty == true ? grp!.inviteStatus : null;
+        } catch (_) {}
 
         return Card(
           key: ValueKey(dm.dmName),
           margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: scheme.primary,
-              child: const Icon(Icons.person, color: Colors.white),
+            leading: avatarUrl != null && avatarUrl.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: SafeNetworkImage(
+                      imageUrl: avatarUrl,
+                      width: 40,
+                      height: 40,
+                      highQuality: true,
+                      fit: BoxFit.cover,
+                      errorWidget: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: scheme.primary,
+                        child: Text(
+                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : CircleAvatar(
+                    radius: 20,
+                    backgroundColor: scheme.primary,
+                    child: Text(
+                      displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Expanded(
+                  child: Text(
+                    displayName,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (status != null && status.trim().toUpperCase() != 'ACPTD') ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Text(
+                      status,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            title: Text('DM: ${dm.participants}'),
             subtitle: Text(
               dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
               maxLines: 1,
@@ -298,12 +519,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
-                if (dm.isAdmin)
-                  Icon(
-                    Icons.admin_panel_settings,
-                    color: scheme.primary,
-                    size: 16,
-                  ),
               ],
             ),
             onTap: () => _selectDM(dm),
@@ -334,4 +549,10 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       return timestamp;
     }
   }
+}
+
+class _DmMeta {
+  final String name;
+  final String? avatarUrl;
+  _DmMeta({required this.name, this.avatarUrl});
 }
