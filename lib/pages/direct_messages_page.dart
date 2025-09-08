@@ -20,11 +20,13 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   final TextEditingController _messageController = TextEditingController();
   final ChatApiService _apiService = ChatApiService();
   late List<DirectMessage> _directMessages;
-  DirectMessage? _selectedDM; // kept for state/back compat but not used for inline view
+  DirectMessage?
+  _selectedDM; // kept for state/back compat but not used for inline view
   List<ChatMessage> _dmMessages = []; // no longer used inline
   bool _isLoadingDM = false; // no longer used inline
   StreamSubscription<ChatMessage>? _messageSubscription;
   StreamSubscription<Map<String, dynamic>>? _systemMessageSubscription;
+  String _query = '';
 
   @override
   void initState() {
@@ -53,7 +55,10 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message['message'] ?? 'You have been disconnected from another device.'),
+          content: Text(
+            message['message'] ??
+                'You have been disconnected from another device.',
+          ),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         ),
@@ -63,7 +68,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const TokenInputApp(autoLoggedOut: true)),
+            MaterialPageRoute(
+              builder: (context) => const TokenInputApp(autoLoggedOut: true),
+            ),
             (route) => false,
           );
         }
@@ -140,13 +147,17 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       _handleNewMessage(message);
     });
 
-    _systemMessageSubscription = widget.wsService.systemMessageStream.listen((message) {
+    _systemMessageSubscription = widget.wsService.systemMessageStream.listen((
+      message,
+    ) {
       _handleSystemMessage(message);
     });
   }
 
   void _handleNewMessage(ChatMessage message) {
-    final exists = _directMessages.indexWhere((dm) => dm.dmName == message.sender);
+    final exists = _directMessages.indexWhere(
+      (dm) => dm.dmName == message.sender,
+    );
     if (exists == -1) return;
 
     setState(() {
@@ -161,7 +172,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         }
       }
 
-      final dmIndex = _directMessages.indexWhere((dm) => dm.dmName == message.sender);
+      final dmIndex = _directMessages.indexWhere(
+        (dm) => dm.dmName == message.sender,
+      );
       if (dmIndex != -1) {
         _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
           lastMessage: message.message,
@@ -188,9 +201,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   }
 
   Future<void> _startNewDM() async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (context) => const NewDMPage()),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (context) => const NewDMPage()));
 
     // If a new DM was created successfully, refresh the DM list
     if (result == true) {
@@ -223,10 +236,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     try {
       final groupId = _selectedDM!.dmName;
 
-      await widget.wsService.sendMessage(
-        message: message,
-        group: groupId,
-      );
+      await widget.wsService.sendMessage(message: message, group: groupId);
 
       // Update the group's last message in the token
       if (currentUser != null) {
@@ -238,7 +248,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
               lastMessageTime: timestamp,
             );
             // Also update the corresponding DirectMessage
-            final dmIndex = _directMessages.indexWhere((dm) => dm.dmName == groupId);
+            final dmIndex = _directMessages.indexWhere(
+              (dm) => dm.dmName == groupId,
+            );
             if (dmIndex != -1) {
               _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
                 lastMessage: message,
@@ -253,119 +265,122 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       // Save updated user data to token storage
       await TokenStorage.saveCurrentUser();
 
-      setState(() {}); // Trigger rebuild to update the list with new last message
+      setState(
+        () {},
+      ); // Trigger rebuild to update the list with new last message
 
       _messageController.clear();
-
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final filtered = _directMessages
+        .where(
+          (dm) =>
+              _query.isEmpty ||
+              dm.participants.toLowerCase().contains(_query.toLowerCase()),
+        )
+        .toList();
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Direct Messages'),
+      appBar: AppBar(title: const Text('Direct Messages')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: SearchBar(
+              leading: const Icon(Icons.search),
+              hintText: 'Search people',
+              onChanged: (v) => setState(() => _query = v),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(child: _buildDMList(filtered, scheme)),
+        ],
       ),
-      body: _buildDMList(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _startNewDM,
+        tooltip: 'Start New DM',
+        child: const Icon(Icons.add),
+      ),
     );
   }
 
-  Widget _buildDMList() {
-    if (_directMessages.isEmpty) {
-      return Stack(
-        children: [
-          const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.message, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text(
-                  'No Direct Messages',
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Direct messages will appear here',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-              ],
+  Widget _buildDMList(List<DirectMessage> data, ColorScheme scheme) {
+    if (data.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.message, size: 64, color: scheme.onSurfaceVariant),
+            const SizedBox(height: 16),
+            Text(
+              'No Direct Messages',
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
             ),
-          ),
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: FloatingActionButton(
-              onPressed: _startNewDM,
-              tooltip: 'Start New DM',
-              child: const Icon(Icons.add),
+            const SizedBox(height: 8),
+            Text(
+              'Direct messages will appear here',
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
-    return Stack(
-      children: [
-        ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _directMessages.length,
-          itemBuilder: (context, index) {
-            final dm = _directMessages[index];
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: data.length,
+      itemBuilder: (context, index) {
+        final dm = data[index];
 
         return Card(
           key: ValueKey(dm.dmName),
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  child: const Icon(Icons.person, color: Colors.white),
+            leading: CircleAvatar(
+              backgroundColor: scheme.primary,
+              child: const Icon(Icons.person, color: Colors.white),
+            ),
+            title: Text('DM: ${dm.participants}'),
+            subtitle: Text(
+              dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  dm.lastMessageTime.isNotEmpty
+                      ? _formatTimestamp(dm.lastMessageTime)
+                      : '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
-                title: Text('DM: ${dm.participants}'),
-                subtitle: Text(
-                  dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      dm.lastMessageTime.isNotEmpty
-                          ? _formatTimestamp(dm.lastMessageTime)
-                          : '',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    if (dm.isAdmin)
-                      const Icon(Icons.admin_panel_settings, color: Colors.orange, size: 16),
-                  ],
-                ),
-                onTap: () => _selectDM(dm),
-              ),
-            );
-          },
-        ),
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child: FloatingActionButton(
-            onPressed: _startNewDM,
-            tooltip: 'Start New DM',
-            child: const Icon(Icons.add),
+                if (dm.isAdmin)
+                  Icon(
+                    Icons.admin_panel_settings,
+                    color: scheme.primary,
+                    size: 16,
+                  ),
+              ],
+            ),
+            onTap: () => _selectDM(dm),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 

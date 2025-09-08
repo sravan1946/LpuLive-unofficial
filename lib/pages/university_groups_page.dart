@@ -22,6 +22,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   late List<CourseGroup> _courseGroups;
   CourseGroup? _selectedCourse;
   StreamSubscription<ChatMessage>? _messageSubscription;
+  String _query = '';
 
   @override
   void initState() {
@@ -43,7 +44,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       final seenNames = <String>{};
 
       for (final group in currentUser!.groups) {
-        final courseMatch = RegExp(r'^([A-Z]+\d+)\s*-\s*([A-Z]+\d+)$').firstMatch(group.name);
+        final courseMatch = RegExp(
+          r'^([A-Z]+\d+)\s*-\s*([A-Z]+\d+)$',
+        ).firstMatch(group.name);
         if (courseMatch != null && !seenNames.contains(group.name)) {
           final courseCode = courseMatch.group(1)!;
           final courseGroup = CourseGroup(
@@ -99,7 +102,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       final index = _courseGroups.indexWhere((c) => c.courseName == targetName);
       if (index != -1) {
         final course = _courseGroups[index];
-        _courseGroups[index] = course.copyWith(lastMessageTime: message.timestamp);
+        _courseGroups[index] = course.copyWith(
+          lastMessageTime: message.timestamp,
+        );
         _sortCourseGroups();
         setState(() {});
       }
@@ -108,7 +113,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
   void _handleNewMessage(ChatMessage message) {
     setState(() {
-      final courseIndex = _courseGroups.indexWhere((course) => course.courseName == message.group);
+      final courseIndex = _courseGroups.indexWhere(
+        (course) => course.courseName == message.group,
+      );
       if (courseIndex != -1) {
         final course = _courseGroups[courseIndex];
         final updatedMessages = [...course.messages, message];
@@ -138,20 +145,21 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 lastMessageTime: message.timestamp,
               );
               // Also update the corresponding CourseGroup
-              final courseIndex = _courseGroups.indexWhere((course) => course.courseName == message.group);
+              final courseIndex = _courseGroups.indexWhere(
+                (course) => course.courseName == message.group,
+              );
               if (courseIndex != -1) {
-                _courseGroups[courseIndex] = _courseGroups[courseIndex].copyWith(
-                  lastMessageTime: message.timestamp,
-                );
+                _courseGroups[courseIndex] = _courseGroups[courseIndex]
+                    .copyWith(lastMessageTime: message.timestamp);
               }
             }
           }
         }
-        }
+      }
 
-        // Save updated user data to token storage
-        TokenStorage.saveCurrentUser();
-      });
+      // Save updated user data to token storage
+      TokenStorage.saveCurrentUser();
+    });
 
     // Sort after setState completes to ensure proper re-rendering
     _sortCourseGroups();
@@ -163,7 +171,10 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       MaterialPageRoute(
         builder: (context) => ChatPage(
           groupId: course.courseName,
-          title: course.courseName.replaceFirst(RegExp(r'^[A-Z]+\d+\s*-\s*'), ''),
+          title: course.courseName.replaceFirst(
+            RegExp(r'^[A-Z]+\d+\s*-\s*'),
+            '',
+          ),
           wsService: widget.wsService,
           isReadOnly: !isWritable,
         ),
@@ -196,10 +207,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     try {
       final groupId = _selectedCourse!.courseName;
 
-      await widget.wsService.sendMessage(
-        message: message,
-        group: groupId,
-      );
+      await widget.wsService.sendMessage(message: message, group: groupId);
 
       // Update the group's last message in the token
       if (currentUser != null) {
@@ -211,7 +219,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
               lastMessageTime: timestamp,
             );
             // Also update the corresponding CourseGroup
-            final courseIndex = _courseGroups.indexWhere((course) => course.courseName == groupId);
+            final courseIndex = _courseGroups.indexWhere(
+              (course) => course.courseName == groupId,
+            );
             if (courseIndex != -1) {
               _courseGroups[courseIndex] = _courseGroups[courseIndex].copyWith(
                 lastMessageTime: timestamp,
@@ -225,15 +235,16 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       // Save updated user data to token storage
       await TokenStorage.saveCurrentUser();
 
-      setState(() {}); // Trigger rebuild to update the list with new last message
+      setState(
+        () {},
+      ); // Trigger rebuild to update the list with new last message
 
       _messageController.clear();
-
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
       }
     }
   }
@@ -254,7 +265,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     );
 
     return originalGroup!.isActive &&
-           (originalGroup.isTwoWay || originalGroup.isAdmin);
+        (originalGroup.isTwoWay || originalGroup.isAdmin);
   }
 
   void _showUserInfo() {
@@ -275,9 +286,18 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
               _buildInfoRow('Department', currentUser!.department),
               _buildInfoRow('Category', currentUser!.category),
               _buildInfoRow('Groups', '${currentUser!.groups.length} groups'),
-              _buildInfoRow('Can Create Groups', currentUser!.createGroups ? 'Yes' : 'No'),
-              _buildInfoRow('One-to-One Chat', currentUser!.oneToOne ? 'Enabled' : 'Disabled'),
-              _buildInfoRow('Chat Suspended', currentUser!.isChatSuspended ? 'Yes' : 'No'),
+              _buildInfoRow(
+                'Can Create Groups',
+                currentUser!.createGroups ? 'Yes' : 'No',
+              ),
+              _buildInfoRow(
+                'One-to-One Chat',
+                currentUser!.oneToOne ? 'Enabled' : 'Disabled',
+              ),
+              _buildInfoRow(
+                'Chat Suspended',
+                currentUser!.isChatSuspended ? 'Yes' : 'No',
+              ),
               if (currentUser!.userImageUrl != null)
                 _buildInfoRow('Profile Image', currentUser!.userImageUrl!),
             ],
@@ -333,6 +353,15 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final filtered = _courseGroups
+        .where(
+          (c) =>
+              _query.isEmpty ||
+              c.courseName.toLowerCase().contains(_query.toLowerCase()),
+        )
+        .toList();
+
     return WillPopScope(
       onWillPop: () async {
         if (_selectedCourse != null) {
@@ -345,10 +374,14 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: Text(_selectedCourse != null
-              ? _selectedCourse!.courseName.replaceFirst(RegExp(r'^[A-Z]+\d+\s*-\s*'), '')
-              : 'University Groups'),
+          title: Text(
+            _selectedCourse != null
+                ? _selectedCourse!.courseName.replaceFirst(
+                    RegExp(r'^[A-Z]+\d+\s*-\s*'),
+                    '',
+                  )
+                : 'University Groups',
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.person),
@@ -387,27 +420,40 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 )
               : null,
         ),
-        body: _buildCourseList(),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: SearchBar(
+                leading: const Icon(Icons.search),
+                hintText: 'Search courses',
+                onChanged: (v) => setState(() => _query = v),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(child: _buildCourseList(filtered, scheme)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCourseList() {
-    if (_courseGroups.isEmpty) {
-      return const Center(
+  Widget _buildCourseList(List<CourseGroup> data, ColorScheme scheme) {
+    if (data.isEmpty) {
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.school, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
+            Icon(Icons.school, size: 64, color: scheme.onSurfaceVariant),
+            const SizedBox(height: 16),
             Text(
               'No University Courses',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               'University courses will appear here',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
             ),
           ],
         ),
@@ -416,9 +462,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _courseGroups.length,
+      itemCount: data.length,
       itemBuilder: (context, index) {
-        final course = _courseGroups[index];
+        final course = data[index];
         final group = currentUser?.groups.firstWhere(
           (g) => g.name == course.courseName,
           orElse: () => Group(
@@ -433,18 +479,33 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
           ),
         );
 
-        final lastMessage = group!.groupLastMessage.isNotEmpty ? group.groupLastMessage : 'No messages yet';
-        final lastMessageTime = course.lastMessageTime.isNotEmpty ? course.lastMessageTime : '';
+        final lastMessage = group!.groupLastMessage.isNotEmpty
+            ? group.groupLastMessage
+            : 'No messages yet';
+        final lastMessageTime = course.lastMessageTime.isNotEmpty
+            ? course.lastMessageTime
+            : '';
+        final readOnly = !_isGroupWritable(course);
 
         return Card(
           key: ValueKey(course.courseName),
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: scheme.primary,
               child: const Icon(Icons.school, color: Colors.white),
             ),
-            title: Text(course.courseName),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    course.courseName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
             subtitle: Text(
               lastMessage,
               maxLines: 1,
@@ -457,30 +518,29 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (!_isGroupWritable(course))
-                      Icon(
-                        Icons.visibility,
-                        size: 14,
-                        color: Colors.orange,
+                    if (readOnly)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Icon(
+                          Icons.visibility_off_rounded,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    const SizedBox(width: 4),
                     Text(
                       lastMessageTime.isNotEmpty
                           ? _formatTimestamp(lastMessageTime)
                           : '',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
-                if (course.messages.isNotEmpty && course.messages.last.isOwnMessage)
-                  Icon(
-                    Icons.done_all,
-                    size: 16,
-                    color: Colors.blue,
-                  ),
+                if (course.messages.isNotEmpty &&
+                    course.messages.last.isOwnMessage)
+                  Icon(Icons.done_all, size: 16, color: scheme.primary),
               ],
             ),
             onTap: () => _openCourseChat(course),
@@ -495,7 +555,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout? This will require you to enter your token again.'),
+        content: const Text(
+          'Are you sure you want to logout? This will require you to enter your token again.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -509,7 +571,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
               currentUser = null;
               if (mounted) {
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const TokenInputApp()),
+                  MaterialPageRoute(
+                    builder: (context) => const TokenInputApp(),
+                  ),
                 );
               }
             },

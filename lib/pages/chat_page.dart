@@ -10,7 +10,13 @@ class ChatPage extends StatefulWidget {
   final WebSocketChatService wsService;
   final bool isReadOnly;
 
-  const ChatPage({super.key, required this.groupId, required this.title, required this.wsService, this.isReadOnly = false});
+  const ChatPage({
+    super.key,
+    required this.groupId,
+    required this.title,
+    required this.wsService,
+    this.isReadOnly = false,
+  });
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -68,7 +74,10 @@ class _ChatPageState extends State<ChatPage> {
       _isLoading = true;
     });
     try {
-      final loaded = await _apiService.fetchChatMessages(widget.groupId, currentUser!.chatToken);
+      final loaded = await _apiService.fetchChatMessages(
+        widget.groupId,
+        currentUser!.chatToken,
+      );
       setState(() {
         _messages = loaded;
         _isLoading = false;
@@ -91,9 +100,9 @@ class _ChatPageState extends State<ChatPage> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load messages: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load messages: $e')));
       }
     }
   }
@@ -149,9 +158,9 @@ class _ChatPageState extends State<ChatPage> {
       _messageController.clear();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
       }
     }
   }
@@ -177,11 +186,9 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
+      appBar: AppBar(title: Text(widget.title)),
       body: Column(
         children: [
           Expanded(
@@ -197,40 +204,71 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   )
                 : _messages.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.chat, size: 64, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text(
-                              'No messages yet',
-                              style: TextStyle(color: Colors.grey, fontSize: 16),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Be the first to start the conversation!',
-                              style: TextStyle(color: Colors.grey, fontSize: 14),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat,
+                          size: 64,
+                          color: scheme.onSurfaceVariant,
                         ),
-                      )
-                    : ListView.builder(
+                        const SizedBox(height: 16),
+                        Text(
+                          'No messages yet',
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Be the first to start the conversation!',
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [scheme.surface, scheme.surfaceVariant],
+                      ),
+                    ),
+                    child: RefreshIndicator(
+                      onRefresh: _loadMessages,
+                      child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(16),
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
                           final message = _messages[index];
                           final String currentSender = message.sender;
-                          final String? previousSender = index > 0 ? _messages[index - 1].sender : null;
-                          final bool isNewBlock = previousSender == null || previousSender != currentSender;
-                          final bool showLeftAvatar = !message.isOwnMessage && isNewBlock;
-                          final bool showRightAvatar = message.isOwnMessage && isNewBlock;
+                          final String? previousSender = index > 0
+                              ? _messages[index - 1].sender
+                              : null;
+                          final bool isNewBlock =
+                              previousSender == null ||
+                              previousSender != currentSender;
+                          final bool showLeftAvatar =
+                              !message.isOwnMessage && isNewBlock;
+                          final bool showRightAvatar =
+                              message.isOwnMessage && isNewBlock;
                           const double avatarSize = 32;
                           const double avatarGap = 8;
                           return Align(
-                            alignment: message.isOwnMessage ? Alignment.centerRight : Alignment.centerLeft,
+                            alignment: message.isOwnMessage
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
                             child: Row(
-                              mainAxisAlignment: message.isOwnMessage ? MainAxisAlignment.end : MainAxisAlignment.start,
+                              mainAxisAlignment: message.isOwnMessage
+                                  ? MainAxisAlignment.end
+                                  : MainAxisAlignment.start,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 if (!message.isOwnMessage)
@@ -241,9 +279,12 @@ class _ChatPageState extends State<ChatPage> {
                                       height: avatarSize,
                                       errorWidget: CircleAvatar(
                                         radius: avatarSize / 2,
-                                        backgroundColor: Theme.of(context).colorScheme.primary,
+                                        backgroundColor: scheme.primary,
                                         child: Text(
-                                          message.senderName.isNotEmpty ? message.senderName[0].toUpperCase() : '?',
+                                          message.senderName.isNotEmpty
+                                              ? message.senderName[0]
+                                                    .toUpperCase()
+                                              : '?',
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 12,
@@ -253,51 +294,103 @@ class _ChatPageState extends State<ChatPage> {
                                       ),
                                     ),
                                     SizedBox(width: avatarGap),
-                                  ]
-                                  else
-                                    const SizedBox(width: avatarSize + avatarGap),
+                                  ] else
+                                    const SizedBox(
+                                      width: avatarSize + avatarGap,
+                                    ),
                                 Flexible(
                                   child: Container(
                                     margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: message.isOwnMessage
-                                          ? Theme.of(context).colorScheme.primary
-                                          : Theme.of(context).colorScheme.surfaceContainerHighest,
-                                      borderRadius: BorderRadius.circular(12),
+                                          ? scheme.primary
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.surfaceVariant,
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(14),
+                                        topRight: const Radius.circular(14),
+                                        bottomLeft: message.isOwnMessage
+                                            ? const Radius.circular(14)
+                                            : const Radius.circular(4),
+                                        bottomRight: message.isOwnMessage
+                                            ? const Radius.circular(4)
+                                            : const Radius.circular(14),
+                                      ),
                                     ),
                                     constraints: BoxConstraints(
-                                      maxWidth: MediaQuery.of(context).size.width * 0.7,
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width *
+                                          0.7,
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: message.isOwnMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                      crossAxisAlignment: message.isOwnMessage
+                                          ? CrossAxisAlignment.end
+                                          : CrossAxisAlignment.start,
                                       children: [
                                         if (!message.isOwnMessage && isNewBlock)
                                           Text(
                                             message.senderName,
                                             style: TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                              fontWeight: FontWeight.w700,
                                               fontSize: 12,
-                                              color: Theme.of(context).colorScheme.primary,
+                                              color: scheme.primary,
                                             ),
                                           ),
-                                        Text(
-                                          message.message,
+                                        DefaultTextStyle.merge(
                                           style: TextStyle(
+                                            height: 1.35,
+                                            fontSize: 14,
                                             color: message.isOwnMessage
-                                                ? Theme.of(context).colorScheme.onPrimary
-                                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                                                ? scheme.onPrimary
+                                                : Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurface,
+                                          ),
+                                          child: Text(
+                                            message.message,
+                                            textAlign: TextAlign.start,
+                                            softWrap: true,
+                                            overflow: TextOverflow.visible,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
-                                        Text(
-                                          _formatTimestamp(message.timestamp),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: message.isOwnMessage
-                                                ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7)
-                                                : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                                          ),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              _formatTimestamp(
+                                                message.timestamp,
+                                              ),
+                                              style: TextStyle(
+                                                height: 1.0,
+                                                fontSize: 10,
+                                                color: message.isOwnMessage
+                                                    ? scheme.onPrimary
+                                                          .withValues(
+                                                            alpha: 0.7,
+                                                          )
+                                                    : Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
+                                              ),
+                                            ),
+                                            if (message.isOwnMessage) ...[
+                                              const SizedBox(width: 4),
+                                              Icon(
+                                                Icons.done_all,
+                                                size: 14,
+                                                color: scheme.onPrimary
+                                                    .withValues(alpha: 0.8),
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -312,9 +405,13 @@ class _ChatPageState extends State<ChatPage> {
                                       height: avatarSize,
                                       errorWidget: CircleAvatar(
                                         radius: avatarSize / 2,
-                                        backgroundColor: Theme.of(context).colorScheme.primary,
+                                        backgroundColor: scheme.primary,
                                         child: Text(
-                                          (currentUser?.name.isNotEmpty ?? false) ? currentUser!.name[0].toUpperCase() : 'Y',
+                                          (currentUser?.name.isNotEmpty ??
+                                                  false)
+                                              ? currentUser!.name[0]
+                                                    .toUpperCase()
+                                              : 'Y',
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 12,
@@ -323,84 +420,87 @@ class _ChatPageState extends State<ChatPage> {
                                         ),
                                       ),
                                     ),
-                                  ]
-                                  else
-                                    const SizedBox(width: avatarGap + avatarSize),
+                                  ] else
+                                    const SizedBox(
+                                      width: avatarGap + avatarSize,
+                                    ),
                               ],
                             ),
                           );
                         },
                       ),
-          ),
-          if (!widget.isReadOnly)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border(
-                  top: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: const InputDecoration(
-                        hintText: 'Type a message...',
-                        border: OutlineInputBorder(),
-                      ),
-                      onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.send),
-                    onPressed: _sendMessage,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ],
+          ),
+          if (!widget.isReadOnly)
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        minLines: 1,
+                        maxLines: 5,
+                        textInputAction: TextInputAction.newline,
+                        decoration: const InputDecoration(hintText: 'Message'),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: _sendMessage,
+                      icon: const Icon(Icons.send_rounded),
+                      label: const Text('Send'),
+                    ),
+                  ],
+                ),
               ),
             ),
           if (widget.isReadOnly)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border(
-                  top: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.visibility,
-                            color: Colors.grey.shade600,
-                            size: 20,
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'This group is read-only',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontStyle: FontStyle.italic,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.visibility,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                              size: 20,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              'This group is read-only',
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
         ],
@@ -408,5 +508,3 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 }
-
-
