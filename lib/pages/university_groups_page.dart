@@ -18,7 +18,6 @@ class UniversityGroupsPage extends StatefulWidget {
 
 class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   final TextEditingController _messageController = TextEditingController();
-  final ChatApiService _apiService = ChatApiService();
   late List<CourseGroup> _courseGroups;
   CourseGroup? _selectedCourse;
   StreamSubscription<ChatMessage>? _messageSubscription;
@@ -111,59 +110,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     });
   }
 
-  void _handleNewMessage(ChatMessage message) {
-    setState(() {
-      final courseIndex = _courseGroups.indexWhere(
-        (course) => course.courseName == message.group,
-      );
-      if (courseIndex != -1) {
-        final course = _courseGroups[courseIndex];
-        final updatedMessages = [...course.messages, message];
-
-        updatedMessages.sort((a, b) {
-          try {
-            final dateA = DateTime.parse(a.timestamp);
-            final dateB = DateTime.parse(b.timestamp);
-            return dateA.compareTo(dateB);
-          } catch (e) {
-            return 0;
-          }
-        });
-
-        _courseGroups[courseIndex] = course.copyWith(messages: updatedMessages);
-
-        if (_selectedCourse?.courseCode == course.courseCode) {
-          _selectedCourse = course.copyWith(messages: updatedMessages);
-        }
-
-        // Update the group's last message in the token
-        if (currentUser != null) {
-          for (int i = 0; i < currentUser!.groups.length; i++) {
-            if (currentUser!.groups[i].name == message.group) {
-              currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-                groupLastMessage: message.message,
-                lastMessageTime: message.timestamp,
-              );
-              // Also update the corresponding CourseGroup
-              final courseIndex = _courseGroups.indexWhere(
-                (course) => course.courseName == message.group,
-              );
-              if (courseIndex != -1) {
-                _courseGroups[courseIndex] = _courseGroups[courseIndex]
-                    .copyWith(lastMessageTime: message.timestamp);
-              }
-            }
-          }
-        }
-      }
-
-      // Save updated user data to token storage
-      TokenStorage.saveCurrentUser();
-    });
-
-    // Sort after setState completes to ensure proper re-rendering
-    _sortCourseGroups();
-  }
 
   Future<void> _openCourseChat(CourseGroup course) async {
     final isWritable = _isGroupWritable(course);
@@ -182,72 +128,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     );
   }
 
-  Future<void> _sendMessage() async {
-    final message = _messageController.text.trim();
-    if (message.isEmpty) return;
-
-    if (!widget.wsService.isConnected) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Not connected to chat server')),
-        );
-      }
-      return;
-    }
-
-    if (_selectedCourse == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a course first')),
-        );
-      }
-      return;
-    }
-
-    try {
-      final groupId = _selectedCourse!.courseName;
-
-      await widget.wsService.sendMessage(message: message, group: groupId);
-
-      // Update the group's last message in the token
-      if (currentUser != null) {
-        final timestamp = DateTime.now().toIso8601String();
-        for (int i = 0; i < currentUser!.groups.length; i++) {
-          if (currentUser!.groups[i].name == groupId) {
-            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-              groupLastMessage: message,
-              lastMessageTime: timestamp,
-            );
-            // Also update the corresponding CourseGroup
-            final courseIndex = _courseGroups.indexWhere(
-              (course) => course.courseName == groupId,
-            );
-            if (courseIndex != -1) {
-              _courseGroups[courseIndex] = _courseGroups[courseIndex].copyWith(
-                lastMessageTime: timestamp,
-              );
-            }
-          }
-        }
-        _sortCourseGroups(); // Re-sort after updating timestamps
-      }
-
-      // Save updated user data to token storage
-      await TokenStorage.saveCurrentUser();
-
-      setState(
-        () {},
-      ); // Trigger rebuild to update the list with new last message
-
-      _messageController.clear();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
-      }
-    }
-  }
 
   bool _isGroupWritable(CourseGroup course) {
     final originalGroup = currentUser?.groups.firstWhere(

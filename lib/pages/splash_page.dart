@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'chat_home_page.dart';
 import '../services/chat_services.dart';
-import '../models/user_models.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});

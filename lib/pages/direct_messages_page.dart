@@ -18,12 +18,8 @@ class DirectMessagesPage extends StatefulWidget {
 
 class _DirectMessagesPageState extends State<DirectMessagesPage> {
   final TextEditingController _messageController = TextEditingController();
-  final ChatApiService _apiService = ChatApiService();
   late List<DirectMessage> _directMessages;
-  DirectMessage?
-  _selectedDM; // kept for state/back compat but not used for inline view
-  List<ChatMessage> _dmMessages = []; // no longer used inline
-  bool _isLoadingDM = false; // no longer used inline
+// kept for state/back compat but not used for inline view
   StreamSubscription<ChatMessage>? _messageSubscription;
   StreamSubscription<Map<String, dynamic>>? _systemMessageSubscription;
   String _query = '';
@@ -211,73 +207,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     }
   }
 
-  Future<void> _sendMessage() async {
-    final message = _messageController.text.trim();
-    if (message.isEmpty) return;
-
-    if (!widget.wsService.isConnected) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Not connected to chat server')),
-        );
-      }
-      return;
-    }
-
-    if (_selectedDM == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a DM first')),
-        );
-      }
-      return;
-    }
-
-    try {
-      final groupId = _selectedDM!.dmName;
-
-      await widget.wsService.sendMessage(message: message, group: groupId);
-
-      // Update the group's last message in the token
-      if (currentUser != null) {
-        final timestamp = DateTime.now().toIso8601String();
-        for (int i = 0; i < currentUser!.groups.length; i++) {
-          if (currentUser!.groups[i].name == groupId) {
-            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-              groupLastMessage: message,
-              lastMessageTime: timestamp,
-            );
-            // Also update the corresponding DirectMessage
-            final dmIndex = _directMessages.indexWhere(
-              (dm) => dm.dmName == groupId,
-            );
-            if (dmIndex != -1) {
-              _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
-                lastMessage: message,
-                lastMessageTime: timestamp,
-              );
-            }
-          }
-        }
-        _sortDirectMessages(); // Re-sort after updating timestamps
-      }
-
-      // Save updated user data to token storage
-      await TokenStorage.saveCurrentUser();
-
-      setState(
-        () {},
-      ); // Trigger rebuild to update the list with new last message
-
-      _messageController.clear();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
