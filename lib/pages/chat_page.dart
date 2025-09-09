@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:photo_view/photo_view.dart';
+import '../widgets/app_toast.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -62,9 +63,7 @@ class _ChatPageState extends State<ChatPage> {
     if (!widget.wsService.isConnected && currentUser != null) {
       widget.wsService.connect(currentUser!.chatToken).catchError((e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('WebSocket connect failed: $e')),
-          );
+          showAppToast(context, 'WebSocket connect failed: $e', type: ToastType.error);
         }
       });
     }
@@ -126,9 +125,7 @@ class _ChatPageState extends State<ChatPage> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load messages: $e')));
+        showAppToast(context, 'Failed to load messages: $e', type: ToastType.error);
       }
     }
   }
@@ -147,9 +144,7 @@ class _ChatPageState extends State<ChatPage> {
 
     if (!widget.wsService.isConnected) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Not connected to chat server')),
-        );
+        showAppToast(context, 'Not connected to chat server', type: ToastType.warning);
       }
       return;
     }
@@ -192,9 +187,7 @@ class _ChatPageState extends State<ChatPage> {
       _messageController.clear();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
+        showAppToast(context, 'Failed to send message: $e', type: ToastType.error);
       }
     }
   }
@@ -895,22 +888,16 @@ class _DocumentTile extends StatelessWidget {
             final file = File('${dir.path}/$filename');
             await file.writeAsBytes(bytes, flush: true);
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Saved to ${file.path}')),
-              );
+              showAppToast(context, 'Saved to ${file.path}', type: ToastType.success);
             }
           } else {
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Download failed (${response.statusCode})')),
-              );
+              showAppToast(context, 'Download failed (${response.statusCode})', type: ToastType.error);
             }
           }
         } catch (e) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Download error: $e')),
-            );
+            showAppToast(context, 'Download error: $e', type: ToastType.error);
           }
         }
       },
@@ -1021,21 +1008,11 @@ class _FullScreenImageViewer extends StatelessWidget {
       await file.writeAsBytes(response.bodyBytes);
       
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Image saved to ${file.path}'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAppToast(context, 'Image saved to ${file.path}', type: ToastType.success);
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to download image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAppToast(context, 'Failed to download image: $e', type: ToastType.error);
       }
     }
   }
@@ -1045,12 +1022,7 @@ class _FullScreenImageViewer extends StatelessWidget {
       await launchUrl(Uri.parse(imageUrl), mode: LaunchMode.externalApplication);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to share image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAppToast(context, 'Failed to share image: $e', type: ToastType.error);
       }
     }
   }

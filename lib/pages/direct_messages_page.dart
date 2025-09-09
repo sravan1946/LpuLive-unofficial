@@ -9,6 +9,7 @@ import 'token_input_page.dart';
 import 'new_dm_page.dart';
 import 'chat_page.dart';
 import '../widgets/network_image.dart';
+import '../widgets/app_toast.dart';
 
 // Persistent caches (per app session)
 final Map<String, Contact> _contactsCacheById = {};
@@ -113,15 +114,11 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
     // Show notification
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            message['message'] ??
-                'You have been disconnected from another device.',
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-        ),
+      showAppToast(
+        context,
+        message['message'] ?? 'You have been disconnected from another device.',
+        type: ToastType.error,
+        duration: const Duration(seconds: 5),
       );
 
       // Navigate to login after a short delay

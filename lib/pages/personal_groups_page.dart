@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_toast.dart';
 
 class PersonalGroupsPage extends StatelessWidget {
   final dynamic wsService; // Placeholder for future use
@@ -89,19 +90,11 @@ class PersonalGroupsPage extends StatelessWidget {
                 onPressed: () {
                   final name = nameController.text.trim();
                   if (name.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a group name'),
-                      ),
-                    );
+                    showAppToast(context, 'Please enter a group name', type: ToastType.warning);
                     return;
                   }
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Group "$name" will be created soon'),
-                    ),
-                  );
+                  showAppToast(context, 'Group "$name" will be created soon', type: ToastType.info);
                 },
                 icon: const Icon(Icons.check),
                 label: const Text('Create'),

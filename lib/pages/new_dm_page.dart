@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
+import '../widgets/app_toast.dart';
 
 class NewDMPage extends StatefulWidget {
   const NewDMPage({super.key});
@@ -50,13 +51,7 @@ class _NewDMPageState extends State<NewDMPage> {
       debugPrint('📥 [NewDMPage] Response Data: ${contacts.map((c) => {"userid": c.userid, "name": c.name, "category": c.category}).toList()}');
 
       if (mounted && contacts.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Loaded ${contacts.length} contacts'),
-            backgroundColor: Colors.blue,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        showAppToast(context, 'Loaded ${contacts.length} contacts', type: ToastType.success, duration: const Duration(seconds: 2));
       }
 
       setState(() {
@@ -69,12 +64,7 @@ class _NewDMPageState extends State<NewDMPage> {
         _isLoadingContacts = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load contacts. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAppToast(context, 'Failed to load contacts. Please try again.', type: ToastType.error);
       }
     }
   }
@@ -108,12 +98,7 @@ class _NewDMPageState extends State<NewDMPage> {
         debugPrint('✅ [NewDMPage] User found: ${searchContact.name}');
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('User found: ${searchContact.name}'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          showAppToast(context, 'User found: ${searchContact.name}', type: ToastType.success);
         }
 
         setState(() {
@@ -123,12 +108,7 @@ class _NewDMPageState extends State<NewDMPage> {
       } else {
         debugPrint('❌ [NewDMPage] User not found: ${result.error ?? result.message}');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.error ?? 'User not found'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showAppToast(context, result.error ?? 'User not found', type: ToastType.error);
         }
         setState(() {
           _isSearching = false;
@@ -143,12 +123,7 @@ class _NewDMPageState extends State<NewDMPage> {
       // Check if it's the specific API error message
       if (errorMessage.contains("User doesn't exist in LPU Live or Hasn't Logged In Yet")) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("User doesn't exist in LPU Live or Hasn't Logged In Yet"),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showAppToast(context, "User doesn't exist in LPU Live or Hasn't Logged In Yet", type: ToastType.error);
         }
         setState(() {
           _isSearching = false;
@@ -156,12 +131,7 @@ class _NewDMPageState extends State<NewDMPage> {
       } else if (errorMessage.contains('Failed to search user: 404')) {
         // This is likely the user not found case
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("User doesn't exist in LPU Live or Hasn't Logged In Yet"),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showAppToast(context, "User doesn't exist in LPU Live or Hasn't Logged In Yet", type: ToastType.error);
         }
         setState(() {
           _isSearching = false;
@@ -169,12 +139,7 @@ class _NewDMPageState extends State<NewDMPage> {
       } else {
         // Handle other search errors
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Oops! Something went wrong while searching. Please check your connection and try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showAppToast(context, 'Oops! Something went wrong while searching. Please check your connection and try again.', type: ToastType.error);
         }
         setState(() {
           _isSearching = false;
@@ -205,17 +170,13 @@ class _NewDMPageState extends State<NewDMPage> {
       if (result.isSuccess) {
         debugPrint('✅ [NewDMPage] DM created successfully: ${result.name}');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('DM created successfully!')),
-          );
+          showAppToast(context, 'DM created successfully!', type: ToastType.success);
           Navigator.of(context).pop(true); // Return true to indicate success
         }
       } else {
         debugPrint('❌ [NewDMPage] Failed to create DM: ${result.message}');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to create DM: ${result.message}')),
-          );
+          showAppToast(context, 'Failed to create DM: ${result.message}', type: ToastType.error);
         }
       }
     } catch (e) {
@@ -224,21 +185,14 @@ class _NewDMPageState extends State<NewDMPage> {
       // Handle specific case where group already exists
       if (e.toString().contains('Group Already exists') || e.toString().contains('400')) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('DM already exists with this user!'),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          showAppToast(context, 'DM already exists with this user!', type: ToastType.warning);
           // Still navigate back as success since the DM exists
           Navigator.of(context).pop(true);
         }
       } else {
         // Handle other errors normally
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error creating DM: $e')),
-          );
+          showAppToast(context, 'Error creating DM: $e', type: ToastType.error);
         }
       }
     }

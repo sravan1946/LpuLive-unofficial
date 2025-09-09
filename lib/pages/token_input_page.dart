@@ -6,6 +6,7 @@ import '../services/chat_services.dart';
 import 'webview_login_page.dart';
 import 'chat_home_page.dart';
 import '../theme.dart';
+import '../widgets/app_toast.dart';
 
 class TokenInputApp extends StatelessWidget {
   const TokenInputApp({super.key, this.autoLoggedOut = false});
@@ -57,12 +58,11 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
   }
 
   void _showLogoutNotification() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Your session has expired. Please login again.'),
-        backgroundColor: Color(0xFFF58220),
-        duration: Duration(seconds: 4),
-      ),
+    showAppToast(
+      context,
+      'Your session has expired. Please login again.',
+      type: ToastType.warning,
+      duration: const Duration(seconds: 4),
     );
   }
 
