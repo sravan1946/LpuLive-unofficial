@@ -84,11 +84,12 @@ Future<void> _processToken(String token) async {
 }
 
 Future<bool> _validateToken(String token) async {
-  // Accept both raw JSON and base64-encoded JSON tokens
+  // Accept both raw JSON and base64-encoded JSON tokens, then validate with server
+  String? chatToken;
   try {
     final Map<String, dynamic> jsonData = jsonDecode(token);
     currentUser = User.fromJson(jsonData);
-    return true;
+    chatToken = currentUser?.chatToken;
   } catch (_) {
     try {
       final decodedBytes = base64Decode(token);
@@ -96,10 +97,21 @@ Future<bool> _validateToken(String token) async {
       final urlDecodedString = Uri.decodeFull(decodedString);
       final Map<String, dynamic> jsonData = jsonDecode(urlDecodedString);
       currentUser = User.fromJson(jsonData);
-      return true;
+      chatToken = currentUser?.chatToken;
     } catch (e) {
       return false;
     }
+  }
+
+  if (chatToken == null || chatToken.isEmpty) return false;
+
+  // Server-side validation: make a lightweight authenticated call
+  try {
+    final api = ChatApiService();
+    await api.fetchContacts(chatToken).timeout(const Duration(seconds: 6));
+    return true;
+  } catch (_) {
+    return false;
   }
 }
 

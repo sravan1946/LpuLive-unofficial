@@ -47,12 +47,18 @@ class ChatMessage {
       mType = media['type']?.toString();
       final rawUrl = media['url']?.toString();
       if (rawUrl != null && rawUrl.isNotEmpty) {
-        // Prefix relative URLs with site origin
-        if (rawUrl.startsWith('http')) {
-          mUrl = rawUrl;
+        // Always point to backend/media/{segment}/ (trailing slash required)
+        const backendBase = 'https://lpulive.lpu.in/backend';
+        String segment;
+        final idx = rawUrl.indexOf('/media/');
+        if (idx != -1) {
+          segment = rawUrl.substring(idx + '/media/'.length);
         } else {
-          mUrl = 'https://lpulive.lpu.in$rawUrl';
+          segment = rawUrl.replaceFirst(RegExp(r'^/+'), '');
         }
+        // Strip any trailing slashes from segment, then append one
+        segment = segment.replaceAll(RegExp(r'/+$'), '');
+        mUrl = '$backendBase/media/$segment/';
       }
     }
 

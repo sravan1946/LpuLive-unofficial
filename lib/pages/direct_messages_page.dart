@@ -18,6 +18,9 @@ bool _contactsLoaded = false;
 bool _avatarsLoaded = false;
 const String _kAvatarCacheKey = 'dm_avatar_cache_v1';
 
+// Avatars may be absolute or relative; we keep what we have and rely on network image fetcher
+String _normalizeAvatar(String? url) => (url ?? '').trim();
+
 class DirectMessagesPage extends StatefulWidget {
   final WebSocketChatService wsService;
 
@@ -253,12 +256,12 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
   String? _avatarUrlForDm(DirectMessage dm) {
     final meta = _dmMetaCacheByGroup[dm.dmName];
-    if (meta != null && meta.avatarUrl != null && meta.avatarUrl!.isNotEmpty) return meta.avatarUrl;
+    if (meta != null && meta.avatarUrl != null && meta.avatarUrl!.isNotEmpty) return _normalizeAvatar(meta.avatarUrl);
     final otherId = _otherUserIdForDm(dm.dmName);
     final contact = _contactsCacheById[otherId];
     final fromContacts = contact?.userimageurl ?? contact?.avatar;
-    if (fromContacts != null && fromContacts.isNotEmpty) return fromContacts;
-    return _avatarCacheByUserId[otherId];
+    if (fromContacts != null && fromContacts.isNotEmpty) return _normalizeAvatar(fromContacts);
+    return _normalizeAvatar(_avatarCacheByUserId[otherId]);
   }
 
   void _sortDirectMessages() {

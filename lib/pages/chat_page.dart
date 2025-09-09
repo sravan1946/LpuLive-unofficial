@@ -5,6 +5,10 @@ import '../services/chat_services.dart';
 import '../widgets/network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'package:photo_view/photo_view.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -30,6 +34,26 @@ class _ChatPageState extends State<ChatPage> {
   List<ChatMessage> _messages = [];
   bool _isLoading = false;
   late final StreamSubscription<ChatMessage> _messageSubscription;
+  // No backend normalization here; media URLs from messages are already normalized in ChatMessage.fromJson
+
+  String _formatTimestamp(String timestamp) {
+    try {
+      final dateTime = DateTime.parse(timestamp);
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+      if (difference.inDays > 0) {
+        return '${difference.inDays}d ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes}m ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      return timestamp;
+    }
+  }
 
   @override
   void initState() {
@@ -109,6 +133,14 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  void _showFullScreenImage(String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImageViewer(imageUrl: imageUrl),
+      ),
+    );
+  }
+
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty || widget.isReadOnly) return;
@@ -164,25 +196,6 @@ class _ChatPageState extends State<ChatPage> {
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
       }
-    }
-  }
-
-  String _formatTimestamp(String timestamp) {
-    try {
-      final dateTime = DateTime.parse(timestamp);
-      final now = DateTime.now();
-      final difference = now.difference(dateTime);
-      if (difference.inDays > 0) {
-        return '${difference.inDays}d ago';
-      } else if (difference.inHours > 0) {
-        return '${difference.inHours}h ago';
-      } else if (difference.inMinutes > 0) {
-        return '${difference.inMinutes}m ago';
-      } else {
-        return 'Just now';
-      }
-    } catch (e) {
-      return timestamp;
     }
   }
 
@@ -365,11 +378,12 @@ class _ChatPageState extends State<ChatPage> {
                                                 ),
                                               ),
                                             if (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)
-                                              _MediaBubble(message: message)
+                                              _MediaBubble(message: message, onImageTap: _showFullScreenImage)
                                             else
                                               _MessageBody(
                                                 message: message,
                                                 isOwn: message.isOwnMessage,
+                                                onImageTap: _showFullScreenImage,
                                               ),
                                             const SizedBox(height: 4),
                                             Row(
@@ -571,7 +585,13 @@ class _ChatPatternPainter extends CustomPainter {
 class _MessageBody extends StatelessWidget {
   final ChatMessage message;
   final bool isOwn;
-  const _MessageBody({required this.message, required this.isOwn});
+  final Function(String) onImageTap;
+
+  const _MessageBody({
+    required this.message, 
+    required this.isOwn,
+    required this.onImageTap,
+  });
 
   bool _isImageUrl(String s) {
     final u = s.toLowerCase();
@@ -633,6 +653,44 @@ class _MessageBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = message.message.trim();
     final scheme = Theme.of(context).colorScheme;
+
+    // Prefer explicit media rendering when media is attached to the message
+    if ((message.mediaUrl != null && message.mediaUrl!.isNotEmpty)) {
+      final url = message.mediaUrl!;
+      final type = (message.mediaType ?? '').toLowerCase();
+      final looksImage = type.contains('image') || _isImageUrl(url);
+      if (looksImage) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 2, bottom: 2),
+          child: GestureDetector(
+            onTap: () => onImageTap(url),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SafeNetworkImage(
+                  imageUrl: url,
+                  width: 220,
+                  height: 220,
+                  fit: BoxFit.cover,
+                  highQuality: true,
+                  errorWidget: Container(
+                    width: 220,
+                    height: 160,
+                    color: scheme.surface,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.broken_image_outlined),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      } else {
+        return _DocumentTile(url: url, isOwn: isOwn);
+      }
+    }
+
     // If message is a bare URL, try media rendering first
     final parsed = Uri.tryParse(text);
     final looksLikeUrl =
@@ -643,20 +701,26 @@ class _MessageBody extends StatelessWidget {
       if (_isImageUrl(text)) {
         return Padding(
           padding: const EdgeInsets.only(top: 2, bottom: 2),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: SafeNetworkImage(
-              imageUrl: text,
-              width: 220,
-              height: 220,
-              fit: BoxFit.cover,
-              highQuality: true,
-              errorWidget: Container(
-                width: 220,
-                height: 160,
-                color: scheme.surface,
-                alignment: Alignment.center,
-                child: const Icon(Icons.broken_image_outlined),
+          child: GestureDetector(
+            onTap: () => onImageTap(text),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SafeNetworkImage(
+                  imageUrl: text,
+                  width: 220,
+                  height: 220,
+                  fit: BoxFit.cover,
+                  highQuality: true,
+                  errorWidget: Container(
+                    width: 220,
+                    height: 160,
+                    color: scheme.surface,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.broken_image_outlined),
+                  ),
+                ),
               ),
             ),
           ),
@@ -718,7 +782,8 @@ class _MessageBody extends StatelessWidget {
 
 class _MediaBubble extends StatelessWidget {
   final ChatMessage message;
-  const _MediaBubble({required this.message});
+  final Function(String)? onImageTap;
+  const _MediaBubble({required this.message, this.onImageTap});
 
   bool get _isImage => (message.mediaType ?? '').startsWith('image/');
 
@@ -731,20 +796,26 @@ class _MediaBubble extends StatelessWidget {
     if (_isImage) {
       return Padding(
         padding: const EdgeInsets.only(top: 2, bottom: 2),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: SafeNetworkImage(
-            imageUrl: url,
-            width: 220,
-            height: 220,
-            fit: BoxFit.cover,
-            highQuality: true,
-            errorWidget: Container(
-              width: 220,
-              height: 160,
-              color: scheme.surface,
-              alignment: Alignment.center,
-              child: const Icon(Icons.broken_image_outlined),
+        child: GestureDetector(
+          onTap: () => onImageTap?.call(url),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SafeNetworkImage(
+                imageUrl: url,
+                width: 220,
+                height: 220,
+                fit: BoxFit.cover,
+                highQuality: true,
+                errorWidget: Container(
+                  width: 220,
+                  height: 160,
+                  color: scheme.surface,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.broken_image_outlined),
+                ),
+              ),
             ),
           ),
         ),
@@ -815,8 +886,33 @@ class _DocumentTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () async {
-        final uri = Uri.parse(url);
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        try {
+          final response = await CustomHttpClient.getWithCertificateHandling(url) ?? await http.get(Uri.parse(url));
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            final bytes = response.bodyBytes;
+            final filename = _deriveFilename(url, response.headers);
+            final dir = await getApplicationDocumentsDirectory();
+            final file = File('${dir.path}/$filename');
+            await file.writeAsBytes(bytes, flush: true);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Saved to ${file.path}')),
+              );
+            }
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Download failed (${response.statusCode})')),
+              );
+            }
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Download error: $e')),
+            );
+          }
+        }
       },
       child: Container(
         width: 260,
@@ -855,5 +951,107 @@ class _DocumentTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _deriveFilename(String u, Map<String, String> headers) {
+    final cd = headers['content-disposition'] ?? headers['Content-Disposition'];
+    if (cd != null) {
+      final utf8Match = RegExp(r"filename\*=UTF-8''([^;]+)").firstMatch(cd);
+      if (utf8Match != null) {
+        return utf8Match.group(1)!.split('/').last;
+      }
+      final simpleMatch = RegExp(r'filename="?([^";]+)"?').firstMatch(cd);
+      if (simpleMatch != null) {
+        return simpleMatch.group(1)!.split('/').last;
+      }
+    }
+    return u.split('?').first.split('/').last;
+  }
+}
+
+class _FullScreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+
+  const _FullScreenImageViewer({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () => _downloadImage(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: () => _shareImage(context),
+          ),
+        ],
+      ),
+      body: PhotoView(
+        imageProvider: NetworkImage(imageUrl),
+        minScale: PhotoViewComputedScale.contained,
+        maxScale: PhotoViewComputedScale.covered * 2.0,
+        initialScale: PhotoViewComputedScale.contained,
+        heroAttributes: PhotoViewHeroAttributes(tag: imageUrl),
+        loadingBuilder: (context, event) => const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(
+            Icons.broken_image_outlined,
+            color: Colors.white,
+            size: 64,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _downloadImage(BuildContext context) async {
+    try {
+      final response = await http.get(Uri.parse(imageUrl));
+      final directory = await getApplicationDocumentsDirectory();
+      final filename = imageUrl.split('/').last.split('?').first;
+      final file = File('${directory.path}/$filename');
+      await file.writeAsBytes(response.bodyBytes);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Image saved to ${file.path}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _shareImage(BuildContext context) async {
+    try {
+      await launchUrl(Uri.parse(imageUrl), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to share image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
