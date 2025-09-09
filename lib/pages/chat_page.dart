@@ -5,10 +5,10 @@ import '../services/chat_services.dart';
 import '../widgets/network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:photo_view/photo_view.dart';
+import 'package:path_provider/path_provider.dart';
 import '../widgets/app_toast.dart';
 
 class ChatPage extends StatefulWidget {
@@ -63,7 +63,11 @@ class _ChatPageState extends State<ChatPage> {
     if (!widget.wsService.isConnected && currentUser != null) {
       widget.wsService.connect(currentUser!.chatToken).catchError((e) {
         if (mounted) {
-          showAppToast(context, 'WebSocket connect failed: $e', type: ToastType.error);
+          showAppToast(
+            context,
+            'WebSocket connect failed: $e',
+            type: ToastType.error,
+          );
         }
       });
     }
@@ -125,7 +129,11 @@ class _ChatPageState extends State<ChatPage> {
         _isLoading = false;
       });
       if (mounted) {
-        showAppToast(context, 'Failed to load messages: $e', type: ToastType.error);
+        showAppToast(
+          context,
+          'Failed to load messages: $e',
+          type: ToastType.error,
+        );
       }
     }
   }
@@ -144,7 +152,11 @@ class _ChatPageState extends State<ChatPage> {
 
     if (!widget.wsService.isConnected) {
       if (mounted) {
-        showAppToast(context, 'Not connected to chat server', type: ToastType.warning);
+        showAppToast(
+          context,
+          'Not connected to chat server',
+          type: ToastType.warning,
+        );
       }
       return;
     }
@@ -187,7 +199,11 @@ class _ChatPageState extends State<ChatPage> {
       _messageController.clear();
     } catch (e) {
       if (mounted) {
-        showAppToast(context, 'Failed to send message: $e', type: ToastType.error);
+        showAppToast(
+          context,
+          'Failed to send message: $e',
+          type: ToastType.error,
+        );
       }
     }
   }
@@ -245,7 +261,10 @@ class _ChatPageState extends State<ChatPage> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [scheme.surface, scheme.surfaceVariant],
+                        colors: [
+                          scheme.surface,
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                        ],
                       ),
                     ),
                     child: Stack(
@@ -333,9 +352,9 @@ class _ChatPageState extends State<ChatPage> {
                                         decoration: BoxDecoration(
                                           color: message.isOwnMessage
                                               ? scheme.primary
-                                              : Theme.of(
-                                                  context,
-                                                ).colorScheme.surfaceVariant,
+                                              : Theme.of(context)
+                                                    .colorScheme
+                                                    .surfaceContainerHighest,
                                           borderRadius: BorderRadius.only(
                                             topLeft: const Radius.circular(14),
                                             topRight: const Radius.circular(14),
@@ -370,13 +389,19 @@ class _ChatPageState extends State<ChatPage> {
                                                   color: scheme.primary,
                                                 ),
                                               ),
-                                            if (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)
-                                              _MediaBubble(message: message, onImageTap: _showFullScreenImage)
+                                            if (message.mediaUrl != null &&
+                                                message.mediaUrl!.isNotEmpty)
+                                              _MediaBubble(
+                                                message: message,
+                                                onImageTap:
+                                                    _showFullScreenImage,
+                                              )
                                             else
                                               _MessageBody(
                                                 message: message,
                                                 isOwn: message.isOwnMessage,
-                                                onImageTap: _showFullScreenImage,
+                                                onImageTap:
+                                                    _showFullScreenImage,
                                               ),
                                             const SizedBox(height: 4),
                                             Row(
@@ -496,7 +521,9 @@ class _ChatPageState extends State<ChatPage> {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: Theme.of(context).colorScheme.outline,
@@ -581,7 +608,7 @@ class _MessageBody extends StatelessWidget {
   final Function(String) onImageTap;
 
   const _MessageBody({
-    required this.message, 
+    required this.message,
     required this.isOwn,
     required this.onImageTap,
   });
@@ -880,7 +907,9 @@ class _DocumentTile extends StatelessWidget {
     return InkWell(
       onTap: () async {
         try {
-          final response = await CustomHttpClient.getWithCertificateHandling(url) ?? await http.get(Uri.parse(url));
+          final response =
+              await CustomHttpClient.getWithCertificateHandling(url) ??
+              await http.get(Uri.parse(url));
           if (response.statusCode >= 200 && response.statusCode < 300) {
             final bytes = response.bodyBytes;
             final filename = _deriveFilename(url, response.headers);
@@ -888,11 +917,19 @@ class _DocumentTile extends StatelessWidget {
             final file = File('${dir.path}/$filename');
             await file.writeAsBytes(bytes, flush: true);
             if (context.mounted) {
-              showAppToast(context, 'Saved to ${file.path}', type: ToastType.success);
+              showAppToast(
+                context,
+                'Saved to ${file.path}',
+                type: ToastType.success,
+              );
             }
           } else {
             if (context.mounted) {
-              showAppToast(context, 'Download failed (${response.statusCode})', type: ToastType.error);
+              showAppToast(
+                context,
+                'Download failed (${response.statusCode})',
+                type: ToastType.error,
+              );
             }
           }
         } catch (e) {
@@ -985,9 +1022,8 @@ class _FullScreenImageViewer extends StatelessWidget {
         maxScale: PhotoViewComputedScale.covered * 2.0,
         initialScale: PhotoViewComputedScale.contained,
         heroAttributes: PhotoViewHeroAttributes(tag: imageUrl),
-        loadingBuilder: (context, event) => const Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
+        loadingBuilder: (context, event) =>
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
         errorBuilder: (context, error, stackTrace) => const Center(
           child: Icon(
             Icons.broken_image_outlined,
@@ -1006,23 +1042,38 @@ class _FullScreenImageViewer extends StatelessWidget {
       final filename = imageUrl.split('/').last.split('?').first;
       final file = File('${directory.path}/$filename');
       await file.writeAsBytes(response.bodyBytes);
-      
+
       if (context.mounted) {
-        showAppToast(context, 'Image saved to ${file.path}', type: ToastType.success);
+        showAppToast(
+          context,
+          'Image saved to ${file.path}',
+          type: ToastType.success,
+        );
       }
     } catch (e) {
       if (context.mounted) {
-        showAppToast(context, 'Failed to download image: $e', type: ToastType.error);
+        showAppToast(
+          context,
+          'Failed to download image: $e',
+          type: ToastType.error,
+        );
       }
     }
   }
 
   void _shareImage(BuildContext context) async {
     try {
-      await launchUrl(Uri.parse(imageUrl), mode: LaunchMode.externalApplication);
+      await launchUrl(
+        Uri.parse(imageUrl),
+        mode: LaunchMode.externalApplication,
+      );
     } catch (e) {
       if (context.mounted) {
-        showAppToast(context, 'Failed to share image: $e', type: ToastType.error);
+        showAppToast(
+          context,
+          'Failed to share image: $e',
+          type: ToastType.error,
+        );
       }
     }
   }

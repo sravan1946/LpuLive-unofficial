@@ -110,7 +110,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     });
   }
 
-
   Future<void> _openCourseChat(CourseGroup course) async {
     final isWritable = _isGroupWritable(course);
     Navigator.of(context).push(
@@ -127,7 +126,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       ),
     );
   }
-
 
   bool _isGroupWritable(CourseGroup course) {
     final originalGroup = currentUser?.groups.firstWhere(
@@ -271,15 +269,16 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
         )
         .toList();
 
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         if (_selectedCourse != null) {
           setState(() {
             _selectedCourse = null;
           });
-          return false;
+          return;
         }
-        return true;
       },
       child: Scaffold(
         appBar: AppBar(
@@ -474,17 +473,13 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.of(context).pop();
-
+              final navigator = Navigator.of(context);
+              navigator.pop();
               await TokenStorage.clearToken();
               currentUser = null;
-              if (mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const TokenInputApp(),
-                  ),
-                );
-              }
+              navigator.pushReplacement(
+                MaterialPageRoute(builder: (context) => const TokenInputApp()),
+              );
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Logout'),

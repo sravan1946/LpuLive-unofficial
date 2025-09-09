@@ -159,7 +159,10 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
               height: 72,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [scheme.primary, scheme.primary.withOpacity(0.6)],
+                  colors: [
+                    scheme.primary,
+                    scheme.primary.withValues(alpha: 0.6),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -229,16 +232,15 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
                       onPressed: () async {
                         print('🌐 Starting webview login process...');
                         // Clear local storage before opening webview
+                        final navigator = Navigator.of(context);
                         await TokenStorage.clearToken();
                         print('🗑️ Local storage cleared');
-                        if (mounted) {
-                          print('🚀 Navigating to WebViewLoginScreen');
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (context) => const WebViewLoginScreen(),
-                            ),
-                          );
-                        }
+                        print('🚀 Navigating to WebViewLoginScreen');
+                        navigator.pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => const WebViewLoginScreen(),
+                          ),
+                        );
                       },
                       icon: const Icon(Icons.web),
                       label: const Text('Login via Website'),
@@ -303,7 +305,7 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: scheme.primaryContainer.withOpacity(0.4),
+                          color: scheme.primaryContainer.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: scheme.primaryContainer),
                         ),

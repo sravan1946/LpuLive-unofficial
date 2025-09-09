@@ -4,12 +4,7 @@ class SearchResult {
   final String? regID;
   final String? error;
 
-  SearchResult({
-    required this.message,
-    this.category,
-    this.regID,
-    this.error,
-  });
+  SearchResult({required this.message, this.category, this.regID, this.error});
 
   factory SearchResult.fromJson(Map<String, dynamic> json) {
     return SearchResult(
@@ -22,5 +17,3 @@ class SearchResult {
 
   bool get isSuccess => error == null;
 }
-
-

@@ -34,7 +34,7 @@ class DirectMessagesPage extends StatefulWidget {
 class _DirectMessagesPageState extends State<DirectMessagesPage> {
   final TextEditingController _messageController = TextEditingController();
   late List<DirectMessage> _directMessages;
-// kept for state/back compat but not used for inline view
+  // kept for state/back compat but not used for inline view
   StreamSubscription<ChatMessage>? _messageSubscription;
   StreamSubscription<Map<String, dynamic>>? _systemMessageSubscription;
   String _query = '';
@@ -201,15 +201,20 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   // Lazy-load meta (name/avatar) via messages endpoint, but only if contacts didn't have it
   Future<void> _ensureDmMetaLoaded(String groupId) async {
     if (currentUser == null) return;
-    if (_dmMetaCacheByGroup.containsKey(groupId) || _dmMetaLoading.contains(groupId)) return;
+    if (_dmMetaCacheByGroup.containsKey(groupId) ||
+        _dmMetaLoading.contains(groupId))
+      return;
 
     final otherId = _otherUserIdForDm(groupId);
     final contact = _contactsCacheById[otherId];
     final cachedAvatar = _avatarCacheByUserId[otherId];
     if (contact != null || (cachedAvatar != null && cachedAvatar.isNotEmpty)) {
       // Contacts may have name; avatar may be from persistent cache
-      final name = (contact != null && contact.name.isNotEmpty) ? contact.name : otherId;
-      final avatarUrl = (contact?.userimageurl ?? contact?.avatar) ?? cachedAvatar;
+      final name = (contact != null && contact.name.isNotEmpty)
+          ? contact.name
+          : otherId;
+      final avatarUrl =
+          (contact?.userimageurl ?? contact?.avatar) ?? cachedAvatar;
       _dmMetaCacheByGroup[groupId] = _DmMeta(name: name, avatarUrl: avatarUrl);
       _safeRebuild();
       return;
@@ -217,7 +222,10 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
     _dmMetaLoading.add(groupId);
     try {
-      final msgs = await _apiService.fetchChatMessages(groupId, currentUser!.chatToken);
+      final msgs = await _apiService.fetchChatMessages(
+        groupId,
+        currentUser!.chatToken,
+      );
       String name = otherId;
       String? avatar;
       if (msgs.isNotEmpty) {
@@ -253,11 +261,13 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
   String? _avatarUrlForDm(DirectMessage dm) {
     final meta = _dmMetaCacheByGroup[dm.dmName];
-    if (meta != null && meta.avatarUrl != null && meta.avatarUrl!.isNotEmpty) return _normalizeAvatar(meta.avatarUrl);
+    if (meta != null && meta.avatarUrl != null && meta.avatarUrl!.isNotEmpty)
+      return _normalizeAvatar(meta.avatarUrl);
     final otherId = _otherUserIdForDm(dm.dmName);
     final contact = _contactsCacheById[otherId];
     final fromContacts = contact?.userimageurl ?? contact?.avatar;
-    if (fromContacts != null && fromContacts.isNotEmpty) return _normalizeAvatar(fromContacts);
+    if (fromContacts != null && fromContacts.isNotEmpty)
+      return _normalizeAvatar(fromContacts);
     return _normalizeAvatar(_avatarCacheByUserId[otherId]);
   }
 
@@ -359,17 +369,14 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final filtered = _directMessages
-        .where((dm) {
-          if (_query.isEmpty) return true;
-          final name = _displayNameForDm(dm).toLowerCase();
-          return name.contains(_query.toLowerCase());
-        })
-        .toList();
+    final filtered = _directMessages.where((dm) {
+      if (_query.isEmpty) return true;
+      final name = _displayNameForDm(dm).toLowerCase();
+      return name.contains(_query.toLowerCase());
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Direct Messages')),
@@ -430,8 +437,12 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         // Derive status from currentUser group metadata
         String? status;
         try {
-          final grp = currentUser?.groups.firstWhere((g) => g.name == dm.dmName);
-          status = grp?.inviteStatus.isNotEmpty == true ? grp!.inviteStatus : null;
+          final grp = currentUser?.groups.firstWhere(
+            (g) => g.name == dm.dmName,
+          );
+          status = grp?.inviteStatus.isNotEmpty == true
+              ? grp!.inviteStatus
+              : null;
         } catch (_) {}
 
         return Card(
@@ -451,7 +462,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                         radius: 20,
                         backgroundColor: scheme.primary,
                         child: Text(
-                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                          displayName.isNotEmpty
+                              ? displayName[0].toUpperCase()
+                              : '?',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -464,7 +477,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                     radius: 20,
                     backgroundColor: scheme.primary,
                     child: Text(
-                      displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                      displayName.isNotEmpty
+                          ? displayName[0].toUpperCase()
+                          : '?',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -475,17 +490,18 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Expanded(
-                  child: Text(
-                    displayName,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(displayName, overflow: TextOverflow.ellipsis),
                 ),
-                if (status != null && status.trim().toUpperCase() != 'ACPTD') ...[
+                if (status != null &&
+                    status.trim().toUpperCase() != 'ACPTD') ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: scheme.surfaceVariant,
+                      color: scheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(color: scheme.outlineVariant),
                     ),

@@ -25,7 +25,7 @@ class TokenValidationApp extends StatelessWidget {
           final colorScheme = Theme.of(context).colorScheme;
           final textTheme = Theme.of(context).textTheme;
           return Scaffold(
-            backgroundColor: colorScheme.background,
+            backgroundColor: colorScheme.surface,
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -42,14 +42,18 @@ class TokenValidationApp extends StatelessWidget {
                   Text(
                     'Validating your session...',
                     style: textTheme.bodyMedium?.copyWith(
-                      color: textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      color: textTheme.bodyMedium?.color?.withValues(
+                        alpha: 0.7,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Please wait',
                     style: textTheme.bodySmall?.copyWith(
-                      color: textTheme.bodySmall?.color?.withOpacity(0.55),
+                      color: textTheme.bodySmall?.color?.withValues(
+                        alpha: 0.55,
+                      ),
                     ),
                   ),
                 ],
@@ -137,7 +141,9 @@ void main() async {
         final isTokenValid = await _validateToken(savedToken);
         final elapsed = DateTime.now().difference(startedAt).inMilliseconds;
         if (elapsed < minimumVisibleMs) {
-          await Future.delayed(Duration(milliseconds: minimumVisibleMs - elapsed));
+          await Future.delayed(
+            Duration(milliseconds: minimumVisibleMs - elapsed),
+          );
         }
         if (isTokenValid) {
           print('✅ Token validated, launching main app');
@@ -152,7 +158,9 @@ void main() async {
           currentUser = null;
           print('🔐 Showing login screen after auto-logout');
           _navigatorKey.currentState?.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true)),
+            MaterialPageRoute(
+              builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+            ),
             (route) => false,
           );
           return;
@@ -162,7 +170,9 @@ void main() async {
         await TokenStorage.clearToken();
         print('🔐 Showing login screen after auto-logout');
         _navigatorKey.currentState?.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true)),
+          MaterialPageRoute(
+            builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+          ),
           (route) => false,
         );
         return;
@@ -171,7 +181,9 @@ void main() async {
 
     print('🔐 No valid token, showing login screen');
     _navigatorKey.currentState?.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const UnifiedLoginScreen(autoLoggedOut: false)),
+      MaterialPageRoute(
+        builder: (_) => const UnifiedLoginScreen(autoLoggedOut: false),
+      ),
       (route) => false,
     );
   });

@@ -90,11 +90,19 @@ class PersonalGroupsPage extends StatelessWidget {
                 onPressed: () {
                   final name = nameController.text.trim();
                   if (name.isEmpty) {
-                    showAppToast(context, 'Please enter a group name', type: ToastType.warning);
+                    showAppToast(
+                      context,
+                      'Please enter a group name',
+                      type: ToastType.warning,
+                    );
                     return;
                   }
                   Navigator.pop(context);
-                  showAppToast(context, 'Group "$name" will be created soon', type: ToastType.info);
+                  showAppToast(
+                    context,
+                    'Group "$name" will be created soon',
+                    type: ToastType.info,
+                  );
                 },
                 icon: const Icon(Icons.check),
                 label: const Text('Create'),

@@ -19,7 +19,7 @@ final ColorScheme lpuLightColorScheme =
       onSecondary: Colors.white,
       surface: Colors.white,
       onSurface: const Color(0xFF1B1B1B),
-      surfaceVariant: const Color(0xFFF5F5F5),
+      surfaceContainerHighest: const Color(0xFFF5F5F5),
       onSurfaceVariant: const Color(0xFF5A5A5A),
       outline: const Color(0xFFE5E5E5),
     );
@@ -36,7 +36,7 @@ final ThemeData lpuTheme = ThemeData(
   ),
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
-    fillColor: lpuLightColorScheme.surfaceVariant,
+    fillColor: lpuLightColorScheme.surfaceContainerHighest,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(color: lpuLightColorScheme.outline),
@@ -101,7 +101,7 @@ final ColorScheme lpuDarkColorScheme =
       secondary: Colors.white70,
       surface: _lpuCharcoal,
       onSurface: Colors.white,
-      surfaceVariant: _lpuGrey,
+      surfaceContainerHighest: _lpuGrey,
       onSurfaceVariant: Colors.white70,
       outline: const Color(0xFF333333),
     );
@@ -118,7 +118,7 @@ final ThemeData lpuDarkTheme = ThemeData(
   ),
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
-    fillColor: lpuDarkColorScheme.surfaceVariant,
+    fillColor: lpuDarkColorScheme.surfaceContainerHighest,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(color: lpuDarkColorScheme.outline),
@@ -157,7 +157,7 @@ final ThemeData lpuDarkTheme = ThemeData(
     ),
   ),
   cardTheme: CardThemeData(
-    color: lpuDarkColorScheme.surfaceVariant,
+    color: lpuDarkColorScheme.surfaceContainerHighest,
     elevation: 0,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     margin: EdgeInsets.zero,

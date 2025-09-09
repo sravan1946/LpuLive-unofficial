@@ -48,7 +48,7 @@ dependencies:
   shared_preferences: ^2.2.2
 
    # WebSocket for real-time messaging
-  web_socket_channel: ^2.4.0
+  web_socket_channel: ^3.0.3
 
    # UUID generation for message IDs
   uuid: ^4.2.1
@@ -59,8 +59,11 @@ dependencies:
   # Open links and files
   url_launcher: ^6.3.0
 
+  # File system paths (needed by chat_page downloads)
+  path_provider: ^2.1.5
+
   # Photo view for full-screen image viewing with zoom/pan
-  photo_view: ^0.14.0
+  photo_view: ^0.15.0
 
 dev_dependencies:
   flutter_test:
@@ -71,7 +74,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -39,12 +39,26 @@ class TimestampUtils {
       final time = _parseTimeString(timePart);
       if (time != null) {
         final yesterday = now.subtract(const Duration(days: 1));
-        return DateTime(yesterday.year, yesterday.month, yesterday.day, time.hour, time.minute);
+        return DateTime(
+          yesterday.year,
+          yesterday.month,
+          yesterday.day,
+          time.hour,
+          time.minute,
+        );
       }
     }
 
     // Handle day names: "Tuesday 11:05 AM", "Monday 09:15 AM", etc.
-    final dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    final dayNames = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
     for (int i = 0; i < dayNames.length; i++) {
       if (lowerTimestamp.startsWith(dayNames[i])) {
         final timePart = timestamp.substring(dayNames[i].length).trim();
@@ -60,7 +74,13 @@ class TimestampUtils {
           }
 
           final targetDate = now.subtract(Duration(days: daysToSubtract));
-          return DateTime(targetDate.year, targetDate.month, targetDate.day, time.hour, time.minute);
+          return DateTime(
+            targetDate.year,
+            targetDate.month,
+            targetDate.day,
+            time.hour,
+            time.minute,
+          );
         }
       }
     }
@@ -71,7 +91,10 @@ class TimestampUtils {
   /// Parses time strings in 12-hour format with AM/PM (e.g., "11:05 AM", "3:30 PM")
   static DateTime? _parseTimeString(String timeString) {
     // Parse time formats like "11:05 AM", "07:55 PM", "3:30 PM", etc.
-    final timeRegex = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$', caseSensitive: false);
+    final timeRegex = RegExp(
+      r'^(\d{1,2}):(\d{2})\s*(AM|PM)$',
+      caseSensitive: false,
+    );
     final match = timeRegex.firstMatch(timeString.trim());
 
     if (match != null) {
@@ -87,7 +110,13 @@ class TimestampUtils {
       }
 
       if (hour24 >= 0 && hour24 <= 23 && minute >= 0 && minute <= 59) {
-        return DateTime(0, 1, 1, hour24, minute); // Year/month/day don't matter for time-only
+        return DateTime(
+          0,
+          1,
+          1,
+          hour24,
+          minute,
+        ); // Year/month/day don't matter for time-only
       }
     }
 

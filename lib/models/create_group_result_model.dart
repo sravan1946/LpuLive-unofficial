@@ -22,5 +22,3 @@ class CreateGroupResult {
 
   bool get isSuccess => statusCode == '200';
 }
-
-

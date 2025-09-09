@@ -62,7 +62,7 @@ class _SplashPageState extends State<SplashPage>
                 final t = _controller.value;
                 return CustomPaint(
                   painter: _RadialGlowPainter(
-                    color.primary.withOpacity(0.12 + 0.06 * t),
+                    color.primary.withValues(alpha: 0.12 + 0.06 * t),
                   ),
                 );
               },

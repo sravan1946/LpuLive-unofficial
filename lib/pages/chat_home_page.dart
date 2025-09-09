@@ -94,22 +94,28 @@ class _ChatHomePageState extends State<ChatHomePage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         if (_selectedIndex != 0) {
           setState(() {
             _selectedIndex = 0;
           });
-          return false;
+          return;
         }
-        return await _showExitConfirmation(context);
+        final navigator = Navigator.of(context);
+        final exit = await _showExitConfirmation(context);
+        if (exit) {
+          navigator.maybePop();
+        }
       },
       child: Scaffold(
         body: _pages[_selectedIndex],
         bottomNavigationBar: NavigationBar(
           backgroundColor: scheme.surface,
           elevation: 3,
-          indicatorColor: scheme.primary.withOpacity(0.12),
+          indicatorColor: scheme.primary.withValues(alpha: 0.12),
           onDestinationSelected: _onItemTapped,
           selectedIndex: _selectedIndex,
           destinations: const [
