@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -340,6 +341,8 @@ class ChatApiService {
   }
 }
 
+enum ConnectionStatus { connecting, connected, disconnected, reconnecting }
+
 // WebSocket Service for sending messages
 class WebSocketChatService {
   static const String _wsBaseUrl = 'wss://lpulive.lpu.in';
@@ -349,13 +352,40 @@ class WebSocketChatService {
       StreamController.broadcast();
   final StreamController<Map<String, dynamic>> _systemMessageController =
       StreamController.broadcast();
+  final StreamController<ConnectionStatus> _connectionStatusController =
+      StreamController.broadcast();
+
+  // Reconnect/backoff state
+  bool _explicitlyClosed = false;
+  bool _shouldAttemptReconnect = true;
+  String? _lastChatToken;
+  int _reconnectAttempts = 0;
+  Timer? _reconnectTimer;
+  final Random _random = Random();
 
   Stream<ChatMessage> get messageStream => _messageController.stream;
   Stream<Map<String, dynamic>> get systemMessageStream =>
       _systemMessageController.stream;
+  Stream<ConnectionStatus> get connectionStatusStream =>
+      _connectionStatusController.stream;
+  ConnectionStatus _currentStatus = ConnectionStatus.disconnected;
+  ConnectionStatus get connectionStatus => _currentStatus;
+
+  void _setStatus(ConnectionStatus status) {
+    _currentStatus = status;
+    if (!_connectionStatusController.isClosed) {
+      _connectionStatusController.add(status);
+    }
+  }
 
   Future<void> connect(String chatToken) async {
     try {
+      _explicitlyClosed = false;
+      _shouldAttemptReconnect = true;
+      _lastChatToken = chatToken;
+      _reconnectTimer?.cancel();
+      _setStatus(ConnectionStatus.connecting);
+
       final wsUrl = '$_wsBaseUrl/ws/chat/?chat_token=$chatToken';
       debugPrint('🔌 [WebSocket] Connecting to: $wsUrl');
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
@@ -380,6 +410,12 @@ class WebSocketChatService {
                 debugPrint(
                   '🚪 [WebSocket] Force disconnect received: ${data['message']}',
                 );
+                // Stop reconnect attempts and close the socket
+                _shouldAttemptReconnect = false;
+                _explicitlyClosed = true;
+                _reconnectTimer?.cancel();
+                _channel?.sink.close(status.goingAway);
+                _setStatus(ConnectionStatus.disconnected);
                 // The UI will handle the logout
               }
             }
@@ -388,6 +424,10 @@ class WebSocketChatService {
                 data.containsKey('message')) {
               final chatMessage = ChatMessage.fromJson(data);
               _messageController.add(chatMessage);
+              if (_currentStatus != ConnectionStatus.connected) {
+                _setStatus(ConnectionStatus.connected);
+                _reconnectAttempts = 0; // reset on successful traffic
+              }
             }
           } catch (e) {
             debugPrint('❌ [WebSocket] Error parsing message: $e');
@@ -395,15 +435,59 @@ class WebSocketChatService {
           }
         },
         onError: (error) {
-          // Handle error
+          debugPrint('❌ [WebSocket] Stream error: $error');
+          _handleSocketClosed('error: $error');
         },
         onDone: () {
-          // Handle connection closed
+          debugPrint('🔌 [WebSocket] Connection closed');
+          _handleSocketClosed('done');
         },
       );
+      // If we reach here without immediate close, mark as connected-on-open
+      _setStatus(ConnectionStatus.connected);
     } catch (e) {
+      debugPrint('❌ [WebSocket] Connect threw: $e');
+      _handleSocketClosed('exception: $e');
       throw Exception('Failed to connect to WebSocket: $e');
     }
+  }
+
+  void _handleSocketClosed(String reason) {
+    _channel = null;
+    if (_explicitlyClosed || !_shouldAttemptReconnect) {
+      debugPrint('🔕 [WebSocket] Not reconnecting (explicitly closed or disabled).');
+      _setStatus(ConnectionStatus.disconnected);
+      return;
+    }
+
+    _scheduleReconnect(reason);
+  }
+
+  void _scheduleReconnect(String reason) {
+    _reconnectTimer?.cancel();
+    final baseDelayMs = 1000 * pow(2, min(_reconnectAttempts, 5)).toInt(); // cap at 32s
+    final jitterMs = _random.nextInt(500);
+    final delayMs = min(30000, baseDelayMs) + jitterMs; // cap total at ~30.5s
+    _reconnectAttempts += 1;
+    _setStatus(ConnectionStatus.reconnecting);
+    debugPrint('⏳ [WebSocket] Scheduling reconnect in ${delayMs}ms (attempt: $_reconnectAttempts). Reason: $reason');
+    _reconnectTimer = Timer(Duration(milliseconds: delayMs), () async {
+      if (_explicitlyClosed || !_shouldAttemptReconnect) {
+        debugPrint('🔕 [WebSocket] Reconnect cancelled before attempt.');
+        return;
+      }
+      final token = _lastChatToken;
+      if (token == null) {
+        debugPrint('⚠️ [WebSocket] No token available for reconnect.');
+        _setStatus(ConnectionStatus.disconnected);
+        return;
+      }
+      try {
+        await connect(token);
+      } catch (e) {
+        // connect() already funnels into _handleSocketClosed; nothing else to do
+      }
+    });
   }
 
   Future<void> sendMessage({
@@ -436,11 +520,26 @@ class WebSocketChatService {
   }
 
   void disconnect() {
+    _explicitlyClosed = true;
+    _shouldAttemptReconnect = false;
+    _reconnectTimer?.cancel();
+    _channel?.sink.close(status.goingAway);
+    _channel = null;
+    // Keep controllers alive so listeners remain valid if a new instance is not created.
+    // They will be closed when the service is disposed by GC/app shutdown.
+    _setStatus(ConnectionStatus.disconnected);
+  }
+
+  bool get isConnected => _channel != null;
+
+  void dispose() {
+    _explicitlyClosed = true;
+    _shouldAttemptReconnect = false;
+    _reconnectTimer?.cancel();
     _channel?.sink.close(status.goingAway);
     _channel = null;
     _messageController.close();
     _systemMessageController.close();
+    _connectionStatusController.close();
   }
-
-  bool get isConnected => _channel != null;
 }
