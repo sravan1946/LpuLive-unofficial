@@ -88,10 +88,6 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  assets:
-    - assets/lpu_logo.png
-    - assets/student_chat.png
-
   # assets: []
 
   # To add assets to your application, add an assets section, like this:

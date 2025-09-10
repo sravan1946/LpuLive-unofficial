@@ -5,7 +5,6 @@ import 'services/chat_services.dart';
 import 'pages/token_input_page.dart';
 import 'pages/chat_home_page.dart';
 import 'pages/splash_page.dart';
-import 'pages/get_started_page.dart';
 import 'theme.dart';
 
 final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
@@ -120,9 +119,74 @@ Future<bool> _validateToken(String token) async {
   }
 }
 
-void main() {
+void main() async {
+  print('🚀 App starting...');
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const SplashApp());
+
+  // Show validation screen immediately for first frame
+  runApp(const TokenValidationApp());
+
+  // Do token flow after first frame
+  Future.microtask(() async {
+    final savedToken = await TokenStorage.getToken();
+    print('💾 Saved token found: ${savedToken != null ? "YES" : "NO"}');
+
+    if (savedToken != null) {
+      await _processToken(savedToken);
+
+      if (currentUser != null) {
+        // Validate token in background, keep the validation screen visible
+        const minimumVisibleMs = 900;
+        final startedAt = DateTime.now();
+        final isTokenValid = await _validateToken(savedToken);
+        final elapsed = DateTime.now().difference(startedAt).inMilliseconds;
+        if (elapsed < minimumVisibleMs) {
+          await Future.delayed(
+            Duration(milliseconds: minimumVisibleMs - elapsed),
+          );
+        }
+        if (isTokenValid) {
+          print('✅ Token validated, launching main app');
+          _navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const ChatHomePage()),
+            (route) => false,
+          );
+          return;
+        } else {
+          print('🚪 Token invalid/expired, clearing and showing login');
+          await TokenStorage.clearToken();
+          currentUser = null;
+          print('🔐 Showing login screen after auto-logout');
+          _navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+            ),
+            (route) => false,
+          );
+          return;
+        }
+      } else {
+        print('❌ Saved token invalid, clearing and showing login');
+        await TokenStorage.clearToken();
+        print('🔐 Showing login screen after auto-logout');
+        _navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+          ),
+          (route) => false,
+        );
+        return;
+      }
+    }
+
+    print('🔐 No valid token, showing login screen');
+    _navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const UnifiedLoginScreen(autoLoggedOut: false),
+      ),
+      (route) => false,
+    );
+  });
 }
 
 class SplashApp extends StatelessWidget {
@@ -135,10 +199,7 @@ class SplashApp extends StatelessWidget {
       theme: lpuTheme,
       darkTheme: lpuDarkTheme,
       themeMode: ThemeMode.system,
-      routes: {
-        '/login': (_) => const TokenInputApp(),
-        '/get-started': (_) => const GetStartedPage(),
-      },
+      routes: {'/login': (_) => const TokenInputApp()},
       home: const SplashPage(),
     );
   }
