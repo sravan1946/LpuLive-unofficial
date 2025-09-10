@@ -202,13 +202,16 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
                       children: [
                         Icon(Icons.star_rounded, color: scheme.primary),
                         const SizedBox(width: 8),
-                        Text(
-                          'Recommended: Login via Website',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: scheme.primary,
-                              ),
+                        Expanded(
+                          child: Text(
+                            'Recommended: Login via Website',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: scheme.primary,
+                                ),
+                            softWrap: true,
+                          ),
                         ),
                       ],
                     ),
@@ -270,13 +273,16 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
                           color: scheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'Alternative: Use Auth Token',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: scheme.onSurfaceVariant,
-                              ),
+                        Expanded(
+                          child: Text(
+                            'Alternative: Use Auth Token',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                            softWrap: true,
+                          ),
                         ),
                       ],
                     ),
