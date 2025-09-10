@@ -5,7 +5,6 @@ import 'personal_groups_page.dart';
 import 'direct_messages_page.dart';
 import '../services/chat_services.dart';
 import '../models/user_models.dart';
-import 'profile_page.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -44,7 +43,6 @@ class _ChatHomePageState extends State<ChatHomePage> {
       UniversityGroupsPage(wsService: _wsService),
       PersonalGroupsPage(wsService: _wsService),
       DirectMessagesPage(wsService: _wsService),
-      const ProfilePage(),
     ];
   }
 
@@ -135,11 +133,6 @@ class _ChatHomePageState extends State<ChatHomePage> {
               icon: Icon(Icons.forum_outlined),
               selectedIcon: Icon(Icons.forum),
               label: 'DMs',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile',
             ),
           ],
         ),

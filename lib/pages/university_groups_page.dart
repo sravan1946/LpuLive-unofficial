@@ -6,8 +6,6 @@ import '../widgets/network_image.dart';
 import '../utils/timestamp_utils.dart';
 import 'token_input_page.dart';
 import 'chat_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class UniversityGroupsPage extends StatefulWidget {
   final WebSocketChatService wsService;
@@ -25,43 +23,11 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   StreamSubscription<ChatMessage>? _messageSubscription;
   String _query = '';
 
-  // Unread counters per course group
-  final Map<String, int> _unreadByGroup = {};
-  final ChatApiService _apiService = ChatApiService();
-  static const String _kUnreadUniKey = 'unread_uni_counts_v1';
-
-  Future<void> _loadUnreadCounts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kUnreadUniKey);
-      if (raw == null || raw.isEmpty) return;
-      final Map<String, dynamic> m = jsonDecode(raw);
-      _unreadByGroup.clear();
-      final existing = _courseGroups.map((c) => c.courseName).toSet();
-      for (final e in m.entries) {
-        final k = e.key;
-        final v = int.tryParse(e.value.toString()) ?? 0;
-        if (existing.contains(k) && v > 0) {
-          _unreadByGroup[k] = v;
-        }
-      }
-      if (mounted) setState(() {});
-    } catch (_) {}
-  }
-
-  Future<void> _saveUnreadCounts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kUnreadUniKey, jsonEncode(_unreadByGroup));
-    } catch (_) {}
-  }
-
   @override
   void initState() {
     super.initState();
     _initializeGroups();
     _setupWebSocketSubscription();
-    _loadUnreadCounts();
   }
 
   @override
@@ -89,7 +55,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
             lastMessageTime: group.lastMessageTime,
           );
           _courseGroups.add(courseGroup);
-          _unreadByGroup.putIfAbsent(group.name, () => 0);
           seenNames.add(group.name);
         }
       }
@@ -127,38 +92,18 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     return TimestampUtils.parseTimestamp(timestamp);
   }
 
-  String _stripCourseCodePrefix(String name) {
-    return name.replaceFirst(RegExp(r'^[A-Z]+\d+\s*-\s*'), '').trim();
-  }
-
-  int _indexForIncomingMessage(ChatMessage message) {
-    final incomingGroup = (message.group ?? '').trim();
-    if (incomingGroup.isEmpty) return -1;
-    final normalizedIncoming = _stripCourseCodePrefix(
-      incomingGroup,
-    ).toLowerCase();
-    return _courseGroups.indexWhere((c) {
-      final full = c.courseName;
-      final normalized = _stripCourseCodePrefix(full).toLowerCase();
-      return full == incomingGroup ||
-          normalized == normalizedIncoming ||
-          full.toLowerCase() == incomingGroup.toLowerCase();
-    });
-  }
-
   void _setupWebSocketSubscription() {
     _messageSubscription = widget.wsService.messageStream.listen((message) {
-      final index = _indexForIncomingMessage(message);
+      // Update cached last message time for list and re-sort
+      final targetName = (message.group != null && message.group!.isNotEmpty)
+          ? message.group!
+          : message.sender;
+      final index = _courseGroups.indexWhere((c) => c.courseName == targetName);
       if (index != -1) {
         final course = _courseGroups[index];
-        final groupKey = course.courseName;
         _courseGroups[index] = course.copyWith(
           lastMessageTime: message.timestamp,
         );
-        if (!message.isOwnMessage) {
-          _unreadByGroup.update(groupKey, (v) => v + 1, ifAbsent: () => 1);
-          _saveUnreadCounts();
-        }
         _sortCourseGroups();
         setState(() {});
       }
@@ -167,12 +112,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
   Future<void> _openCourseChat(CourseGroup course) async {
     final isWritable = _isGroupWritable(course);
-    // Clear unread when opening the chat
-    setState(() {
-      _unreadByGroup[course.courseName] = 0;
-    });
-    _saveUnreadCounts();
-
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ChatPage(
@@ -205,6 +144,98 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
     return originalGroup!.isActive &&
         (originalGroup.isTwoWay || originalGroup.isAdmin);
+  }
+
+  void _showUserInfo() {
+    if (currentUser == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('User Information'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (currentUser!.userImageUrl != null &&
+                  currentUser!.userImageUrl!.isNotEmpty) ...[
+                Center(
+                  child: CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    child: ClipOval(
+                      child: SafeNetworkImage(
+                        imageUrl: currentUser!.userImageUrl!,
+                        width: 68,
+                        height: 68,
+                        fit: BoxFit.cover,
+                        highQuality: true,
+                        errorWidget: Center(
+                          child: Text(
+                            currentUser!.displayName.isNotEmpty
+                                ? currentUser!.displayName[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              _buildInfoRow('Name', currentUser!.name),
+              _buildInfoRow('Display Name', currentUser!.displayName),
+              _buildInfoRow('Registration Number', currentUser!.id),
+              _buildInfoRow('Department', currentUser!.department),
+              _buildInfoRow('Category', currentUser!.category),
+              _buildInfoRow('Groups', '${currentUser!.groups.length} groups'),
+              _buildInfoRow(
+                'Can Create Groups',
+                currentUser!.createGroups ? 'Yes' : 'No',
+              ),
+              _buildInfoRow(
+                'One-to-One Chat',
+                currentUser!.oneToOne ? 'Enabled' : 'Disabled',
+              ),
+              _buildInfoRow(
+                'Chat Suspended',
+                currentUser!.isChatSuspended ? 'Yes' : 'No',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+          const SizedBox(height: 2),
+          Text(value, style: const TextStyle(fontSize: 14)),
+          const Divider(),
+        ],
+      ),
+    );
   }
 
   String _formatTimestamp(String timestamp) {
@@ -259,6 +290,32 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                   )
                 : 'University Groups',
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.person),
+              onPressed: _showUserInfo,
+              tooltip: 'User Info',
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'logout') {
+                  _logout();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout),
+                      SizedBox(width: 8),
+                      Text('Logout'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
           leading: _selectedCourse != null
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),
@@ -282,56 +339,11 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshCourses,
-                child: _buildCourseList(filtered, scheme),
-              ),
-            ),
+            Expanded(child: _buildCourseList(filtered, scheme)),
           ],
         ),
       ),
     );
-  }
-
-  Future<void> _refreshCourses() async {
-    if (currentUser == null) return;
-    try {
-      for (final course in _courseGroups) {
-        try {
-          final msgs = await _apiService.fetchChatMessages(
-            course.courseName,
-            currentUser!.chatToken,
-          );
-          if (msgs.isNotEmpty) {
-            final latest = msgs.last;
-            final idx = _courseGroups.indexWhere(
-              (c) => c.courseName == course.courseName,
-            );
-            if (idx != -1) {
-              _courseGroups[idx] = _courseGroups[idx].copyWith(
-                lastMessageTime: latest.timestamp,
-              );
-            }
-            for (int i = 0; i < currentUser!.groups.length; i++) {
-              if (currentUser!.groups[i].name == course.courseName) {
-                currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-                  groupLastMessage: latest.message,
-                  lastMessageTime: latest.timestamp,
-                );
-              }
-            }
-          }
-        } catch (_) {
-          // ignore individual failures
-        }
-      }
-      _sortCourseGroups();
-      await TokenStorage.saveCurrentUser();
-      await _saveUnreadCounts();
-    } finally {
-      if (mounted) setState(() {});
-    }
   }
 
   Widget _buildCourseList(List<CourseGroup> data, ColorScheme scheme) {
@@ -358,7 +370,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: data.length,
       itemBuilder: (context, index) {
         final course = data[index];
@@ -383,8 +394,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
             ? course.lastMessageTime
             : '';
         final readOnly = !_isGroupWritable(course);
-        final unread = _unreadByGroup[course.courseName] ?? 0;
-        final hasUnread = unread > 0;
 
         return Card(
           key: ValueKey(course.courseName),
@@ -401,9 +410,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                     course.courseName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: hasUnread
-                        ? const TextStyle(fontWeight: FontWeight.w700)
-                        : null,
                   ),
                 ),
               ],
@@ -412,9 +418,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
               lastMessage,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: hasUnread
-                  ? const TextStyle(fontWeight: FontWeight.w600)
-                  : null,
             ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -443,27 +446,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                     ),
                   ],
                 ),
-                if (hasUnread) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      unread > 99 ? '99+' : '$unread',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
                 if (course.messages.isNotEmpty &&
                     course.messages.last.isOwnMessage)
                   Icon(Icons.done_all, size: 16, color: scheme.primary),
@@ -473,6 +455,37 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
           ),
         );
       },
+    );
+  }
+
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text(
+          'Are you sure you want to logout? This will require you to enter your token again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              navigator.pop();
+              await TokenStorage.clearToken();
+              currentUser = null;
+              navigator.pushReplacement(
+                MaterialPageRoute(builder: (context) => const TokenInputApp()),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
     );
   }
 }

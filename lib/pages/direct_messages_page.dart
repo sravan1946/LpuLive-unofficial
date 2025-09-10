@@ -18,7 +18,6 @@ final Map<String, String> _avatarCacheByUserId = {};
 bool _contactsLoaded = false;
 bool _avatarsLoaded = false;
 const String _kAvatarCacheKey = 'dm_avatar_cache_v1';
-const String _kUnreadDmKey = 'unread_dm_counts_v1';
 
 // Avatars may be absolute or relative; we keep what we have and rely on network image fetcher
 String _normalizeAvatar(String? url) => (url ?? '').trim();
@@ -44,78 +43,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   // Track in-flight loads to avoid duplicate fetches
   final Set<String> _dmMetaLoading = {};
 
-  // Unread counters per DM group
-  final Map<String, int> _unreadByGroup = {};
-
-  Future<void> _loadUnreadCounts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kUnreadDmKey);
-      if (raw == null || raw.isEmpty) return;
-      final Map<String, dynamic> m = jsonDecode(raw);
-      _unreadByGroup.clear();
-      // Only keep counts for groups that exist
-      final existing = _directMessages.map((d) => d.dmName).toSet();
-      for (final e in m.entries) {
-        final k = e.key;
-        final v = int.tryParse(e.value.toString()) ?? 0;
-        if (existing.contains(k) && v > 0) {
-          _unreadByGroup[k] = v;
-        }
-      }
-      if (mounted) setState(() {});
-    } catch (_) {}
-  }
-
-  Future<void> _saveUnreadCounts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kUnreadDmKey, jsonEncode(_unreadByGroup));
-    } catch (_) {}
-  }
-
-  Future<void> _refreshDMs() async {
-    if (currentUser == null) return;
-    try {
-      await _loadContactsIfNeeded();
-      for (final dm in _directMessages) {
-        try {
-          final msgs = await _apiService.fetchChatMessages(
-            dm.dmName,
-            currentUser!.chatToken,
-          );
-          if (msgs.isNotEmpty) {
-            final latest = msgs.last;
-            for (int i = 0; i < currentUser!.groups.length; i++) {
-              if (currentUser!.groups[i].name == dm.dmName) {
-                currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-                  groupLastMessage: latest.message,
-                  lastMessageTime: latest.timestamp,
-                );
-              }
-            }
-            final idx = _directMessages.indexWhere(
-              (d) => d.dmName == dm.dmName,
-            );
-            if (idx != -1) {
-              _directMessages[idx] = _directMessages[idx].copyWith(
-                lastMessage: latest.message,
-                lastMessageTime: latest.timestamp,
-              );
-            }
-          }
-        } catch (_) {
-          // ignore
-        }
-      }
-      _sortDirectMessages();
-      await TokenStorage.saveCurrentUser();
-      await _saveUnreadCounts();
-    } finally {
-      if (mounted) setState(() {});
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -123,7 +50,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     _setupWebSocketSubscriptions();
     _loadContactsIfNeeded();
     _loadAvatarCacheIfNeeded();
-    _loadUnreadCounts();
   }
 
   void _safeRebuild() {
@@ -234,7 +160,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
             isAdmin: group.isAdmin,
           );
           _directMessages.add(dm);
-          _unreadByGroup.putIfAbsent(group.name, () => 0);
           seenNames.add(group.name);
         }
       }
@@ -388,24 +313,15 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   }
 
   void _handleNewMessage(ChatMessage message) {
-    String groupName = (message.group ?? '').trim();
-    int dmIndex = -1;
-    if (groupName.isNotEmpty) {
-      dmIndex = _directMessages.indexWhere((dm) => dm.dmName == groupName);
-    } else {
-      // Fallback: locate DM where participants contain the sender id
-      dmIndex = _directMessages.indexWhere((dm) {
-        final parts = dm.dmName.split(RegExp(r'\s*:\s*'));
-        return parts.contains(message.sender);
-      });
-      if (dmIndex != -1) groupName = _directMessages[dmIndex].dmName;
-    }
-    if (dmIndex == -1) return;
+    final exists = _directMessages.indexWhere(
+      (dm) => dm.dmName == message.sender,
+    );
+    if (exists == -1) return;
 
     setState(() {
       if (currentUser != null) {
         for (int i = 0; i < currentUser!.groups.length; i++) {
-          if (currentUser!.groups[i].name == groupName) {
+          if (currentUser!.groups[i].name == message.sender) {
             currentUser!.groups[i] = currentUser!.groups[i].copyWith(
               groupLastMessage: message.message,
               lastMessageTime: message.timestamp,
@@ -414,15 +330,14 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         }
       }
 
-      _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
-        lastMessage: message.message,
-        lastMessageTime: message.timestamp,
+      final dmIndex = _directMessages.indexWhere(
+        (dm) => dm.dmName == message.sender,
       );
-
-      // Increment unread for incoming messages (not our own)
-      if (!message.isOwnMessage) {
-        _unreadByGroup.update(groupName, (v) => v + 1, ifAbsent: () => 1);
-        _saveUnreadCounts();
+      if (dmIndex != -1) {
+        _directMessages[dmIndex] = _directMessages[dmIndex].copyWith(
+          lastMessage: message.message,
+          lastMessageTime: message.timestamp,
+        );
       }
 
       _sortDirectMessages();
@@ -431,12 +346,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   }
 
   Future<void> _selectDM(DirectMessage dm) async {
-    // Clear unread when opening the chat
-    setState(() {
-      _unreadByGroup[dm.dmName] = 0;
-    });
-    _saveUnreadCounts();
-
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ChatPage(
@@ -482,12 +391,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
             ),
           ),
           const SizedBox(height: 8),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refreshDMs,
-              child: _buildDMList(filtered, scheme),
-            ),
-          ),
+          Expanded(child: _buildDMList(filtered, scheme)),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -522,7 +426,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: data.length,
       itemBuilder: (context, index) {
         final dm = data[index];
@@ -541,9 +444,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
               ? grp!.inviteStatus
               : null;
         } catch (_) {}
-
-        final unread = _unreadByGroup[dm.dmName] ?? 0;
-        final bool hasUnread = unread > 0;
 
         return Card(
           key: ValueKey(dm.dmName),
@@ -590,13 +490,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Expanded(
-                  child: Text(
-                    displayName,
-                    overflow: TextOverflow.ellipsis,
-                    style: hasUnread
-                        ? const TextStyle(fontWeight: FontWeight.w700)
-                        : null,
-                  ),
+                  child: Text(displayName, overflow: TextOverflow.ellipsis),
                 ),
                 if (status != null &&
                     status.trim().toUpperCase() != 'ACPTD') ...[
@@ -627,9 +521,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
               dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: hasUnread
-                  ? const TextStyle(fontWeight: FontWeight.w600)
-                  : null,
             ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -644,27 +535,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
-                if (hasUnread) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      unread > 99 ? '99+' : '$unread',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
             onTap: () => _selectDM(dm),
