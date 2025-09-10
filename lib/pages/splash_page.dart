@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'chat_home_page.dart';
+import 'token_input_page.dart';
 import '../services/chat_services.dart';
+import 'dart:convert';
+import '../models/user_models.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -28,15 +31,67 @@ class _SplashPageState extends State<SplashPage>
       end: 1.02,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
-    Future.delayed(const Duration(milliseconds: 1800), () async {
+    Future.delayed(const Duration(milliseconds: 900), () async {
       final savedToken = await TokenStorage.getToken();
       if (!mounted) return;
-      if (savedToken != null) {
-        Navigator.of(
-          context,
-        ).pushReplacement(MaterialPageRoute(builder: (_) => const MyApp()));
-      } else {
-        Navigator.of(context).pushReplacementNamed('/login');
+      if (savedToken == null) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const UnifiedLoginScreen(autoLoggedOut: false),
+          ),
+        );
+        return;
+      }
+
+      // Try to decode stored token into currentUser
+      bool decoded = false;
+      try {
+        final Map<String, dynamic> jsonData = jsonDecode(savedToken);
+        currentUser = User.fromJson(jsonData);
+        decoded = true;
+      } catch (_) {
+        try {
+          final decodedBytes = base64Decode(savedToken);
+          final decodedString = utf8.decode(decodedBytes);
+          final urlDecodedString = Uri.decodeFull(decodedString);
+          final Map<String, dynamic> jsonData = jsonDecode(urlDecodedString);
+          currentUser = User.fromJson(jsonData);
+          decoded = true;
+        } catch (_) {
+          decoded = false;
+        }
+      }
+
+      if (!decoded || currentUser?.chatToken.isEmpty != false) {
+        await TokenStorage.clearToken();
+        currentUser = null;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+          ),
+        );
+        return;
+      }
+
+      // Lightweight server validation
+      try {
+        final api = ChatApiService();
+        await api.fetchContacts(currentUser!.chatToken).timeout(
+              const Duration(seconds: 6),
+            );
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const ChatHomePage()),
+        );
+      } catch (_) {
+        await TokenStorage.clearToken();
+        currentUser = null;
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+          ),
+        );
       }
     });
   }
