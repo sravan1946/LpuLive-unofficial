@@ -14,6 +14,11 @@ class ChatMessage {
   final String? mediaName;
   final String? mediaType;
   final String? mediaUrl;
+  // Reply fields
+  final String? replyMessageId;
+  final String? replyType;
+  final String? replyMessage;
+  final String? replyUserId;
 
   ChatMessage({
     required this.id,
@@ -29,6 +34,10 @@ class ChatMessage {
     this.mediaName,
     this.mediaType,
     this.mediaUrl,
+    this.replyMessageId,
+    this.replyType,
+    this.replyMessage,
+    this.replyUserId,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -76,6 +85,10 @@ class ChatMessage {
       mediaName: mName,
       mediaType: mType,
       mediaUrl: mUrl,
+      replyMessageId: json['reply_message_id']?.toString(),
+      replyType: json['privateReply']?.toString(),
+      replyMessage: json['private_reply_message']?.toString(),
+      replyUserId: json['private_reply_userid']?.toString(),
     );
   }
 }

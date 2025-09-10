@@ -409,6 +409,7 @@ class WebSocketChatService {
   Future<void> sendMessage({
     required String message,
     required String group,
+    String? replyToMessageId,
   }) async {
     if (_channel == null) {
       throw Exception('WebSocket not connected');
@@ -421,7 +422,9 @@ class WebSocketChatService {
       'message': message,
       'group': cleanGroup,
       'temp_id': tempId,
-      'action': 'send',
+      'action': replyToMessageId != null ? 'reply' : 'send',
+      if (replyToMessageId != null) 'message_id': replyToMessageId,
+      if (replyToMessageId != null) 'reply_type': 'p',
     };
 
     try {

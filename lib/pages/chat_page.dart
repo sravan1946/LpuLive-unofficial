@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models/user_models.dart';
+import '../models/message_status.dart';
 import '../services/chat_services.dart';
+import '../services/message_status_service.dart';
 import '../widgets/network_image.dart';
+import '../widgets/reply_preview.dart';
+import '../widgets/message_status_icon.dart';
+import '../utils/sender_name_utils.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:photo_view/photo_view.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart';
 import '../widgets/app_toast.dart';
 
 class ChatPage extends StatefulWidget {
@@ -32,9 +38,14 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ChatApiService _apiService = ChatApiService();
+  final MessageStatusService _statusService = MessageStatusService();
+  final ScrollController _scrollController = ScrollController();
   List<ChatMessage> _messages = [];
   bool _isLoading = false;
+  bool _isSending = false;
   late final StreamSubscription<ChatMessage> _messageSubscription;
+  // Reply state
+  ChatMessage? _replyingTo;
   // No backend normalization here; media URLs from messages are already normalized in ChatMessage.fromJson
 
   String _formatTimestamp(String timestamp) {
@@ -74,18 +85,55 @@ class _ChatPageState extends State<ChatPage> {
     _loadMessages();
     _messageSubscription = widget.wsService.messageStream.listen((message) {
       if (message.group == widget.groupId) {
-        setState(() {
-          _messages = [..._messages, message];
-          _messages.sort((a, b) {
-            try {
-              final dateA = DateTime.parse(a.timestamp);
-              final dateB = DateTime.parse(b.timestamp);
-              return dateA.compareTo(dateB);
-            } catch (_) {
-              return 0;
-            }
+        // Check if this is a server acknowledgment of our local message
+        final localMessageIndex = _statusService.findLocalMessageIndex(_messages, message);
+        
+        if (localMessageIndex != -1) {
+          // Update the local message with server data and mark as sent
+          setState(() {
+            _statusService.updateLocalMessageWithServerData(_messages, localMessageIndex, message);
+            _messages.sort((a, b) {
+              try {
+                final dateA = DateTime.parse(a.timestamp);
+                final dateB = DateTime.parse(b.timestamp);
+                return dateA.compareTo(dateB);
+              } catch (_) {
+                return 0;
+              }
+            });
           });
-        });
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+            Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom());
+          });
+        } else {
+          // Check if message already exists to prevent duplicates
+          final messageExists = _messages.any((existingMessage) => 
+            existingMessage.id == message.id
+          );
+          
+          if (!messageExists) {
+            setState(() {
+              _messages = [..._messages, message];
+              _statusService.setStatus(message.id, MessageStatus.sent);
+              _messages.sort((a, b) {
+                try {
+                  final dateA = DateTime.parse(a.timestamp);
+                  final dateB = DateTime.parse(b.timestamp);
+                  return dateA.compareTo(dateB);
+                } catch (_) {
+                  return 0;
+                }
+              });
+            });
+            
+            // Scroll to bottom when new message arrives
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollToBottom();
+              Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom());
+            });
+          }
+        }
       }
     });
   }
@@ -93,9 +141,25 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.dispose();
     _messageSubscription.cancel();
     super.dispose();
   }
+
+  void _scrollToBottom({bool immediate = false}) {
+    if (!_scrollController.hasClients) return;
+    final double target = _scrollController.position.maxScrollExtent + 100;
+    if (immediate) {
+      _scrollController.jumpTo(target);
+    } else {
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
 
   Future<void> _loadMessages() async {
     if (currentUser == null) return;
@@ -110,6 +174,8 @@ class _ChatPageState extends State<ChatPage> {
       setState(() {
         _messages = loaded;
         _isLoading = false;
+        // Initialize status for loaded messages
+        _statusService.initializeStatuses(_messages);
       });
 
       if (_messages.isNotEmpty) {
@@ -123,6 +189,11 @@ class _ChatPageState extends State<ChatPage> {
           }
         }
         TokenStorage.saveCurrentUser();
+        
+        // Scroll to bottom after loading messages
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
       }
     } catch (e) {
       setState(() {
@@ -146,9 +217,127 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  void _replyToMessage(ChatMessage message) {
+    setState(() {
+      _replyingTo = message;
+    });
+    _messageController.clear();
+    // Focus on the text field
+    FocusScope.of(context).requestFocus(FocusNode());
+  }
+
+  void _cancelReply() {
+    setState(() {
+      _replyingTo = null;
+    });
+  }
+
+  void _showMessageContextMenu(ChatMessage message, Offset position) {
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    
+    // Haptic feedback when opening context menu
+    HapticFeedback.selectionClick();
+    
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(
+          position,
+          position,
+        ),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        const PopupMenuItem<String>(
+          value: 'reply',
+          child: Row(
+            children: [
+              Icon(Icons.reply),
+              SizedBox(width: 8),
+              Text('Reply'),
+            ],
+          ),
+        ),
+        if (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)
+          const PopupMenuItem<String>(
+            value: 'download',
+            child: Row(
+              children: [
+                Icon(Icons.download),
+                SizedBox(width: 8),
+                Text('Download'),
+              ],
+            ),
+          ),
+        const PopupMenuItem<String>(
+          value: 'copy',
+          child: Row(
+            children: [
+              Icon(Icons.copy),
+              SizedBox(width: 8),
+              Text('Copy text'),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value != null) {
+        switch (value) {
+          case 'reply':
+            _replyToMessage(message);
+            break;
+          case 'download':
+            if (message.mediaUrl != null) {
+              _downloadMedia(message.mediaUrl!);
+            }
+            break;
+          case 'copy':
+            _copyMessageText(message);
+            break;
+        }
+      }
+    });
+  }
+
+  void _downloadMedia(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      final directory = await getApplicationDocumentsDirectory();
+      final filename = url.split('/').last.split('?').first;
+      final file = File('${directory.path}/$filename');
+      await file.writeAsBytes(response.bodyBytes);
+
+      if (mounted) {
+        showAppToast(
+          context,
+          'Downloaded to ${file.path}',
+          type: ToastType.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showAppToast(
+          context,
+          'Failed to download: $e',
+          type: ToastType.error,
+        );
+      }
+    }
+  }
+
+  void _copyMessageText(ChatMessage message) {
+    // Copy message text to clipboard
+    Clipboard.setData(ClipboardData(text: message.message));
+    showAppToast(
+      context,
+      'Text copied to clipboard',
+      type: ToastType.success,
+    );
+  }
+
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
-    if (message.isEmpty || widget.isReadOnly) return;
+    if (message.isEmpty || widget.isReadOnly || _isSending) return;
 
     if (!widget.wsService.isConnected) {
       if (mounted) {
@@ -161,28 +350,64 @@ class _ChatPageState extends State<ChatPage> {
       return;
     }
 
+    setState(() {
+      _isSending = true;
+    });
+
+    // Capture reply target before clearing state
+    final String? capturedReplyToId = _replyingTo?.id;
+    final String? capturedReplyMessage = _replyingTo?.message;
+    final String? capturedReplyUserId = _replyingTo?.sender;
+
+    // Create optimistic message with sending status
+    final localMessageId = 'local-${DateTime.now().millisecondsSinceEpoch}';
+    final optimistic = ChatMessage(
+      id: localMessageId,
+      message: message,
+      sender: currentUser?.id ?? '',
+      senderName: currentUser?.displayName ?? currentUser?.name ?? 'You',
+      timestamp: DateTime.now().toIso8601String(),
+      isOwnMessage: true,
+      userImage: currentUser?.userImageUrl,
+      category: currentUser?.category,
+      group: widget.groupId,
+      replyMessageId: capturedReplyToId,
+      replyType: capturedReplyToId != null ? 'p' : null,
+      replyMessage: capturedReplyMessage,
+      replyUserId: capturedReplyUserId,
+    );
+
+    // Add optimistic message with sending status
+    setState(() {
+      _messages = [..._messages, optimistic];
+      _statusService.setStatus(localMessageId, MessageStatus.sending);
+      _replyingTo = null;
+      _isSending = false;
+    });
+
+    // Scroll to bottom
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom(immediate: true);
+      // Safety delayed scroll to catch late layout
+      Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom());
+    });
+
     try {
       await widget.wsService.sendMessage(
         message: message,
         group: widget.groupId,
+        replyToMessageId: capturedReplyToId,
       );
 
-      // Optimistically show message
-      final optimistic = ChatMessage(
-        id: 'local-${DateTime.now().millisecondsSinceEpoch}',
-        message: message,
-        sender: currentUser?.id ?? '',
-        senderName: currentUser?.displayName ?? currentUser?.name ?? 'You',
-        timestamp: DateTime.now().toIso8601String(),
-        isOwnMessage: true,
-        userImage: currentUser?.userImageUrl,
-        category: currentUser?.category,
-        group: widget.groupId,
-      );
-      setState(() {
-        _messages = [..._messages, optimistic];
+      _messageController.clear();
+
+      // Ensure we scroll to the very bottom after input clears
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom(immediate: true);
+        Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom());
       });
 
+      // Update group last message info
       final timestamp = DateTime.now().toIso8601String();
       if (currentUser != null) {
         for (int i = 0; i < currentUser!.groups.length; i++) {
@@ -195,9 +420,13 @@ class _ChatPageState extends State<ChatPage> {
         }
         await TokenStorage.saveCurrentUser();
       }
-
-      _messageController.clear();
     } catch (e) {
+      setState(() {
+        _isSending = false;
+        // Remove the failed message from the UI
+        _messages.removeWhere((msg) => msg.id == localMessageId);
+        _statusService.removeStatus(localMessageId);
+      });
       if (mounted) {
         showAppToast(
           context,
@@ -283,6 +512,7 @@ class _ChatPageState extends State<ChatPage> {
                         RefreshIndicator(
                           onRefresh: _loadMessages,
                           child: ListView.builder(
+                            controller: _scrollController,
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(16),
                             itemCount: _messages.length,
@@ -341,103 +571,113 @@ class _ChatPageState extends State<ChatPage> {
                                           width: avatarSize + avatarGap,
                                         ),
                                     Flexible(
-                                      child: Container(
-                                        margin: const EdgeInsets.only(
-                                          bottom: 8,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: message.isOwnMessage
-                                              ? scheme.primary
-                                              : Theme.of(context)
-                                                    .colorScheme
-                                                    .surfaceContainerHighest,
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: const Radius.circular(14),
-                                            topRight: const Radius.circular(14),
-                                            bottomLeft: message.isOwnMessage
-                                                ? const Radius.circular(14)
-                                                : const Radius.circular(4),
-                                            bottomRight: message.isOwnMessage
-                                                ? const Radius.circular(4)
-                                                : const Radius.circular(14),
+                                      child: GestureDetector(
+                                        onLongPressStart: (details) {
+                                          _showMessageContextMenu(message, details.globalPosition);
+                                        },
+                                        child: Container(
+                                          margin: const EdgeInsets.only(
+                                            bottom: 8,
                                           ),
-                                        ),
-                                        constraints: BoxConstraints(
-                                          maxWidth:
-                                              MediaQuery.of(
-                                                context,
-                                              ).size.width *
-                                              0.7,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              message.isOwnMessage
-                                              ? CrossAxisAlignment.end
-                                              : CrossAxisAlignment.start,
-                                          children: [
-                                            if (!message.isOwnMessage &&
-                                                isNewBlock)
-                                              Text(
-                                                message.senderName,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 12,
-                                                  color: scheme.primary,
-                                                ),
-                                              ),
-                                            if (message.mediaUrl != null &&
-                                                message.mediaUrl!.isNotEmpty)
-                                              _MediaBubble(
-                                                message: message,
-                                                onImageTap:
-                                                    _showFullScreenImage,
-                                              )
-                                            else
-                                              _MessageBody(
-                                                message: message,
-                                                isOwn: message.isOwnMessage,
-                                                onImageTap:
-                                                    _showFullScreenImage,
-                                              ),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
-                                              children: [
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: message.isOwnMessage
+                                                ? scheme.primary
+                                                : Theme.of(context)
+                                                      .colorScheme
+                                                      .surfaceContainerHighest,
+                                            borderRadius: BorderRadius.only(
+                                              topLeft: const Radius.circular(14),
+                                              topRight: const Radius.circular(14),
+                                              bottomLeft: message.isOwnMessage
+                                                  ? const Radius.circular(14)
+                                                  : const Radius.circular(4),
+                                              bottomRight: message.isOwnMessage
+                                                  ? const Radius.circular(4)
+                                                  : const Radius.circular(14),
+                                            ),
+                                          ),
+                                          constraints: BoxConstraints(
+                                            maxWidth:
+                                                MediaQuery.of(
+                                                  context,
+                                                ).size.width *
+                                                0.7,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                message.isOwnMessage
+                                                ? CrossAxisAlignment.end
+                                                : CrossAxisAlignment.start,
+                                            children: [
+                                              if (!message.isOwnMessage &&
+                                                  isNewBlock)
                                                 Text(
-                                                  _formatTimestamp(
-                                                    message.timestamp,
-                                                  ),
+                                                  message.senderName,
                                                   style: TextStyle(
-                                                    height: 1.0,
-                                                    fontSize: 10,
-                                                    color: message.isOwnMessage
-                                                        ? scheme.onPrimary
-                                                              .withValues(
-                                                                alpha: 0.7,
-                                                              )
-                                                        : Theme.of(context)
-                                                              .colorScheme
-                                                              .onSurfaceVariant,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 12,
+                                                    color: scheme.primary,
                                                   ),
                                                 ),
+                                              // Reply preview
+                                              if (message.replyMessageId != null)
+                                                ReplyPreview(
+                                                  message: message,
+                                                  isOwn: message.isOwnMessage,
+                                                  allMessages: _messages,
+                                                ),
+                                              if (message.mediaUrl != null &&
+                                                  message.mediaUrl!.isNotEmpty)
+                                                _MediaBubble(
+                                                  message: message,
+                                                  onImageTap:
+                                                      _showFullScreenImage,
+                                                )
+                                              else
+                                                _MessageBody(
+                                                  message: message,
+                                                  isOwn: message.isOwnMessage,
+                                                  onImageTap:
+                                                      _showFullScreenImage,
+                                                ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.end,
+                                                children: [
+                                                  Text(
+                                                    _formatTimestamp(
+                                                      message.timestamp,
+                                                    ),
+                                                    style: TextStyle(
+                                                      height: 1.0,
+                                                      fontSize: 10,
+                                                      color: message.isOwnMessage
+                                                          ? scheme.onPrimary
+                                                                .withValues(
+                                                                  alpha: 0.7,
+                                                                )
+                                                          : Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                    ),
+                                                  ),
                                                 if (message.isOwnMessage) ...[
                                                   const SizedBox(width: 4),
-                                                  Icon(
-                                                    Icons.done_all,
-                                                    size: 14,
-                                                    color: scheme.onPrimary
-                                                        .withValues(alpha: 0.8),
+                                                  MessageStatusIcon(
+                                                    status: _statusService.getStatus(message.id),
+                                                    scheme: scheme,
                                                   ),
                                                 ],
-                                              ],
-                                            ),
-                                          ],
+                                                ],
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -485,29 +725,97 @@ class _ChatPageState extends State<ChatPage> {
           if (!widget.isReadOnly)
             SafeArea(
               top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        minLines: 1,
-                        maxLines: 5,
-                        textInputAction: TextInputAction.newline,
-                        decoration: const InputDecoration(hintText: 'Message'),
-                        onSubmitted: (_) => _sendMessage(),
+              child: Column(
+                children: [
+                  // Reply preview
+                  if (_replyingTo != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: scheme.outline),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: scheme.primary,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Replying to ${SenderNameUtils.parseSenderName(_replyingTo!.senderName)}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: scheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _replyingTo!.message,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: scheme.onSurface,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _cancelReply,
+                              icon: Icon(
+                                Icons.close,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: _sendMessage,
-                      icon: const Icon(Icons.send_rounded),
-                      label: const Text('Send'),
+                  // Message input
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            minLines: 1,
+                            maxLines: 5,
+                            textInputAction: TextInputAction.newline,
+                            decoration: InputDecoration(
+                              hintText: _replyingTo != null 
+                                  ? 'Reply to ${SenderNameUtils.parseSenderName(_replyingTo!.senderName)}...'
+                                  : 'Message',
+                            ),
+                            onSubmitted: (_) => _sendMessage(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          onPressed: _sendMessage,
+                          icon: const Icon(Icons.send_rounded),
+                          label: const Text('Send'),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           if (widget.isReadOnly)
@@ -1078,3 +1386,4 @@ class _FullScreenImageViewer extends StatelessWidget {
     }
   }
 }
+
