@@ -33,11 +33,12 @@ class MessageStatusService {
     List<ChatMessage> messages,
     ChatMessage serverMessage,
   ) {
-    return messages.indexWhere((existingMessage) => 
-      existingMessage.id.startsWith('local-') && 
-      existingMessage.message == serverMessage.message && 
-      existingMessage.sender == serverMessage.sender &&
-      _messageStatuses[existingMessage.id] == MessageStatus.sending
+    return messages.indexWhere(
+      (existingMessage) =>
+          existingMessage.id.startsWith('local-') &&
+          existingMessage.message == serverMessage.message &&
+          existingMessage.sender == serverMessage.sender &&
+          _messageStatuses[existingMessage.id] == MessageStatus.sending,
     );
   }
 
@@ -50,7 +51,9 @@ class MessageStatusService {
     if (localMessageIndex != -1) {
       messages[localMessageIndex] = serverMessage;
       _messageStatuses[serverMessage.id] = MessageStatus.sent;
-      _messageStatuses.remove(messages[localMessageIndex].id); // Remove old local ID
+      _messageStatuses.remove(
+        messages[localMessageIndex].id,
+      ); // Remove old local ID
     }
   }
 }

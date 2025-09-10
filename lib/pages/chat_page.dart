@@ -86,12 +86,19 @@ class _ChatPageState extends State<ChatPage> {
     _messageSubscription = widget.wsService.messageStream.listen((message) {
       if (message.group == widget.groupId) {
         // Check if this is a server acknowledgment of our local message
-        final localMessageIndex = _statusService.findLocalMessageIndex(_messages, message);
-        
+        final localMessageIndex = _statusService.findLocalMessageIndex(
+          _messages,
+          message,
+        );
+
         if (localMessageIndex != -1) {
           // Update the local message with server data and mark as sent
           setState(() {
-            _statusService.updateLocalMessageWithServerData(_messages, localMessageIndex, message);
+            _statusService.updateLocalMessageWithServerData(
+              _messages,
+              localMessageIndex,
+              message,
+            );
             _messages.sort((a, b) {
               try {
                 final dateA = DateTime.parse(a.timestamp);
@@ -104,14 +111,17 @@ class _ChatPageState extends State<ChatPage> {
           });
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _scrollToBottom();
-            Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom());
+            Future.delayed(
+              const Duration(milliseconds: 50),
+              () => _scrollToBottom(),
+            );
           });
         } else {
           // Check if message already exists to prevent duplicates
-          final messageExists = _messages.any((existingMessage) => 
-            existingMessage.id == message.id
+          final messageExists = _messages.any(
+            (existingMessage) => existingMessage.id == message.id,
           );
-          
+
           if (!messageExists) {
             setState(() {
               _messages = [..._messages, message];
@@ -126,11 +136,14 @@ class _ChatPageState extends State<ChatPage> {
                 }
               });
             });
-            
+
             // Scroll to bottom when new message arrives
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _scrollToBottom();
-              Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom());
+              Future.delayed(
+                const Duration(milliseconds: 50),
+                () => _scrollToBottom(),
+              );
             });
           }
         }
@@ -160,7 +173,6 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-
   Future<void> _loadMessages() async {
     if (currentUser == null) return;
     setState(() {
@@ -189,7 +201,7 @@ class _ChatPageState extends State<ChatPage> {
           }
         }
         TokenStorage.saveCurrentUser();
-        
+
         // Scroll to bottom after loading messages
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _scrollToBottom();
@@ -233,29 +245,23 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _showMessageContextMenu(ChatMessage message, Offset position) {
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
     // Haptic feedback when opening context menu
     HapticFeedback.selectionClick();
-    
+
     showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
-        Rect.fromPoints(
-          position,
-          position,
-        ),
+        Rect.fromPoints(position, position),
         Offset.zero & overlay.size,
       ),
       items: [
         const PopupMenuItem<String>(
           value: 'reply',
           child: Row(
-            children: [
-              Icon(Icons.reply),
-              SizedBox(width: 8),
-              Text('Reply'),
-            ],
+            children: [Icon(Icons.reply), SizedBox(width: 8), Text('Reply')],
           ),
         ),
         if (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)
@@ -272,11 +278,7 @@ class _ChatPageState extends State<ChatPage> {
         const PopupMenuItem<String>(
           value: 'copy',
           child: Row(
-            children: [
-              Icon(Icons.copy),
-              SizedBox(width: 8),
-              Text('Copy text'),
-            ],
+            children: [Icon(Icons.copy), SizedBox(width: 8), Text('Copy text')],
           ),
         ),
       ],
@@ -316,11 +318,7 @@ class _ChatPageState extends State<ChatPage> {
       }
     } catch (e) {
       if (mounted) {
-        showAppToast(
-          context,
-          'Failed to download: $e',
-          type: ToastType.error,
-        );
+        showAppToast(context, 'Failed to download: $e', type: ToastType.error);
       }
     }
   }
@@ -328,11 +326,7 @@ class _ChatPageState extends State<ChatPage> {
   void _copyMessageText(ChatMessage message) {
     // Copy message text to clipboard
     Clipboard.setData(ClipboardData(text: message.message));
-    showAppToast(
-      context,
-      'Text copied to clipboard',
-      type: ToastType.success,
-    );
+    showAppToast(context, 'Text copied to clipboard', type: ToastType.success);
   }
 
   Future<void> _sendMessage() async {
@@ -404,7 +398,10 @@ class _ChatPageState extends State<ChatPage> {
       // Ensure we scroll to the very bottom after input clears
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom(immediate: true);
-        Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom());
+        Future.delayed(
+          const Duration(milliseconds: 50),
+          () => _scrollToBottom(),
+        );
       });
 
       // Update group last message info
@@ -573,7 +570,10 @@ class _ChatPageState extends State<ChatPage> {
                                     Flexible(
                                       child: GestureDetector(
                                         onLongPressStart: (details) {
-                                          _showMessageContextMenu(message, details.globalPosition);
+                                          _showMessageContextMenu(
+                                            message,
+                                            details.globalPosition,
+                                          );
                                         },
                                         child: Container(
                                           margin: const EdgeInsets.only(
@@ -590,8 +590,12 @@ class _ChatPageState extends State<ChatPage> {
                                                       .colorScheme
                                                       .surfaceContainerHighest,
                                             borderRadius: BorderRadius.only(
-                                              topLeft: const Radius.circular(14),
-                                              topRight: const Radius.circular(14),
+                                              topLeft: const Radius.circular(
+                                                14,
+                                              ),
+                                              topRight: const Radius.circular(
+                                                14,
+                                              ),
                                               bottomLeft: message.isOwnMessage
                                                   ? const Radius.circular(14)
                                                   : const Radius.circular(4),
@@ -624,7 +628,8 @@ class _ChatPageState extends State<ChatPage> {
                                                   ),
                                                 ),
                                               // Reply preview
-                                              if (message.replyMessageId != null)
+                                              if (message.replyMessageId !=
+                                                  null)
                                                 ReplyPreview(
                                                   message: message,
                                                   isOwn: message.isOwnMessage,
@@ -657,7 +662,8 @@ class _ChatPageState extends State<ChatPage> {
                                                     style: TextStyle(
                                                       height: 1.0,
                                                       fontSize: 10,
-                                                      color: message.isOwnMessage
+                                                      color:
+                                                          message.isOwnMessage
                                                           ? scheme.onPrimary
                                                                 .withValues(
                                                                   alpha: 0.7,
@@ -667,13 +673,16 @@ class _ChatPageState extends State<ChatPage> {
                                                                 .onSurfaceVariant,
                                                     ),
                                                   ),
-                                                if (message.isOwnMessage) ...[
-                                                  const SizedBox(width: 4),
-                                                  MessageStatusIcon(
-                                                    status: _statusService.getStatus(message.id),
-                                                    scheme: scheme,
-                                                  ),
-                                                ],
+                                                  if (message.isOwnMessage) ...[
+                                                    const SizedBox(width: 4),
+                                                    MessageStatusIcon(
+                                                      status: _statusService
+                                                          .getStatus(
+                                                            message.id,
+                                                          ),
+                                                      scheme: scheme,
+                                                    ),
+                                                  ],
                                                 ],
                                               ),
                                             ],
@@ -799,7 +808,7 @@ class _ChatPageState extends State<ChatPage> {
                             maxLines: 5,
                             textInputAction: TextInputAction.newline,
                             decoration: InputDecoration(
-                              hintText: _replyingTo != null 
+                              hintText: _replyingTo != null
                                   ? 'Reply to ${SenderNameUtils.parseSenderName(_replyingTo!.senderName)}...'
                                   : 'Message',
                             ),
@@ -1386,4 +1395,3 @@ class _FullScreenImageViewer extends StatelessWidget {
     }
   }
 }
-

@@ -15,7 +15,7 @@ class ReplyPreview extends StatelessWidget {
 
   String _getReplySenderName() {
     if (message.replyUserId == null) return 'Unknown';
-    
+
     // Find the original message by ID
     final originalMessage = allMessages.firstWhere(
       (m) => m.id == message.replyMessageId,
@@ -28,9 +28,10 @@ class ReplyPreview extends StatelessWidget {
         isOwnMessage: false,
       ),
     );
-    
+
     // If we found the original message, parse its sender name
-    if (originalMessage.id.isNotEmpty && originalMessage.senderName.isNotEmpty) {
+    if (originalMessage.id.isNotEmpty &&
+        originalMessage.senderName.isNotEmpty) {
       // Parse the sender name to extract just the username part
       // Format is typically "Username : UserID" or just "Username"
       final senderName = originalMessage.senderName;
@@ -40,7 +41,7 @@ class ReplyPreview extends StatelessWidget {
       }
       return senderName;
     }
-    
+
     // Fallback to user ID if we can't find the original message
     return message.replyUserId!;
   }
@@ -48,18 +49,18 @@ class ReplyPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isOwn 
+        color: isOwn
             ? scheme.onPrimary.withValues(alpha: 0.1)
             : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isOwn 
+          color: isOwn
               ? scheme.onPrimary.withValues(alpha: 0.3)
               : scheme.outline,
           width: 1,
@@ -93,7 +94,7 @@ class ReplyPreview extends StatelessWidget {
                   message.replyMessage ?? '',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isOwn 
+                    color: isOwn
                         ? scheme.onPrimary.withValues(alpha: 0.8)
                         : scheme.onSurfaceVariant,
                   ),
