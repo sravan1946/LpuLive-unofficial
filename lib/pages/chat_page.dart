@@ -16,6 +16,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import '../widgets/app_toast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -46,7 +47,9 @@ class _ChatPageState extends State<ChatPage> {
   late final StreamSubscription<ChatMessage> _messageSubscription;
   // Reply state
   ChatMessage? _replyingTo;
-  // No backend normalization here; media URLs from messages are already normalized in ChatMessage.fromJson
+  // Unread divider state
+  DateTime? _lastReadAt;
+  int? _firstUnreadIndex;
 
   String _formatTimestamp(String timestamp) {
     try {
@@ -67,6 +70,72 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  String get _lastReadKey => 'last_read_ts_v1_${widget.groupId}';
+
+  Future<void> _loadLastRead() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_lastReadKey);
+      if (raw != null && raw.isNotEmpty) {
+        _lastReadAt = DateTime.tryParse(raw);
+      }
+      _computeFirstUnreadIndex();
+      if (mounted) setState(() {});
+    } catch (_) {}
+  }
+
+  Future<void> _saveLastRead(DateTime when) async {
+    _lastReadAt = when;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastReadKey, when.toIso8601String());
+    } catch (_) {}
+  }
+
+  void _computeFirstUnreadIndex() {
+    _firstUnreadIndex = null;
+    if (_lastReadAt == null || _messages.isEmpty) return;
+    for (int i = 0; i < _messages.length; i++) {
+      try {
+        final ts = DateTime.parse(_messages[i].timestamp);
+        if (ts.isAfter(_lastReadAt!)) {
+          // Do not mark own messages as unread boundaries
+          if (_messages[i].isOwnMessage) {
+            continue;
+          }
+          _firstUnreadIndex = i;
+          break;
+        }
+      } catch (_) {}
+    }
+  }
+
+  bool _isDmGroupId(String id) {
+    return RegExp(r'^\d+\s*:\s*\d+$').hasMatch(id.trim());
+  }
+
+  String _otherUserIdFromDm(String dmName) {
+    final parts = dmName.split(RegExp(r'\s*:\s*'));
+    if (parts.length != 2) return dmName;
+    final idA = parts[0];
+    final idB = parts[1];
+    final me = currentUser?.id;
+    if (me == idA) return idB;
+    if (me == idB) return idA;
+    return idB;
+  }
+
+  bool _messageBelongsToCurrentChat(ChatMessage message) {
+    if (message.group != null && message.group!.isNotEmpty) {
+      return message.group == widget.groupId;
+    }
+    if (_isDmGroupId(widget.groupId)) {
+      final other = _otherUserIdFromDm(widget.groupId);
+      return message.sender == other;
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -83,8 +152,9 @@ class _ChatPageState extends State<ChatPage> {
       });
     }
     _loadMessages();
+    _loadLastRead();
     _messageSubscription = widget.wsService.messageStream.listen((message) {
-      if (message.group == widget.groupId) {
+      if (_messageBelongsToCurrentChat(message)) {
         // Check if this is a server acknowledgment of our local message
         final localMessageIndex = _statusService.findLocalMessageIndex(
           _messages,
@@ -108,6 +178,7 @@ class _ChatPageState extends State<ChatPage> {
                 return 0;
               }
             });
+            _computeFirstUnreadIndex();
           });
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _scrollToBottom();
@@ -135,6 +206,7 @@ class _ChatPageState extends State<ChatPage> {
                   return 0;
                 }
               });
+              _computeFirstUnreadIndex();
             });
 
             // Scroll to bottom when new message arrives
@@ -156,6 +228,13 @@ class _ChatPageState extends State<ChatPage> {
     _messageController.dispose();
     _scrollController.dispose();
     _messageSubscription.cancel();
+    // Mark all as read upon leaving the chat
+    if (_messages.isNotEmpty) {
+      final lastTs = DateTime.tryParse(_messages.last.timestamp);
+      if (lastTs != null) {
+        _saveLastRead(lastTs);
+      }
+    }
     super.dispose();
   }
 
@@ -188,6 +267,7 @@ class _ChatPageState extends State<ChatPage> {
         _isLoading = false;
         // Initialize status for loaded messages
         _statusService.initializeStatuses(_messages);
+        _computeFirstUnreadIndex();
       });
 
       if (_messages.isNotEmpty) {
@@ -417,6 +497,14 @@ class _ChatPageState extends State<ChatPage> {
         }
         await TokenStorage.saveCurrentUser();
       }
+
+      // Mark as read upon sending a reply (WhatsApp-like behavior)
+      final now = DateTime.now();
+      await _saveLastRead(now);
+      setState(() {
+        // Clear divider immediately to avoid shifting onto own message
+        _firstUnreadIndex = null;
+      });
     } catch (e) {
       setState(() {
         _isSending = false;
@@ -512,12 +600,22 @@ class _ChatPageState extends State<ChatPage> {
                             controller: _scrollController,
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length,
+                            itemCount:
+                                _messages.length +
+                                (_firstUnreadIndex != null ? 1 : 0),
                             itemBuilder: (context, index) {
-                              final message = _messages[index];
+                              final bool hasUnread = _firstUnreadIndex != null;
+                              if (hasUnread && index == _firstUnreadIndex) {
+                                return _UnreadDivider();
+                              }
+                              final int messageIndex =
+                                  hasUnread && index > _firstUnreadIndex!
+                                  ? index - 1
+                                  : index;
+                              final message = _messages[messageIndex];
                               final String currentSender = message.sender;
-                              final String? previousSender = index > 0
-                                  ? _messages[index - 1].sender
+                              final String? previousSender = messageIndex > 0
+                                  ? _messages[messageIndex - 1].sender
                                   : null;
                               final bool isNewBlock =
                                   previousSender == null ||
@@ -1393,5 +1491,39 @@ class _FullScreenImageViewer extends StatelessWidget {
         );
       }
     }
+  }
+}
+
+class _UnreadDivider extends StatelessWidget {
+  const _UnreadDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.2),
+              thickness: 1,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Unread',
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Divider(
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.2),
+              thickness: 1,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
