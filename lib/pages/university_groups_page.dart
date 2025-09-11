@@ -10,6 +10,7 @@ import 'chat_page.dart';
 import '../services/read_tracker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'profile_page.dart';
 
 class UniversityGroupsPage extends StatefulWidget {
   final WebSocketChatService wsService;
@@ -26,7 +27,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   CourseGroup? _selectedCourse;
   StreamSubscription<ChatMessage>? _messageSubscription;
   String _query = '';
-  bool _isRefreshing = false;
 
   // Unread counters per course group
   final Map<String, int> _unreadByGroup = {};
@@ -245,21 +245,42 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (_isRefreshing) ...[
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ],
             ],
           ),
           actions: [
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: _isRefreshing ? null : () => _refreshCourses(),
-              icon: const Icon(Icons.refresh),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfilePage()),
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: scheme.surfaceContainerHighest,
+                  foregroundColor: scheme.onSurface,
+                  child: (currentUser?.userImageUrl != null &&
+                          currentUser!.userImageUrl!.isNotEmpty)
+                      ? ClipOval(
+                          child: Image.network(
+                            currentUser!.userImageUrl!,
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(Icons.person, size: 18);
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Icon(Icons.person, size: 18);
+                            },
+                          ),
+                        )
+                      : const Icon(Icons.person, size: 18),
+                ),
+              ),
             ),
           ],
           leading: _selectedCourse != null
@@ -300,7 +321,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   Future<void> _refreshCourses() async {
     if (currentUser == null) return;
     try {
-      setState(() => _isRefreshing = true);
       for (final course in _courseGroups) {
         try {
           final msgs = await _apiService.fetchChatMessages(
@@ -334,7 +354,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       await TokenStorage.saveCurrentUser();
       await _saveUnreadCounts();
     } finally {
-      if (mounted) setState(() => _isRefreshing = false);
     }
   }
 

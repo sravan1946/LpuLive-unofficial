@@ -14,6 +14,7 @@ import 'chat_page.dart';
 import '../widgets/network_image.dart';
 import '../services/read_tracker.dart';
 import '../widgets/app_toast.dart';
+import 'profile_page.dart';
 
 // Persistent caches (per app session)
 final Map<String, Contact> _contactsCacheById = {};
@@ -44,7 +45,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   StreamSubscription<Map<String, dynamic>>? _systemMessageSubscription;
   String _query = '';
   final ChatApiService _apiService = ChatApiService();
-  bool _isRefreshing = false;
 
   // Track in-flight loads to avoid duplicate fetches
   final Set<String> _dmMetaLoading = {};
@@ -82,7 +82,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   Future<void> _refreshDMs() async {
     if (currentUser == null) return;
     try {
-      setState(() => _isRefreshing = true);
       await _loadContactsIfNeeded();
       for (final dm in _directMessages) {
         try {
@@ -118,7 +117,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       await TokenStorage.saveCurrentUser();
       await _saveUnreadCounts();
     } finally {
-      if (mounted) setState(() => _isRefreshing = false);
     }
   }
 
@@ -448,24 +446,41 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            const Expanded(child: Text('Direct Messages')),
-            if (_isRefreshing) ...[
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ],
-          ],
-        ),
+        title: const Text('Direct Messages'),
         actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _isRefreshing ? null : () => _refreshDMs(),
-            icon: const Icon(Icons.refresh),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfilePage()),
+                );
+              },
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
+                child: (currentUser?.userImageUrl != null &&
+                        currentUser!.userImageUrl!.isNotEmpty)
+                    ? ClipOval(
+                        child: Image.network(
+                          currentUser!.userImageUrl!,
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.person, size: 18);
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Icon(Icons.person, size: 18);
+                          },
+                        ),
+                      )
+                    : const Icon(Icons.person, size: 18),
+              ),
+            ),
           ),
         ],
       ),
