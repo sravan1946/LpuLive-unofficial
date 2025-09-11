@@ -11,6 +11,7 @@ import '../widgets/message_status_icon.dart';
 import '../utils/sender_name_utils.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:photo_view/photo_view.dart';
@@ -42,6 +43,26 @@ class _ChatPageState extends State<ChatPage> {
   final MessageStatusService _statusService = MessageStatusService();
   final ScrollController _scrollController = ScrollController();
   List<ChatMessage> _messages = [];
+  int _currentPage = 1;
+  bool _isLoadingMore = false;
+  bool _hasReachedTop = false;
+  // Removed direction tracking; reversed list uses extentAfter for top detection
+  
+  void _stabilizeScrollPosition(int attemptsRemaining, double targetPosition) {
+    if (attemptsRemaining <= 0) return;
+    if (!_scrollController.hasClients) return;
+    try {
+      _scrollController.jumpTo(targetPosition.clamp(
+        _scrollController.position.minScrollExtent,
+        _scrollController.position.maxScrollExtent,
+      ));
+      Future.delayed(const Duration(milliseconds: 50), () {
+        _stabilizeScrollPosition(attemptsRemaining - 1, targetPosition);
+      });
+    } catch (_) {
+      // ignore failures from jumpTo when controller is not ready
+    }
+  }
   DateTime? _lastReadAt;
   bool _isLoading = false;
   bool _isSending = false;
@@ -119,13 +140,7 @@ class _ChatPageState extends State<ChatPage> {
               }
             });
           });
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _scrollToBottom();
-            Future.delayed(
-              const Duration(milliseconds: 50),
-              () => _scrollToBottom(),
-            );
-          });
+          // No auto-scrolling
         } else {
           // Check if message already exists to prevent duplicates
           final messageExists = _messages.any(
@@ -147,14 +162,7 @@ class _ChatPageState extends State<ChatPage> {
               });
             });
 
-            // Scroll to bottom when new message arrives
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _scrollToBottom();
-              Future.delayed(
-                const Duration(milliseconds: 50),
-                () => _scrollToBottom(),
-              );
-            });
+            // No auto-scrolling when new message arrives
           }
         }
       }
@@ -172,19 +180,7 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  void _scrollToBottom({bool immediate = false}) {
-    if (!_scrollController.hasClients) return;
-    final double target = _scrollController.position.maxScrollExtent + 100;
-    if (immediate) {
-      _scrollController.jumpTo(target);
-    } else {
-      _scrollController.animateTo(
-        target,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  }
+  // Auto-scrolling disabled to avoid jank; the list renders from the bottom using reverse: true
 
   // Determine where to show the unread divider based on last read timestamp
   int? _unreadDividerIndex() {
@@ -211,9 +207,11 @@ class _ChatPageState extends State<ChatPage> {
       _isLoading = true;
     });
     try {
+      _currentPage = 1;
       final loaded = await _apiService.fetchChatMessages(
         widget.groupId,
         currentUser!.chatToken,
+        page: _currentPage,
       );
       setState(() {
         _messages = loaded;
@@ -241,10 +239,7 @@ class _ChatPageState extends State<ChatPage> {
         }
         TokenStorage.saveCurrentUser();
 
-        // Scroll to bottom after loading messages
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom();
-        });
+        // No auto-scrolling; list is reversed so latest is at bottom/start
       }
     } catch (e) {
       setState(() {
@@ -257,6 +252,58 @@ class _ChatPageState extends State<ChatPage> {
           type: ToastType.error,
         );
       }
+    }
+  }
+
+  Future<void> _loadOlderMessages() async {
+    if (currentUser == null || _isLoadingMore) return;
+    setState(() {
+      _isLoadingMore = true;
+    });
+    try {
+      // For reversed list, record current scroll position to maintain it
+      final double currentScrollPosition = _scrollController.hasClients
+          ? _scrollController.position.pixels
+          : 0.0;
+
+      final nextPage = _currentPage + 1;
+      final older = await _apiService.fetchChatMessages(
+        widget.groupId,
+        currentUser!.chatToken,
+        page: nextPage,
+      );
+      if (older.isNotEmpty) {
+        setState(() {
+          // older list is ascending; ensure combined stays ascending
+          _messages = [...older, ..._messages];
+          _currentPage = nextPage;
+          _statusService.initializeStatuses(_messages);
+        });
+        // For reversed list, maintain the same scroll position after prepending
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_scrollController.hasClients) return;
+          _scrollController.jumpTo(currentScrollPosition);
+          // Additional stabilization passes to account for late image layout
+          _stabilizeScrollPosition(3, currentScrollPosition);
+        });
+      } else {
+        // No more messages available - reached the top
+        _hasReachedTop = true;
+      }
+    } catch (e) {
+      // Check if this is the "No data found" response indicating we've reached the top
+      if (e.toString().contains('No data found')) {
+        // Reached the top - no more messages to load
+        _hasReachedTop = true;
+      } else if (mounted) {
+        showAppToast(
+          context,
+          'Failed to load older messages: $e',
+          type: ToastType.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
@@ -423,12 +470,7 @@ class _ChatPageState extends State<ChatPage> {
     // Sending a message should clear unread divider going forward
     ConversationReadTracker.setLastReadToNow(widget.groupId);
 
-    // Scroll to bottom
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom(immediate: true);
-      // Safety delayed scroll to catch late layout
-      Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom());
-    });
+    // No auto-scrolling
 
     try {
       await widget.wsService.sendMessage(
@@ -439,14 +481,7 @@ class _ChatPageState extends State<ChatPage> {
 
       _messageController.clear();
 
-      // Ensure we scroll to the very bottom after input clears
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom(immediate: true);
-        Future.delayed(
-          const Duration(milliseconds: 50),
-          () => _scrollToBottom(),
-        );
-      });
+      // No auto-scrolling after input clears
 
       // Update group last message info
       final timestamp = DateTime.now().toIso8601String();
@@ -550,21 +585,34 @@ class _ChatPageState extends State<ChatPage> {
                             ),
                           ),
                         ),
-                        RefreshIndicator(
-                          onRefresh: _loadMessages,
-                          child: ListView.builder(
-                            controller: _scrollController,
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length + (_unreadDividerIndex() == null ? 0 : 1),
-                            itemBuilder: (context, index) {
+                        NotificationListener<ScrollNotification>(
+                          onNotification: (n) {
+                            if (n is ScrollUpdateNotification &&
+                                n.metrics.extentAfter <= 8 &&
+                                !_isLoadingMore &&
+                                !_isLoading &&
+                                !_hasReachedTop &&
+                                _messages.length >= 25) {
+                              _loadOlderMessages();
+                            }
+                            return false;
+                          },
+                          child: RefreshIndicator(
+                            onRefresh: _loadMessages,
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(16),
+                              reverse: true,
+                              itemCount: _messages.length + (_unreadDividerIndex() == null ? 0 : 1),
+                              itemBuilder: (context, index) {
+                              // When reversed, adjust divider placement and message index mapping
                               final dividerAt = _unreadDividerIndex();
-                              if (dividerAt != null && index == dividerAt) {
+                              if (dividerAt != null && index == (_messages.length - dividerAt)) {
                                 return const _UnreadDivider();
                               }
-                              final realIndex = dividerAt != null && index > dividerAt
-                                  ? index - 1
-                                  : index;
+                              final realIndexFromBottom = index - (dividerAt != null && index > (_messages.length - dividerAt) ? 1 : 0);
+                              final realIndex = (_messages.length - 1) - realIndexFromBottom;
                               final message = _messages[realIndex];
                               final String currentSender = message.sender;
                               final String? previousSender = realIndex > 0
@@ -784,9 +832,102 @@ class _ChatPageState extends State<ChatPage> {
                                   ],
                                 ),
                               );
-                            },
+                              },
+                            ),
                           ),
                         ),
+                        // Loading older messages indicator (top overlay)
+                        if (_isLoadingMore)
+                          Positioned(
+                            top: 8,
+                            left: 0,
+                            right: 0,
+                            child: IgnorePointer(
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surface
+                                        .withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outlineVariant,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Loading older messages...',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Beginning of conversation indicator
+                        if (_hasReachedTop && _messages.isNotEmpty)
+                          Positioned(
+                            top: 8,
+                            left: 0,
+                            right: 0,
+                            child: IgnorePointer(
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surface
+                                        .withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outlineVariant,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Beginning of conversation',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         // Mark messages read when user reaches bottom (opens chat)
                         Positioned(
                           left: 0,

@@ -97,12 +97,13 @@ class ChatApiService {
 
   Future<List<ChatMessage>> fetchChatMessages(
     String courseName,
-    String chatToken,
-  ) async {
+    String chatToken, {
+    int page = 1,
+  }) async {
     try {
       final encodedCourse = Uri.encodeComponent(courseName);
       final url =
-          '$_baseUrl/api/chats?course=$encodedCourse&page=1&chat_token=$chatToken';
+          '$_baseUrl/api/chats?course=$encodedCourse&page=$page&chat_token=$chatToken';
       debugPrint('🌐 [ChatApiService] Making HTTP request to: $url');
       final response = await http.get(Uri.parse(url));
       debugPrint('📥 [ChatApiService] Response Status: ${response.statusCode}');
