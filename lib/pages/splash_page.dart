@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'chat_home_page.dart';
 import 'token_input_page.dart';
 import '../services/chat_services.dart';
@@ -141,11 +143,23 @@ class _SplashPageState extends State<SplashPage>
                         fontWeight: FontWeight.bold,
                         color: color.onSurface,
                       ),
-                    ),
+                    )
+                        .animate()
+                        .fadeIn(duration: 400.ms, curve: Curves.easeOut)
+                        .moveY(begin: 8, end: 0, duration: 400.ms, curve: Curves.easeOut),
                     const SizedBox(height: 8),
                     Text(
                       'Connecting…',
                       style: TextStyle(color: color.onSurfaceVariant),
+                    )
+                        .animate(delay: 120.ms)
+                        .fadeIn(duration: 450.ms, curve: Curves.easeOut)
+                        .moveY(begin: 6, end: 0, duration: 450.ms, curve: Curves.easeOut),
+                    const SizedBox(height: 12),
+                    SpinKitThreeBounce(
+                      color: color.primary,
+                      size: 18,
+                      duration: const Duration(milliseconds: 1200),
                     ),
                   ],
                 ),

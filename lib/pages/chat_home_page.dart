@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:animations/animations.dart';
 import '../theme.dart';
 import 'university_groups_page.dart';
 import 'personal_groups_page.dart';
@@ -113,7 +114,25 @@ class _ChatHomePageState extends State<ChatHomePage> {
         }
       },
       child: Scaffold(
-        body: _pages[_selectedIndex],
+        body: PageTransitionSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (child, animation, secondaryAnimation) {
+            final SharedAxisTransitionType type =
+                _selectedIndex == 0 || _selectedIndex == 1
+                    ? SharedAxisTransitionType.horizontal
+                    : SharedAxisTransitionType.scaled;
+            return SharedAxisTransition(
+              transitionType: type,
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              child: child,
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey(_selectedIndex),
+            child: _pages[_selectedIndex],
+          ),
+        ),
         bottomNavigationBar: NavigationBar(
           backgroundColor: scheme.surface,
           elevation: 3,

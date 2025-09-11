@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:animations/animations.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,6 +43,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   StreamSubscription<Map<String, dynamic>>? _systemMessageSubscription;
   String _query = '';
   final ChatApiService _apiService = ChatApiService();
+  bool _isRefreshing = false;
 
   // Track in-flight loads to avoid duplicate fetches
   final Set<String> _dmMetaLoading = {};
@@ -77,6 +81,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   Future<void> _refreshDMs() async {
     if (currentUser == null) return;
     try {
+      setState(() => _isRefreshing = true);
       await _loadContactsIfNeeded();
       for (final dm in _directMessages) {
         try {
@@ -112,7 +117,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       await TokenStorage.saveCurrentUser();
       await _saveUnreadCounts();
     } finally {
-      if (mounted) setState(() {});
+      if (mounted) setState(() => _isRefreshing = false);
     }
   }
 
@@ -430,36 +435,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     });
   }
 
-  Future<void> _selectDM(DirectMessage dm) async {
-    // Clear unread when opening the chat
-    setState(() {
-      _unreadByGroup[dm.dmName] = 0;
-    });
-    _saveUnreadCounts();
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ChatPage(
-          groupId: dm.dmName,
-          title: _displayNameForDm(dm),
-          wsService: widget.wsService,
-          isReadOnly: false,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _startNewDM() async {
-    final result = await Navigator.of(
-      context,
-    ).push<bool>(MaterialPageRoute(builder: (context) => const NewDMPage()));
-
-    // If a new DM was created successfully, refresh the DM list
-    if (result == true) {
-      _initializeDMs();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -470,7 +445,28 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Direct Messages')),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            const Expanded(child: Text('Direct Messages')),
+            if (_isRefreshing) ...[
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _isRefreshing ? null : () => _refreshDMs(),
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -490,10 +486,17 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _startNewDM,
-        tooltip: 'Start New DM',
-        child: const Icon(Icons.add),
+      floatingActionButton: OpenContainer(
+        transitionType: ContainerTransitionType.fadeThrough,
+        closedShape: const CircleBorder(),
+        closedElevation: 6,
+        closedColor: scheme.primaryContainer,
+        openBuilder: (context, _) => const NewDMPage(),
+        closedBuilder: (context, open) => FloatingActionButton(
+          onPressed: open,
+          tooltip: 'Start New DM',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
@@ -506,6 +509,8 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           children: [
             Icon(Icons.message, size: 64, color: scheme.onSurfaceVariant),
             const SizedBox(height: 16),
+            SpinKitPulse(color: scheme.primary, size: 28),
+            const SizedBox(height: 12),
             Text(
               'No Direct Messages',
               style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
@@ -545,131 +550,165 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         final unread = _unreadByGroup[dm.dmName] ?? 0;
         final bool hasUnread = unread > 0;
 
-        return Card(
-          key: ValueKey(dm.dmName),
-          margin: const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            leading: avatarUrl != null && avatarUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: SafeNetworkImage(
-                      imageUrl: avatarUrl,
-                      width: 40,
-                      height: 40,
-                      highQuality: true,
-                      fit: BoxFit.cover,
-                      errorWidget: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: scheme.primary,
-                        child: Text(
-                          displayName.isNotEmpty
-                              ? displayName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+        return OpenContainer(
+          transitionType: ContainerTransitionType.fadeThrough,
+          closedElevation: 1,
+          openElevation: 0,
+          closedColor: Theme.of(context).colorScheme.surface,
+          closedShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          openBuilder: (context, _) {
+            // Clear unread when opening
+            _unreadByGroup[dm.dmName] = 0;
+            _saveUnreadCounts();
+            return ChatPage(
+              groupId: dm.dmName,
+              title: _displayNameForDm(dm),
+              wsService: widget.wsService,
+              isReadOnly: false,
+            );
+          },
+          closedBuilder: (context, openContainer) {
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _unreadByGroup[dm.dmName] = 0;
+                });
+                _saveUnreadCounts();
+                openContainer();
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Card(
+                key: ValueKey(dm.dmName),
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: avatarUrl != null && avatarUrl.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: SafeNetworkImage(
+                            imageUrl: avatarUrl,
+                            width: 40,
+                            height: 40,
+                            highQuality: true,
+                            fit: BoxFit.cover,
+                            errorWidget: CircleAvatar(
+                              radius: 20,
+                              backgroundColor: scheme.primary,
+                              child: Text(
+                                displayName.isNotEmpty
+                                    ? displayName[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : CircleAvatar(
+                          radius: 20,
+                          backgroundColor: scheme.primary,
+                          child: Text(
+                            displayName.isNotEmpty
+                                ? displayName[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          overflow: TextOverflow.ellipsis,
+                          style: hasUnread
+                              ? const TextStyle(fontWeight: FontWeight.w700)
+                              : null,
+                        ),
                       ),
-                    ),
-                  )
-                : CircleAvatar(
-                    radius: 20,
-                    backgroundColor: scheme.primary,
-                    child: Text(
-                      displayName.isNotEmpty
-                          ? displayName[0].toUpperCase()
-                          : '?',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                      if (status != null &&
+                          status.trim().toUpperCase() != 'ACPTD') ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: scheme.outlineVariant),
+                          ),
+                          child: Text(
+                            status,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Expanded(
-                  child: Text(
-                    displayName,
+                  subtitle: Text(
+                    dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: hasUnread
-                        ? const TextStyle(fontWeight: FontWeight.w700)
+                        ? const TextStyle(fontWeight: FontWeight.w600)
                         : null,
                   ),
-                ),
-                if (status != null &&
-                    status.trim().toUpperCase() != 'ACPTD') ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: scheme.outlineVariant),
-                    ),
-                    child: Text(
-                      status,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        dm.lastMessageTime.isNotEmpty
+                            ? _formatTimestamp(dm.lastMessageTime)
+                            : '',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            subtitle: Text(
-              dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: hasUnread
-                  ? const TextStyle(fontWeight: FontWeight.w600)
-                  : null,
-            ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  dm.lastMessageTime.isNotEmpty
-                      ? _formatTimestamp(dm.lastMessageTime)
-                      : '',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: scheme.onSurfaceVariant,
+                      if (hasUnread) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            unread > 99 ? '99+' : '$unread',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                if (hasUnread) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      unread > 99 ? '99+' : '$unread',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            onTap: () => _selectDM(dm),
-          ),
-        );
+              ),
+            );
+          },
+        )
+            .animate(delay: (40 * index).ms)
+            .fadeIn(duration: 300.ms, curve: Curves.easeOut)
+            .moveY(begin: 8, end: 0, duration: 300.ms, curve: Curves.easeOut);
       },
     );
   }

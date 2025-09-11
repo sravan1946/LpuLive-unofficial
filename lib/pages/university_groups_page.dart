@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:animations/animations.dart';
 import 'dart:async';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
@@ -22,6 +25,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   CourseGroup? _selectedCourse;
   StreamSubscription<ChatMessage>? _messageSubscription;
   String _query = '';
+  bool _isRefreshing = false;
 
   // Unread counters per course group
   final Map<String, int> _unreadByGroup = {};
@@ -163,29 +167,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     });
   }
 
-  Future<void> _openCourseChat(CourseGroup course) async {
-    final isWritable = _isGroupWritable(course);
-    // Clear unread when opening the chat
-    setState(() {
-      _unreadByGroup[course.courseName] = 0;
-    });
-    _saveUnreadCounts();
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ChatPage(
-          groupId: course.courseName,
-          title: course.courseName.replaceFirst(
-            RegExp(r'^[A-Z]+\d+\s*-\s*'),
-            '',
-          ),
-          wsService: widget.wsService,
-          isReadOnly: !isWritable,
-        ),
-      ),
-    );
-  }
-
   bool _isGroupWritable(CourseGroup course) {
     final originalGroup = currentUser?.groups.firstWhere(
       (group) => group.name == course.courseName,
@@ -249,14 +230,37 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
-            _selectedCourse != null
-                ? _selectedCourse!.courseName.replaceFirst(
-                    RegExp(r'^[A-Z]+\d+\s*-\s*'),
-                    '',
-                  )
-                : 'University Groups',
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Expanded(
+                child: Text(
+                  _selectedCourse != null
+                      ? _selectedCourse!.courseName.replaceFirst(
+                          RegExp(r'^[A-Z]+\d+\s*-\s*'),
+                          '',
+                        )
+                      : 'University Groups',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (_isRefreshing) ...[
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
+            ],
           ),
+          actions: [
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: _isRefreshing ? null : () => _refreshCourses(),
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
           leading: _selectedCourse != null
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),
@@ -295,6 +299,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   Future<void> _refreshCourses() async {
     if (currentUser == null) return;
     try {
+      setState(() => _isRefreshing = true);
       for (final course in _courseGroups) {
         try {
           final msgs = await _apiService.fetchChatMessages(
@@ -328,7 +333,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       await TokenStorage.saveCurrentUser();
       await _saveUnreadCounts();
     } finally {
-      if (mounted) setState(() {});
+      if (mounted) setState(() => _isRefreshing = false);
     }
   }
 
@@ -340,6 +345,8 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
           children: [
             Icon(Icons.school, size: 64, color: scheme.onSurfaceVariant),
             const SizedBox(height: 16),
+            SpinKitPulse(color: scheme.primary, size: 28),
+            const SizedBox(height: 12),
             Text(
               'No University Courses',
               style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
@@ -384,92 +391,134 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
         final unread = _unreadByGroup[course.courseName] ?? 0;
         final hasUnread = unread > 0;
 
-        return Card(
-          key: ValueKey(course.courseName),
-          margin: const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: scheme.primary,
-              child: const Icon(Icons.school, color: Colors.white),
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    course.courseName,
+        return OpenContainer(
+          transitionType: ContainerTransitionType.fadeThrough,
+          closedElevation: 1,
+          openElevation: 0,
+          closedColor: Theme.of(context).colorScheme.surface,
+          closedShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          openBuilder: (context, _) {
+            // Clear unread when opening
+            _unreadByGroup[course.courseName] = 0;
+            _saveUnreadCounts();
+            final isWritable = _isGroupWritable(course);
+            return ChatPage(
+              groupId: course.courseName,
+              title: course.courseName.replaceFirst(
+                RegExp(r'^[A-Z]+\d+\s*-\s*'),
+                '',
+              ),
+              wsService: widget.wsService,
+              isReadOnly: !isWritable,
+            );
+          },
+          closedBuilder: (context, openContainer) {
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _unreadByGroup[course.courseName] = 0;
+                });
+                _saveUnreadCounts();
+                openContainer();
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Card(
+                key: ValueKey(course.courseName),
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: scheme.primary,
+                    child: const Icon(Icons.school, color: Colors.white),
+                  ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          course.courseName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: hasUnread
+                              ? const TextStyle(fontWeight: FontWeight.w700)
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: Text(
+                    lastMessage,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: hasUnread
-                        ? const TextStyle(fontWeight: FontWeight.w700)
+                        ? const TextStyle(fontWeight: FontWeight.w600)
                         : null,
                   ),
-                ),
-              ],
-            ),
-            subtitle: Text(
-              lastMessage,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: hasUnread
-                  ? const TextStyle(fontWeight: FontWeight.w600)
-                  : null,
-            ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (readOnly)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Icon(
-                          Icons.lock_outline,
-                          size: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (readOnly)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Icon(
+                                Icons.lock_outline,
+                                size: 14,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          Text(
+                            lastMessageTime.isNotEmpty
+                                ? _formatTimestamp(lastMessageTime)
+                                : '',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (hasUnread) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            unread > 99 ? '99+' : '$unread',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                      ),
-                    Text(
-                      lastMessageTime.isNotEmpty
-                          ? _formatTimestamp(lastMessageTime)
-                          : '',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                if (hasUnread) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      unread > 99 ? '99+' : '$unread',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                      ],
+                      if (course.messages.isNotEmpty &&
+                          course.messages.last.isOwnMessage)
+                        Icon(Icons.done_all, size: 16, color: scheme.primary),
+                    ],
                   ),
-                ],
-                if (course.messages.isNotEmpty &&
-                    course.messages.last.isOwnMessage)
-                  Icon(Icons.done_all, size: 16, color: scheme.primary),
-              ],
-            ),
-            onTap: () => _openCourseChat(course),
-          ),
-        );
+                ),
+              ),
+            );
+          },
+        )
+            .animate(delay: (40 * index).ms)
+            .fadeIn(duration: 300.ms, curve: Curves.easeOut)
+            .moveY(begin: 8, end: 0, duration: 300.ms, curve: Curves.easeOut);
       },
     );
   }
