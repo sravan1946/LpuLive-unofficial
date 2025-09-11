@@ -12,6 +12,7 @@ import 'token_input_page.dart';
 import 'new_dm_page.dart';
 import 'chat_page.dart';
 import '../widgets/network_image.dart';
+import '../services/read_tracker.dart';
 import '../widgets/app_toast.dart';
 
 // Persistent caches (per app session)
@@ -424,8 +425,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         lastMessageTime: message.timestamp,
       );
 
-      // Increment unread for incoming messages (not our own)
-      if (!message.isOwnMessage) {
+      // Increment unread for incoming messages (not our own),
+      // but do NOT increment if that conversation is currently open.
+      if (!message.isOwnMessage && !OpenConversations.isOpen(groupName)) {
         _unreadByGroup.update(groupName, (v) => v + 1, ifAbsent: () => 1);
         _saveUnreadCounts();
       }
@@ -562,6 +564,8 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
             // Clear unread when opening
             _unreadByGroup[dm.dmName] = 0;
             _saveUnreadCounts();
+            // Also mark last-read now for immediate divider clearing
+            ConversationReadTracker.setLastReadToNow(dm.dmName);
             return ChatPage(
               groupId: dm.dmName,
               title: _displayNameForDm(dm),

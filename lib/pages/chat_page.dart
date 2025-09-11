@@ -5,6 +5,7 @@ import '../models/message_status.dart';
 import '../services/chat_services.dart';
 import '../services/message_status_service.dart';
 import '../widgets/network_image.dart';
+import '../services/read_tracker.dart';
 import '../widgets/reply_preview.dart';
 import '../widgets/message_status_icon.dart';
 import '../utils/sender_name_utils.dart';
@@ -41,6 +42,7 @@ class _ChatPageState extends State<ChatPage> {
   final MessageStatusService _statusService = MessageStatusService();
   final ScrollController _scrollController = ScrollController();
   List<ChatMessage> _messages = [];
+  DateTime? _lastReadAt;
   bool _isLoading = false;
   bool _isSending = false;
   late final StreamSubscription<ChatMessage> _messageSubscription;
@@ -83,6 +85,14 @@ class _ChatPageState extends State<ChatPage> {
       });
     }
     _loadMessages();
+    OpenConversations.open(widget.groupId);
+    // Load last-read timestamp to place unread divider
+    ConversationReadTracker.getLastReadAt(widget.groupId).then((ts) {
+      if (!mounted) return;
+      setState(() {
+        _lastReadAt = ts;
+      });
+    });
     _messageSubscription = widget.wsService.messageStream.listen((message) {
       if (message.group == widget.groupId) {
         // Check if this is a server acknowledgment of our local message
@@ -153,6 +163,9 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
+    // Mark as read when leaving the chat
+    ConversationReadTracker.setLastReadToNow(widget.groupId);
+    OpenConversations.close(widget.groupId);
     _messageController.dispose();
     _scrollController.dispose();
     _messageSubscription.cancel();
@@ -173,6 +186,25 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  // Determine where to show the unread divider based on last read timestamp
+  int? _unreadDividerIndex() {
+    if (_lastReadAt == null || _messages.isEmpty) return null;
+    // Find first message strictly newer than lastRead
+    for (int i = 0; i < _messages.length; i++) {
+      try {
+        final ts = DateTime.parse(_messages[i].timestamp);
+        // Only consider messages from others as unread
+        if (ts.isAfter(_lastReadAt!) && !_messages[i].isOwnMessage) {
+          // Place divider before this message
+          return i;
+        }
+      } catch (_) {
+        // ignore parse errors
+      }
+    }
+    return null;
+  }
+
   Future<void> _loadMessages() async {
     if (currentUser == null) return;
     setState(() {
@@ -189,6 +221,13 @@ class _ChatPageState extends State<ChatPage> {
         // Initialize status for loaded messages
         _statusService.initializeStatuses(_messages);
       });
+
+      // If there are messages and no last-read marker, set it to the last message
+      if (_messages.isNotEmpty && _lastReadAt == null) {
+        try {
+          _lastReadAt = DateTime.parse(_messages.last.timestamp);
+        } catch (_) {}
+      }
 
       if (_messages.isNotEmpty) {
         final lastMsg = _messages.last;
@@ -377,7 +416,12 @@ class _ChatPageState extends State<ChatPage> {
       _statusService.setStatus(localMessageId, MessageStatus.sending);
       _replyingTo = null;
       _isSending = false;
+      // Sending marks conversation as read; divider should disappear instantly
+      _lastReadAt = DateTime.now();
     });
+
+    // Sending a message should clear unread divider going forward
+    ConversationReadTracker.setLastReadToNow(widget.groupId);
 
     // Scroll to bottom
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -512,12 +556,19 @@ class _ChatPageState extends State<ChatPage> {
                             controller: _scrollController,
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length,
+                            itemCount: _messages.length + (_unreadDividerIndex() == null ? 0 : 1),
                             itemBuilder: (context, index) {
-                              final message = _messages[index];
+                              final dividerAt = _unreadDividerIndex();
+                              if (dividerAt != null && index == dividerAt) {
+                                return const _UnreadDivider();
+                              }
+                              final realIndex = dividerAt != null && index > dividerAt
+                                  ? index - 1
+                                  : index;
+                              final message = _messages[realIndex];
                               final String currentSender = message.sender;
-                              final String? previousSender = index > 0
-                                  ? _messages[index - 1].sender
+                              final String? previousSender = realIndex > 0
+                                  ? _messages[realIndex - 1].sender
                                   : null;
                               final bool isNewBlock =
                                   previousSender == null ||
@@ -727,6 +778,25 @@ class _ChatPageState extends State<ChatPage> {
                             },
                           ),
                         ),
+                        // Mark messages read when user reaches bottom (opens chat)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: (n) {
+                              if (n.metrics.pixels >=
+                                  n.metrics.maxScrollExtent - 24) {
+                                ConversationReadTracker.setLastReadToNow(
+                                  widget.groupId,
+                                );
+                                _lastReadAt = DateTime.now();
+                              }
+                              return false;
+                            },
+                            child: const SizedBox.shrink(),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -916,6 +986,41 @@ class _ChatPatternPainter extends CustomPainter {
         oldDelegate.secondaryDotColor != secondaryDotColor ||
         oldDelegate.spacing != spacing ||
         oldDelegate.radius != radius;
+  }
+}
+
+class _UnreadDivider extends StatelessWidget {
+  const _UnreadDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: scheme.primary.withValues(alpha: 0.3)) ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              borderRadius: BorderRadius.circular(48),
+            ),
+            child: Text(
+              'Unread',
+              style: TextStyle(
+                color: scheme.onPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          Expanded(child: Divider(color: scheme.primary.withValues(alpha: 0.3)) ),
+        ],
+      ),
+    );
   }
 }
 

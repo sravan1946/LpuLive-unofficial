@@ -59,72 +59,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
     }
   }
 
-  Future<void> _testJavaScript() async {
-    try {
-      const String testScript = '''
-          (function() {
-            try {
-              console.log('JavaScript test: Hello from webview!');
-              return 'JS_WORKING';
-            } catch (e) {
-              console.log('JavaScript test error:', e);
-              return 'JS_ERROR:' + e.toString();
-            }
-          })();
-        ''';
-
-      final result = await _controller?.runJavaScriptReturningResult(
-        testScript,
-      );
-      if (_controller == null) return;
-
-      if (!result.toString().contains('JS_WORKING')) {
-        setState(() {
-          _errorMessage = 'JavaScript execution failed';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'JavaScript test failed: $e';
-      });
-    }
-  }
-
-  Future<void> _clearWebViewLocalStorage() async {
-    try {
-      // First test if JavaScript is working
-      await _testJavaScript();
-
-      const String clearScript = '''
-          (function() {
-            try {
-              const beforeClear = localStorage.length;
-              localStorage.clear();
-              const afterClear = localStorage.length;
-              return 'CLEARED_' + beforeClear + '_to_' + afterClear;
-            } catch (e) {
-              return 'ERROR:' + e.toString();
-            }
-          })();
-        ''';
-
-      final result = await _controller?.runJavaScriptReturningResult(
-        clearScript,
-      );
-      if (_controller == null) return;
-
-      if (result.toString().contains('ERROR')) {
-        setState(() {
-          _errorMessage =
-              'Failed to clear webview localStorage: ${result.toString().substring(6)}';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error clearing webview localStorage: $e';
-      });
-    }
-  }
+  // Note: We intentionally do not clear webview localStorage on page load.
 
   @override
   void initState() {
@@ -140,9 +75,6 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
                 _isLoading = true;
                 _errorMessage = null;
               });
-
-              // Clear localStorage immediately when page starts loading
-              await _clearWebViewLocalStorage();
             },
             onPageFinished: (String url) async {
               // If we're in redirecting mode, don't change the loading state
