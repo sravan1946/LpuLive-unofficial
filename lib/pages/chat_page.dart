@@ -591,27 +591,30 @@ class _ChatPageState extends State<ChatPage> {
                                   children: [
                                     if (!message.isOwnMessage)
                                       if (showLeftAvatar) ...[
-                                        SafeNetworkImage(
-                                          imageUrl: message.userImage ?? '',
-                                          width: avatarSize,
-                                          height: avatarSize,
-                                          errorWidget: CircleAvatar(
-                                            radius: avatarSize / 2,
-                                            backgroundColor: scheme.primary,
-                                            child: Text(
-                                              message.senderName.isNotEmpty
-                                                  ? message.senderName[0]
-                                                        .toUpperCase()
-                                                  : '?',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(avatarSize / 2),
+                                          child: SafeNetworkImage(
+                                            imageUrl: message.userImage ?? '',
+                                            width: avatarSize,
+                                            height: avatarSize,
+                                            errorWidget: CircleAvatar(
+                                              radius: avatarSize / 2,
+                                              backgroundColor: scheme.primary,
+                                              child: Text(
+                                                message.senderName.isNotEmpty
+                                                    ? message.senderName[0]
+                                                          .toUpperCase()
+                                                    : '?',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
+                                            highQuality: true,
+                                            fit: BoxFit.cover,
                                           ),
-                                          highQuality: true,
-                                          fit: BoxFit.cover,
                                         ),
                                         SizedBox(width: avatarGap),
                                       ] else
@@ -638,8 +641,8 @@ class _ChatPageState extends State<ChatPage> {
                                             color: message.isOwnMessage
                                                 ? scheme.primary
                                                 : Theme.of(context)
-                                                      .colorScheme
-                                                      .surfaceContainerHighest,
+                                                    .colorScheme
+                                                    .surfaceContainerHighest,
                                             borderRadius: BorderRadius.only(
                                               topLeft: const Radius.circular(
                                                 14,
@@ -713,15 +716,13 @@ class _ChatPageState extends State<ChatPage> {
                                                     style: TextStyle(
                                                       height: 1.0,
                                                       fontSize: 10,
-                                                      color:
-                                                          message.isOwnMessage
+                                                      color: message.isOwnMessage
                                                           ? scheme.onPrimary
-                                                                .withValues(
-                                                                  alpha: 0.7,
-                                                                )
+                                                              .withValues(
+                                                                  alpha: 0.7)
                                                           : Theme.of(context)
-                                                                .colorScheme
-                                                                .onSurfaceVariant,
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
                                                     ),
                                                   ),
                                                   if (message.isOwnMessage) ...[
@@ -744,29 +745,32 @@ class _ChatPageState extends State<ChatPage> {
                                     if (message.isOwnMessage)
                                       if (showRightAvatar) ...[
                                         SizedBox(width: avatarGap),
-                                        SafeNetworkImage(
-                                          imageUrl:
-                                              currentUser?.userImageUrl ?? '',
-                                          width: avatarSize,
-                                          height: avatarSize,
-                                          errorWidget: CircleAvatar(
-                                            radius: avatarSize / 2,
-                                            backgroundColor: scheme.primary,
-                                            child: Text(
-                                              (currentUser?.name.isNotEmpty ??
-                                                      false)
-                                                  ? currentUser!.name[0]
-                                                        .toUpperCase()
-                                                  : 'Y',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(avatarSize / 2),
+                                          child: SafeNetworkImage(
+                                            imageUrl:
+                                                currentUser?.userImageUrl ?? '',
+                                            width: avatarSize,
+                                            height: avatarSize,
+                                            errorWidget: CircleAvatar(
+                                              radius: avatarSize / 2,
+                                              backgroundColor: scheme.primary,
+                                              child: Text(
+                                                (currentUser?.name.isNotEmpty ??
+                                                        false)
+                                                    ? currentUser!.name[0]
+                                                          .toUpperCase()
+                                                    : 'Y',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
+                                            highQuality: true,
+                                            fit: BoxFit.cover,
                                           ),
-                                          highQuality: true,
-                                          fit: BoxFit.cover,
                                         ),
                                       ] else
                                         const SizedBox(

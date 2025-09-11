@@ -7,6 +7,7 @@ import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../utils/timestamp_utils.dart';
 import 'chat_page.dart';
+import '../services/read_tracker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
@@ -157,7 +158,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
         _courseGroups[index] = course.copyWith(
           lastMessageTime: message.timestamp,
         );
-        if (!message.isOwnMessage) {
+        if (!message.isOwnMessage && !OpenConversations.isOpen(groupKey)) {
           _unreadByGroup.update(groupKey, (v) => v + 1, ifAbsent: () => 1);
           _saveUnreadCounts();
         }
@@ -403,6 +404,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
             // Clear unread when opening
             _unreadByGroup[course.courseName] = 0;
             _saveUnreadCounts();
+            ConversationReadTracker.setLastReadToNow(course.courseName);
             final isWritable = _isGroupWritable(course);
             return ChatPage(
               groupId: course.courseName,
