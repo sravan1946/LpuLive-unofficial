@@ -642,7 +642,12 @@ class _ChatPageState extends State<ChatPage> {
                                                 ? scheme.primary
                                                 : Theme.of(context)
                                                     .colorScheme
-                                                    .surfaceContainerHighest,
+                                                    .surfaceVariant,
+                                            border: message.isOwnMessage
+                                                ? null
+                                                : Border.all(
+                                                    color: scheme.outline,
+                                                  ),
                                             borderRadius: BorderRadius.only(
                                               topLeft: const Radius.circular(
                                                 14,
@@ -678,7 +683,9 @@ class _ChatPageState extends State<ChatPage> {
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.w700,
                                                     fontSize: 12,
-                                                    color: scheme.primary,
+                                                    color: message.isOwnMessage
+                                                        ? scheme.onPrimary
+                                                        : scheme.primary,
                                                   ),
                                                 ),
                                               // Reply preview
@@ -720,9 +727,7 @@ class _ChatPageState extends State<ChatPage> {
                                                           ? scheme.onPrimary
                                                               .withValues(
                                                                   alpha: 0.7)
-                                                          : Theme.of(context)
-                                                              .colorScheme
-                                                              .onSurfaceVariant,
+                                                          : scheme.onSurfaceVariant,
                                                     ),
                                                   ),
                                                   if (message.isOwnMessage) ...[
@@ -1085,7 +1090,16 @@ class _MessageBody extends StatelessWidget {
       last = match.end;
     }
     if (last < text.length) {
-      spans.add(TextSpan(text: text.substring(last)));
+      spans.add(TextSpan(
+        text: text.substring(last),
+        style: TextStyle(
+          color: isOwn
+              ? Theme.of(context).colorScheme.onPrimary
+              : (Theme.of(context).brightness == Brightness.light
+                  ? Colors.black
+                  : Theme.of(context).colorScheme.onSurface),
+        ),
+      ));
     }
     return spans;
   }
@@ -1186,7 +1200,9 @@ class _MessageBody extends StatelessWidget {
               size: 16,
               color: isOwn
                   ? Theme.of(context).colorScheme.onPrimary
-                  : scheme.primary,
+                  : (Theme.of(context).brightness == Brightness.light
+                      ? Colors.black
+                      : scheme.primary),
             ),
             const SizedBox(width: 6),
             Flexible(
@@ -1196,7 +1212,9 @@ class _MessageBody extends StatelessWidget {
                   decoration: TextDecoration.underline,
                   color: isOwn
                       ? Theme.of(context).colorScheme.onPrimary
-                      : scheme.primary,
+                      : (Theme.of(context).brightness == Brightness.light
+                          ? Colors.black
+                          : scheme.primary),
                 ),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 2,
@@ -1214,11 +1232,19 @@ class _MessageBody extends StatelessWidget {
         fontSize: 14,
         color: isOwn
             ? Theme.of(context).colorScheme.onPrimary
-            : Theme.of(context).colorScheme.onSurface,
+            : (Theme.of(context).brightness == Brightness.light
+                ? Colors.black
+                : Theme.of(context).colorScheme.onSurface),
       ),
       child: RichText(
         text: TextSpan(
-          style: const TextStyle(),
+          style: TextStyle(
+            color: isOwn
+                ? Theme.of(context).colorScheme.onPrimary
+                : (Theme.of(context).brightness == Brightness.light
+                    ? Colors.black
+                    : Theme.of(context).colorScheme.onSurface),
+          ),
           children: _linkify(context, text),
         ),
       ),
