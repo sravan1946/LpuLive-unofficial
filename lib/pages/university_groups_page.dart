@@ -211,6 +211,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final filtered = _courseGroups
         .where(
           (c) =>
@@ -233,6 +234,8 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       child: Scaffold(
         appBar: AppBar(
           centerTitle: false,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           title: Text(
             _selectedCourse != null
                 ? _selectedCourse!.courseName.replaceFirst(
@@ -241,6 +244,10 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                   )
                 : 'University Groups',
             overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : const Color(0xFF1B1B1B),
+            ),
           ),
           actions: [
             // Profile icon
@@ -253,42 +260,66 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                     MaterialPageRoute(builder: (_) => const ProfilePage()),
                   );
                 },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: scheme.surfaceContainerHighest,
-                  foregroundColor: scheme.onSurface,
-                  child: (currentUser?.userImageUrl != null &&
-                          currentUser!.userImageUrl!.isNotEmpty)
-                      ? ClipOval(
-                          child: Image.network(
-                            currentUser!.userImageUrl!,
-                            width: 32,
-                            height: 32,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.person, size: 18);
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Icon(Icons.person, size: 18);
-                            },
-                          ),
-                        )
-                      : const Icon(Icons.person, size: 18),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: scheme.primary.withOpacity(0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: scheme.primary,
+                    foregroundColor: Colors.white,
+                    child: (currentUser?.userImageUrl != null &&
+                            currentUser!.userImageUrl!.isNotEmpty)
+                        ? ClipOval(
+                            child: Image.network(
+                              currentUser!.userImageUrl!,
+                              width: 32,
+                              height: 32,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.person, size: 18);
+                              },
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return const Icon(Icons.person, size: 18);
+                              },
+                            ),
+                          )
+                        : const Icon(Icons.person, size: 18),
+                  ),
                 ),
               ),
             ),
             // Settings icon
             Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SettingsPage()),
-                  );
-                },
-                tooltip: 'Settings',
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.primary.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
+                    );
+                  },
+                  tooltip: 'Settings',
+                ),
               ),
             ),
           ],
@@ -304,31 +335,84 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 )
               : null,
         ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: SearchBar(
-                leading: Padding(
-                  padding: const EdgeInsets.only(left: 4, right: 2),
-                  child: Icon(
-                    Icons.search,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      const Color(0xFF121212),
+                      const Color(0xFF1E1E1E),
+                      const Color(0xFF2A1A10),
+                    ]
+                  : [
+                      const Color(0xFFF8F9FA),
+                      const Color(0xFFFFF5F0),
+                      const Color(0xFFFFE9D6),
+                    ],
+            ),
+          ),
+          child: Column(
+            children: [
+              // Enhanced search bar with gradient background
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [
+                            const Color(0xFF2A2A2A),
+                            const Color(0xFF1E1E1E),
+                          ]
+                        : [
+                            Colors.white,
+                            const Color(0xFFF8F9FA),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withOpacity(0.15)
+                          : Colors.black.withOpacity(0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: SearchBar(
+                  leading: Padding(
+                    padding: const EdgeInsets.only(left: 4, right: 2),
+                    child: Icon(
+                      Icons.search,
+                      size: 20,
+                      color: scheme.primary,
+                    ),
+                  ),
+                  hintText: 'Search courses',
+                  onChanged: (v) => setState(() => _query = v),
+                  backgroundColor: MaterialStateProperty.all(Colors.transparent),
+                  elevation: MaterialStateProperty.all(0),
+                  shape: MaterialStateProperty.all(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
-                hintText: 'Search courses',
-                onChanged: (v) => setState(() => _query = v),
               ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshCourses,
-                child: _buildCourseList(filtered, scheme),
+              const SizedBox(height: 16),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refreshCourses,
+                  color: scheme.primary,
+                  child: _buildCourseList(filtered, scheme),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -374,23 +458,50 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   }
 
   Widget _buildCourseList(List<CourseGroup> data, ColorScheme scheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     if (data.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.school, size: 64, color: scheme.onSurfaceVariant),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    scheme.primary.withOpacity(0.1),
+                    scheme.primary.withOpacity(0.05),
+                  ],
+                ),
+              ),
+              child: Icon(
+                Icons.school_outlined,
+                size: 64,
+                color: scheme.primary.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SpinKitPulse(color: scheme.primary, size: 32),
             const SizedBox(height: 16),
-            SpinKitPulse(color: scheme.primary, size: 28),
-            const SizedBox(height: 12),
             Text(
               'No University Courses',
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
+              style: TextStyle(
+                color: isDark ? Colors.white70 : const Color(0xFF5A5A5A),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'University courses will appear here',
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
+              style: TextStyle(
+                color: isDark ? Colors.white54 : const Color(0xFF8A8A8A),
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -398,7 +509,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: data.length,
       itemBuilder: (context, index) {
@@ -429,11 +540,11 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
         return OpenContainer(
           transitionType: ContainerTransitionType.fadeThrough,
-          closedElevation: 1,
+          closedElevation: 0,
           openElevation: 0,
-          closedColor: Theme.of(context).colorScheme.surface,
+          closedColor: Colors.transparent,
           closedShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
           openBuilder: (context, _) {
             // Clear unread when opening
@@ -452,101 +563,232 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
             );
           },
           closedBuilder: (context, openContainer) {
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  _unreadByGroup[course.courseName] = 0;
-                });
-                _saveUnreadCounts();
-                openContainer();
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Card(
-                key: ValueKey(course.courseName),
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: scheme.primary,
-                    child: const Icon(Icons.school, color: Colors.white),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          const Color(0xFF2A2A2A),
+                          const Color(0xFF1E1E1E),
+                        ]
+                      : [
+                          Colors.white,
+                          const Color(0xFFFAFAFA),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withOpacity(0.2)
+                        : Colors.black.withOpacity(0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
                   ),
-                  title: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          course.courseName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: hasUnread
-                              ? const TextStyle(fontWeight: FontWeight.w700)
-                              : null,
+                  BoxShadow(
+                    color: scheme.primary.withOpacity(0.03),
+                    blurRadius: 12,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF333333)
+                      : const Color(0xFFE5E5E5),
+                  width: 0.5,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _unreadByGroup[course.courseName] = 0;
+                    });
+                    _saveUnreadCounts();
+                    openContainer();
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        // Enhanced avatar with gradient
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                scheme.primary,
+                                scheme.primary.withOpacity(0.8),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: scheme.primary.withOpacity(0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 24,
+                            backgroundColor: Colors.transparent,
+                            child: const Icon(
+                              Icons.school,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    lastMessage,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: hasUnread
-                        ? const TextStyle(fontWeight: FontWeight.w600)
-                        : null,
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (readOnly)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: Icon(
-                                Icons.lock_outline,
-                                size: 14,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                        const SizedBox(width: 16),
+                        // Course info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                course.courseName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: hasUnread
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1B1B1B),
+                                ),
+                              ),
+                              if (readOnly) ...[
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? const Color(0xFF333333)
+                                        : const Color(0xFFF0F0F0),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.lock_outline,
+                                        size: 10,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : const Color(0xFF666666),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        'Read Only',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : const Color(0xFF666666),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                              Text(
+                                lastMessage,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: hasUnread
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : const Color(0xFF666666),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Trailing info
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              lastMessageTime.isNotEmpty
+                                  ? _formatTimestamp(lastMessageTime)
+                                  : '',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? Colors.white54
+                                    : const Color(0xFF8A8A8A),
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          Text(
-                            lastMessageTime.isNotEmpty
-                                ? _formatTimestamp(lastMessageTime)
-                                : '',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (hasUnread) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          scheme.primary,
+                                          scheme.primary.withOpacity(0.8),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: scheme.primary.withOpacity(0.15),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      unread > 99 ? '99+' : '$unread',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ] else if (course.messages.isNotEmpty &&
+                                    course.messages.last.isOwnMessage) ...[
+                                  Icon(
+                                    Icons.done_all,
+                                    size: 16,
+                                    color: scheme.primary,
+                                  ),
+                                ],
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      if (hasUnread) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.primary,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            unread > 99 ? '99+' : '$unread',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                          ],
                         ),
                       ],
-                      if (course.messages.isNotEmpty &&
-                          course.messages.last.isOwnMessage)
-                        Icon(Icons.done_all, size: 16, color: scheme.primary),
-                    ],
+                    ),
                   ),
                 ),
               ),

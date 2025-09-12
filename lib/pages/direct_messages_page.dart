@@ -439,6 +439,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final filtered = _directMessages.where((dm) {
       if (_query.isEmpty) return true;
       final name = _displayNameForDm(dm).toLowerCase();
@@ -448,7 +449,15 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: const Text('Direct Messages'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'Direct Messages',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF1B1B1B),
+          ),
+        ),
         actions: [
           // Profile icon
           Padding(
@@ -460,105 +469,223 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                   MaterialPageRoute(builder: (_) => const ProfilePage()),
                 );
               },
-              child: CircleAvatar(
-                radius: 16,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                foregroundColor: Theme.of(context).colorScheme.onSurface,
-                child: (currentUser?.userImageUrl != null &&
-                        currentUser!.userImageUrl!.isNotEmpty)
-                    ? ClipOval(
-                        child: Image.network(
-                          currentUser!.userImageUrl!,
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.person, size: 18);
-                          },
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Icon(Icons.person, size: 18);
-                          },
-                        ),
-                      )
-                    : const Icon(Icons.person, size: 18),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.primary.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: scheme.primary,
+                  foregroundColor: Colors.white,
+                  child: (currentUser?.userImageUrl != null &&
+                          currentUser!.userImageUrl!.isNotEmpty)
+                      ? ClipOval(
+                          child: Image.network(
+                            currentUser!.userImageUrl!,
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(Icons.person, size: 18);
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Icon(Icons.person, size: 18);
+                            },
+                          ),
+                        )
+                      : const Icon(Icons.person, size: 18),
+                ),
               ),
             ),
           ),
           // Settings icon
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: IconButton(
-              icon: const Icon(Icons.settings_outlined),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettingsPage()),
-                );
-              },
-              tooltip: 'Settings',
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.primary.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
+                },
+                tooltip: 'Settings',
+              ),
             ),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: SearchBar(
-              leading: Padding(
-                padding: const EdgeInsets.only(left: 4, right: 2),
-                child: Icon(
-                  Icons.search,
-                  size: 20,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [
+                    const Color(0xFF121212),
+                    const Color(0xFF1E1E1E),
+                    const Color(0xFF2A1A10),
+                  ]
+                : [
+                    const Color(0xFFF8F9FA),
+                    const Color(0xFFFFF5F0),
+                    const Color(0xFFFFE9D6),
+                  ],
+          ),
+        ),
+        child: Column(
+          children: [
+            // Enhanced search bar with gradient background
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          const Color(0xFF2A2A2A),
+                          const Color(0xFF1E1E1E),
+                        ]
+                      : [
+                          Colors.white,
+                          const Color(0xFFF8F9FA),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withOpacity(0.15)
+                        : Colors.black.withOpacity(0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: SearchBar(
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 4, right: 2),
+                  child: Icon(
+                    Icons.search,
+                    size: 20,
+                    color: scheme.primary,
+                  ),
+                ),
+                hintText: 'Search people',
+                onChanged: (v) => setState(() => _query = v),
+                backgroundColor: MaterialStateProperty.all(Colors.transparent),
+                elevation: MaterialStateProperty.all(0),
+                shape: MaterialStateProperty.all(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
-              hintText: 'Search people',
-              onChanged: (v) => setState(() => _query = v),
             ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refreshDMs,
-              child: _buildDMList(filtered, scheme),
+            const SizedBox(height: 16),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _refreshDMs,
+                color: scheme.primary,
+                child: _buildDMList(filtered, scheme),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      floatingActionButton: OpenContainer(
-        transitionType: ContainerTransitionType.fadeThrough,
-        closedShape: const CircleBorder(),
-        closedElevation: 6,
-        closedColor: scheme.primaryContainer,
-        openBuilder: (context, _) => const NewDMPage(),
-        closedBuilder: (context, open) => FloatingActionButton(
-          onPressed: open,
-          tooltip: 'Start New DM',
-          child: const Icon(Icons.add),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: scheme.primary.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: OpenContainer(
+          transitionType: ContainerTransitionType.fadeThrough,
+          closedShape: const CircleBorder(),
+          closedElevation: 0,
+          closedColor: scheme.primary,
+          openBuilder: (context, _) => const NewDMPage(),
+          closedBuilder: (context, open) => FloatingActionButton(
+            onPressed: open,
+            tooltip: 'Start New DM',
+            backgroundColor: scheme.primary,
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.add),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildDMList(List<DirectMessage> data, ColorScheme scheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     if (data.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.message, size: 64, color: scheme.onSurfaceVariant),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    scheme.primary.withOpacity(0.1),
+                    scheme.primary.withOpacity(0.05),
+                  ],
+                ),
+              ),
+              child: Icon(
+                Icons.message_outlined,
+                size: 64,
+                color: scheme.primary.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SpinKitPulse(color: scheme.primary, size: 32),
             const SizedBox(height: 16),
-            SpinKitPulse(color: scheme.primary, size: 28),
-            const SizedBox(height: 12),
             Text(
               'No Direct Messages',
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
+              style: TextStyle(
+                color: isDark ? Colors.white70 : const Color(0xFF5A5A5A),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Direct messages will appear here',
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
+              style: TextStyle(
+                color: isDark ? Colors.white54 : const Color(0xFF8A8A8A),
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -566,7 +693,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: data.length,
       itemBuilder: (context, index) {
@@ -592,11 +719,11 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
         return OpenContainer(
           transitionType: ContainerTransitionType.fadeThrough,
-          closedElevation: 1,
+          closedElevation: 0,
           openElevation: 0,
-          closedColor: Theme.of(context).colorScheme.surface,
+          closedColor: Colors.transparent,
           closedShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
           openBuilder: (context, _) {
             // Clear unread when opening
@@ -612,136 +739,239 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
             );
           },
           closedBuilder: (context, openContainer) {
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  _unreadByGroup[dm.dmName] = 0;
-                });
-                _saveUnreadCounts();
-                openContainer();
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Card(
-                key: ValueKey(dm.dmName),
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  leading: avatarUrl != null && avatarUrl.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: SafeNetworkImage(
-                            imageUrl: avatarUrl,
-                            width: 40,
-                            height: 40,
-                            highQuality: true,
-                            fit: BoxFit.cover,
-                            errorWidget: CircleAvatar(
-                              radius: 20,
-                              backgroundColor: scheme.primary,
-                              child: Text(
-                                displayName.isNotEmpty
-                                    ? displayName[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          const Color(0xFF2A2A2A),
+                          const Color(0xFF1E1E1E),
+                        ]
+                      : [
+                          Colors.white,
+                          const Color(0xFFFAFAFA),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withOpacity(0.2)
+                        : Colors.black.withOpacity(0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: scheme.primary.withOpacity(0.03),
+                    blurRadius: 12,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF333333)
+                      : const Color(0xFFE5E5E5),
+                  width: 0.5,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _unreadByGroup[dm.dmName] = 0;
+                    });
+                    _saveUnreadCounts();
+                    openContainer();
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        // Enhanced avatar with gradient
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                scheme.primary,
+                                scheme.primary.withOpacity(0.8),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: scheme.primary.withOpacity(0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 24,
+                            backgroundColor: Colors.transparent,
+                            child: avatarUrl != null && avatarUrl.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(24),
+                                    child: SafeNetworkImage(
+                                      imageUrl: avatarUrl,
+                                      width: 48,
+                                      height: 48,
+                                      highQuality: true,
+                                      fit: BoxFit.cover,
+                                      errorWidget: Text(
+                                        displayName.isNotEmpty
+                                            ? displayName[0].toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    displayName.isNotEmpty
+                                        ? displayName[0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        // DM info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      displayName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: hasUnread
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF1B1B1B),
+                                      ),
+                                    ),
+                                  ),
+                                  if (status != null &&
+                                      status.trim().toUpperCase() != 'ACPTD')
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isDark
+                                            ? const Color(0xFF333333)
+                                            : const Color(0xFFF0F0F0),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        status,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : const Color(0xFF666666),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                dm.lastMessage.isNotEmpty
+                                    ? dm.lastMessage
+                                    : 'No messages yet',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: hasUnread
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : const Color(0xFF666666),
                                 ),
                               ),
-                            ),
-                          ),
-                        )
-                      : CircleAvatar(
-                          radius: 20,
-                          backgroundColor: scheme.primary,
-                          child: Text(
-                            displayName.isNotEmpty
-                                ? displayName[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            ],
                           ),
                         ),
-                  title: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          displayName,
-                          overflow: TextOverflow.ellipsis,
-                          style: hasUnread
-                              ? const TextStyle(fontWeight: FontWeight.w700)
-                              : null,
-                        ),
-                      ),
-                      if (status != null &&
-                          status.trim().toUpperCase() != 'ACPTD') ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: scheme.outlineVariant),
-                          ),
-                          child: Text(
-                            status,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
+                        const SizedBox(width: 12),
+                        // Trailing info
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              dm.lastMessageTime.isNotEmpty
+                                  ? _formatTimestamp(dm.lastMessageTime)
+                                  : '',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? Colors.white54
+                                    : const Color(0xFF8A8A8A),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 8),
+                            if (hasUnread)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      scheme.primary,
+                                      scheme.primary.withOpacity(0.8),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: scheme.primary.withOpacity(0.15),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  unread > 99 ? '99+' : '$unread',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ],
-                    ],
-                  ),
-                  subtitle: Text(
-                    dm.lastMessage.isNotEmpty ? dm.lastMessage : 'No messages yet',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: hasUnread
-                        ? const TextStyle(fontWeight: FontWeight.w600)
-                        : null,
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        dm.lastMessageTime.isNotEmpty
-                            ? _formatTimestamp(dm.lastMessageTime)
-                            : '',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      if (hasUnread) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.primary,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            unread > 99 ? '99+' : '$unread',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
               ),

@@ -72,6 +72,7 @@ dependencies:
   package_info_plus: ^8.0.0
   flutter_spinkit: ^5.2.1
   flutter_native_splash: ^2.4.6
+  liquid_glass_renderer: ^0.1.1-dev.10
 
 dev_dependencies:
   flutter_test:

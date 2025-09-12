@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'dart:async';
 import '../models/user_models.dart';
 import '../models/message_status.dart';
@@ -516,11 +517,14 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      body: Column(
+      appBar: AppBar(
+        title: Text(widget.title),
+      ),
+      body: Stack(
         children: [
-          Expanded(
+          Positioned.fill(
             child: _isLoading
                 ? const Center(
                     child: Column(
@@ -604,7 +608,7 @@ class _ChatPageState extends State<ChatPage> {
                               slivers: [
                                 // Messages list
                                 SliverPadding(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
                                   sliver: SliverList(
                                     delegate: SliverChildBuilderDelegate(
                                       (context, index) {
@@ -926,115 +930,198 @@ class _ChatPageState extends State<ChatPage> {
                   ),
           ),
           if (!widget.isReadOnly)
-            SafeArea(
-              top: false,
-              child: Column(
-                children: [
-                  // Reply preview
-                  if (_replyingTo != null)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: scheme.outline),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_replyingTo != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: scheme.outline),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 3,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Replying to ${SenderNameUtils.parseSenderName(_replyingTo!.senderName)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: scheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _replyingTo!.message,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: scheme.onSurface,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: _cancelReply,
+                                icon: Icon(
+                                  Icons.close,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    LiquidGlass(
+                      shape: LiquidRoundedRectangle(
+                        borderRadius: const Radius.circular(16),
+                        side: BorderSide(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.transparent
+                              : scheme.primary.withOpacity(0.12),
+                          width: 1,
+                        ),
+                      ),
+                      settings: isDark
+                          ? LiquidGlassSettings(
+                              glassColor: scheme.onSurface.withOpacity(0.12),
+                              blur: 5,
+                              thickness: 10,
+                              lightIntensity: 0.85,
+                              ambientStrength: 10.06,
+                              blend: 20,
+                            )
+                          : LiquidGlassSettings(
+                              glassColor: Colors.black.withOpacity(0.12),
+                              blur: 12,
+                              thickness: 12,
+                              lightIntensity: 0.7,
+                              ambientStrength: 0.10,
+                              blend: 20,
+                              saturation: 0.9,
+                              lightness: 0.96,
+                            ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Container(
-                              width: 3,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: scheme.primary,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Replying to ${SenderNameUtils.parseSenderName(_replyingTo!.senderName)}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: scheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _replyingTo!.message,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: scheme.onSurface,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                              child: TextField(
+                                controller: _messageController,
+                                minLines: 1,
+                                maxLines: 5,
+                                textInputAction: TextInputAction.newline,
+                                decoration: const InputDecoration(
+                                  hintText: 'Message',
+                                  filled: false,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                onSubmitted: (_) => _sendMessage(),
                               ),
                             ),
-                            IconButton(
-                              onPressed: _cancelReply,
-                              icon: Icon(
-                                Icons.close,
-                                color: scheme.onSurfaceVariant,
+                            const SizedBox(width: 8),
+                            LiquidGlass(
+                              shape: LiquidRoundedRectangle(
+                                borderRadius: const Radius.circular(12),
+                                side: BorderSide(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.transparent
+                                      : scheme.primary.withOpacity(0.12),
+                                  width: 1,
+                                ),
+                              ),
+                              glassContainsChild: false,
+                              settings: isDark
+                                  ? LiquidGlassSettings(
+                                      glassColor: scheme.onSurface.withOpacity(0.12),
+                                      blur: 8,
+                                      thickness: 8,
+                                      lightIntensity: 0.4,
+                                      ambientStrength: 1.05,
+                                      blend: 20,
+                                    )
+                                  : LiquidGlassSettings(
+                                      glassColor: Colors.black.withOpacity(0.12),
+                                      blur: 12,
+                                      thickness: 10,
+                                      lightIntensity: 0.7,
+                                      ambientStrength: 0.10,
+                                      blend: 20,
+                                      saturation: 0.9,
+                                      lightness: 0.96,
+                                    ),
+                              child: FilledButton(
+                                onPressed: _sendMessage,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  minimumSize: const Size(44, 44),
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.send_rounded,
+                                  color: scheme.primary,
+                                  size: 22,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                  // Message input
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _messageController,
-                            minLines: 1,
-                            maxLines: 5,
-                            textInputAction: TextInputAction.newline,
-                            decoration: InputDecoration(
-                              hintText: _replyingTo != null
-                                  ? 'Reply to ${SenderNameUtils.parseSenderName(_replyingTo!.senderName)}...'
-                                  : 'Message',
-                            ),
-                            onSubmitted: (_) => _sendMessage(),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton.icon(
-                          onPressed: _sendMessage,
-                          icon: const Icon(Icons.send_rounded),
-                          label: const Text('Send'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           if (widget.isReadOnly)
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: SafeArea(
+                top: false,
                 child: Row(
                   children: [
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: Theme.of(context).colorScheme.outline,
@@ -1044,18 +1131,14 @@ class _ChatPageState extends State<ChatPage> {
                           children: [
                             Icon(
                               Icons.visibility,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                               size: 20,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'This group is read-only',
                               style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
