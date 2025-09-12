@@ -8,6 +8,7 @@ import '../services/chat_services.dart';
 import '../models/user_models.dart';
 import '../services/theme_controller.dart';
 import '../widgets/app_nav_drawer.dart';
+import '../widgets/glass_bottom_nav_bar.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -42,15 +43,46 @@ class _ChatHomePageState extends State<ChatHomePage> {
   int _selectedIndex = 0;
   late final List<Widget> _pages;
   final WebSocketChatService _wsService = WebSocketChatService();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
     _connectWebSocket();
+    void openDrawer() {
+      // Prefer using the ScaffoldState directly for reliability
+      final scaffoldState = _scaffoldKey.currentState;
+      if (scaffoldState != null) {
+        debugPrint('📖 Opening drawer via ScaffoldState');
+        scaffoldState.openDrawer();
+        return;
+      }
+      // Fallback to context-based lookup if state isn't yet available
+      final ctx = _scaffoldKey.currentContext;
+      if (ctx != null) {
+        debugPrint('📖 Opening drawer via context');
+        Scaffold.of(ctx).openDrawer();
+        return;
+      }
+      // Schedule after the current frame as a last resort
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        debugPrint('📖 Opening drawer via post-frame callback');
+        _scaffoldKey.currentState?.openDrawer();
+      });
+    }
     _pages = [
-      UniversityGroupsPage(wsService: _wsService),
-      PersonalGroupsPage(wsService: _wsService),
-      DirectMessagesPage(wsService: _wsService),
+      UniversityGroupsPage(
+        wsService: _wsService,
+        onOpenDrawer: openDrawer,
+      ),
+      PersonalGroupsPage(
+        wsService: _wsService,
+        onOpenDrawer: openDrawer,
+      ),
+      DirectMessagesPage(
+        wsService: _wsService,
+        onOpenDrawer: openDrawer,
+      ),
     ];
   }
 
@@ -119,43 +151,40 @@ class _ChatHomePageState extends State<ChatHomePage> {
         }
       },
       child: Scaffold(
+        key: _scaffoldKey,
         drawer: const AppNavDrawer(),
-        body: PageTransitionSwitcher(
-          duration: const Duration(milliseconds: 300),
-          transitionBuilder: (child, animation, secondaryAnimation) {
-            return SharedAxisTransition(
-              transitionType: SharedAxisTransitionType.horizontal,
-              animation: animation,
-              secondaryAnimation: secondaryAnimation,
-              child: child,
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey(_selectedIndex),
-            child: _pages[_selectedIndex],
-          ),
-        ),
-        bottomNavigationBar: NavigationBar(
-          backgroundColor: scheme.surface,
-          elevation: 3,
-          indicatorColor: scheme.primary.withValues(alpha: 0.12),
-          onDestinationSelected: _onItemTapped,
-          selectedIndex: _selectedIndex,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.school_outlined),
-              selectedIcon: Icon(Icons.school),
-              label: 'University',
+        body: Stack(
+          children: [
+            // Content with transitions
+            Positioned.fill(
+              child: PageTransitionSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation, secondaryAnimation) {
+                  return SharedAxisTransition(
+                    transitionType: SharedAxisTransitionType.horizontal,
+                    animation: animation,
+                    secondaryAnimation: secondaryAnimation,
+                    child: child,
+                  );
+                },
+                child: KeyedSubtree(
+                  key: ValueKey(_selectedIndex),
+                  child: _pages[_selectedIndex],
+                ),
+              ),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.group_outlined),
-              selectedIcon: Icon(Icons.group),
-              label: 'Personal',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.forum_outlined),
-              selectedIcon: Icon(Icons.forum),
-              label: 'DMs',
+            // Floating glass bottom navigation
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                top: false,
+                child: GlassBottomNavBar(
+                  selectedIndex: _selectedIndex,
+                  onItemSelected: _onItemTapped,
+                ),
+              ),
             ),
           ],
         ),

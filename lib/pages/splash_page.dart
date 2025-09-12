@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
+// removed extra spinner
 import 'chat_home_page.dart';
 import 'token_input_page.dart';
 import '../services/chat_services.dart';
@@ -33,7 +33,7 @@ class _SplashPageState extends State<SplashPage>
       end: 1.02,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
-    Future.delayed(const Duration(milliseconds: 900), () async {
+    Future.delayed(const Duration(seconds: 4), () async {
       final savedToken = await TokenStorage.getToken();
       if (!mounted) return;
       if (savedToken == null) {
@@ -133,11 +133,14 @@ class _SplashPageState extends State<SplashPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Chat bubble made from shapes (no asset)
-                    _AnimatedChatBubbles(controller: _controller),
+                    Image.asset(
+                      'assets/icon.png',
+                      width: 92,
+                      height: 92,
+                    ),
                     const SizedBox(height: 20),
                     Text(
-                      'LPU Live Chat',
+                      'LPU Live',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -147,20 +150,6 @@ class _SplashPageState extends State<SplashPage>
                         .animate()
                         .fadeIn(duration: 400.ms, curve: Curves.easeOut)
                         .moveY(begin: 8, end: 0, duration: 400.ms, curve: Curves.easeOut),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Connecting…',
-                      style: TextStyle(color: color.onSurfaceVariant),
-                    )
-                        .animate(delay: 120.ms)
-                        .fadeIn(duration: 450.ms, curve: Curves.easeOut)
-                        .moveY(begin: 6, end: 0, duration: 450.ms, curve: Curves.easeOut),
-                    const SizedBox(height: 12),
-                    SpinKitThreeBounce(
-                      color: color.primary,
-                      size: 18,
-                      duration: const Duration(milliseconds: 1200),
-                    ),
                   ],
                 ),
               ),
@@ -172,80 +161,7 @@ class _SplashPageState extends State<SplashPage>
   }
 }
 
-class _AnimatedChatBubbles extends StatelessWidget {
-  final AnimationController controller;
-  const _AnimatedChatBubbles({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 120,
-      height: 84,
-      child: Column(
-        children: [
-          // Main bubble
-          Container(
-            width: 88,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.primary,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Center(
-              child: AnimatedBuilder(
-                animation: controller,
-                builder: (context, _) {
-                  // Typing dots
-                  final t = controller.value;
-                  double dot(double phase) =>
-                      1 + 0.2 * (MathUtils.sin((t + phase) * 2 * 3.1415));
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _dot(color.onPrimary, scale: dot(0.00)),
-                      const SizedBox(width: 6),
-                      _dot(color.onPrimary, scale: dot(0.20)),
-                      const SizedBox(width: 6),
-                      _dot(color.onPrimary, scale: dot(0.40)),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Tail bubble
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Transform.translate(
-              offset: const Offset(22, 0),
-              child: Container(
-                width: 18,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: color.primary,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _dot(Color c, {double scale = 1}) {
-    return Transform.scale(
-      scale: scale,
-      child: Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-      ),
-    );
-  }
-}
+// removed animated chat bubbles in favor of static app icon
 
 class _RadialGlowPainter extends CustomPainter {
   final Color color;

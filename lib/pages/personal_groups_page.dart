@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
 import '../widgets/app_toast.dart';
 // user info not needed in this app bar anymore
-import '../widgets/app_nav_drawer.dart';
+// Drawer is provided by parent Scaffold; do not declare here
 
 class PersonalGroupsPage extends StatelessWidget {
   final dynamic wsService; // Placeholder for future use
+  final VoidCallback? onOpenDrawer;
 
-  const PersonalGroupsPage({super.key, required this.wsService});
+  const PersonalGroupsPage({super.key, required this.wsService, this.onOpenDrawer});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      drawer: const AppNavDrawer(),
       appBar: AppBar(
         centerTitle: false,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            debugPrint('🫓 PersonalGroupsPage hamburger tapped');
+            onOpenDrawer?.call();
+          },
+          tooltip: 'Menu',
+        ),
         title: const Text('Personal Groups'),
         actions: const [],
       ),

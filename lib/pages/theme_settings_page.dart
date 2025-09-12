@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/theme_controller.dart';
+import '../providers/theme_provider.dart';
 
 class ThemeSettingsPage extends StatelessWidget {
   const ThemeSettingsPage({super.key});
@@ -7,14 +7,16 @@ class ThemeSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final themeService = ThemeProvider.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Theme'),
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
       ),
-      body: ValueListenableBuilder<ThemeMode>(
-        valueListenable: ThemeController.instance.themeModeListenable,
-        builder: (context, mode, _) {
+      body: AnimatedBuilder(
+        animation: themeService,
+        builder: (context, _) {
+          final mode = themeService.themeMode;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -26,19 +28,19 @@ class ThemeSettingsPage extends StatelessWidget {
                 label: 'System',
                 icon: Icons.app_settings_alt_rounded,
                 selected: mode == ThemeMode.system,
-                onTap: () => ThemeController.instance.setThemeMode(ThemeMode.system),
+                onTap: () => themeService.setThemeMode(ThemeMode.system),
               ),
               _ThemeOption(
                 label: 'Light',
                 icon: Icons.wb_sunny_outlined,
                 selected: mode == ThemeMode.light,
-                onTap: () => ThemeController.instance.setThemeMode(ThemeMode.light),
+                onTap: () => themeService.setThemeMode(ThemeMode.light),
               ),
               _ThemeOption(
                 label: 'Dark',
                 icon: Icons.nights_stay_outlined,
                 selected: mode == ThemeMode.dark,
-                onTap: () => ThemeController.instance.setThemeMode(ThemeMode.dark),
+                onTap: () => themeService.setThemeMode(ThemeMode.dark),
               ),
             ],
           );

@@ -10,13 +10,14 @@ import 'chat_page.dart';
 import '../services/read_tracker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../widgets/app_nav_drawer.dart';
 // profile/settings actions removed; use drawer instead
+// Drawer lives at parent Scaffold; this page should not define its own drawer
 
 class UniversityGroupsPage extends StatefulWidget {
   final WebSocketChatService wsService;
+  final VoidCallback? onOpenDrawer;
 
-  const UniversityGroupsPage({super.key, required this.wsService});
+  const UniversityGroupsPage({super.key, required this.wsService, this.onOpenDrawer});
 
   @override
   State<UniversityGroupsPage> createState() => _UniversityGroupsPageState();
@@ -232,11 +233,28 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
         }
       },
       child: Scaffold(
-        drawer: const AppNavDrawer(),
         appBar: AppBar(
           centerTitle: false,
           backgroundColor: Colors.transparent,
           elevation: 0,
+          leading: _selectedCourse != null
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    setState(() {
+                      _selectedCourse = null;
+                    });
+                  },
+                  tooltip: 'Back to course selection',
+                )
+              : IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: () {
+                    debugPrint('🫓 UniversityGroupsPage hamburger tapped');
+                    widget.onOpenDrawer?.call();
+                  },
+                  tooltip: 'Menu',
+                ),
           title: Text(
             _selectedCourse != null
                 ? _selectedCourse!.courseName.replaceFirst(
@@ -251,17 +269,6 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
             ),
           ),
           actions: const [],
-          leading: _selectedCourse != null
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    setState(() {
-                      _selectedCourse = null;
-                    });
-                  },
-                  tooltip: 'Back to course selection',
-                )
-              : null,
         ),
         body: Container(
           decoration: BoxDecoration(

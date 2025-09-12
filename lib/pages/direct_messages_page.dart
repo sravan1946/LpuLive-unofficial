@@ -12,10 +12,10 @@ import 'token_input_page.dart';
 import 'new_dm_page.dart';
 import 'chat_page.dart';
 import '../widgets/network_image.dart';
-import '../widgets/app_nav_drawer.dart';
 import '../services/read_tracker.dart';
 import '../widgets/app_toast.dart';
 // removed profile/settings app bar actions in favor of drawer
+// Drawer is provided by parent Scaffold; do not declare here
 
 // Persistent caches (per app session)
 final Map<String, Contact> _contactsCacheById = {};
@@ -31,8 +31,9 @@ String _normalizeAvatar(String? url) => (url ?? '').trim();
 
 class DirectMessagesPage extends StatefulWidget {
   final WebSocketChatService wsService;
+  final VoidCallback? onOpenDrawer;
 
-  const DirectMessagesPage({super.key, required this.wsService});
+  const DirectMessagesPage({super.key, required this.wsService, this.onOpenDrawer});
 
   @override
   State<DirectMessagesPage> createState() => _DirectMessagesPageState();
@@ -447,11 +448,18 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     }).toList();
 
     return Scaffold(
-      drawer: const AppNavDrawer(),
       appBar: AppBar(
         centerTitle: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            debugPrint('🫓 DirectMessagesPage hamburger tapped');
+            widget.onOpenDrawer?.call();
+          },
+          tooltip: 'Menu',
+        ),
         title: Text(
           'Direct Messages',
           style: TextStyle(

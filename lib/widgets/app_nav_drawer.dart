@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import '../models/user_models.dart';
 import '../widgets/network_image.dart';
 import '../services/chat_services.dart';
@@ -16,8 +17,25 @@ class AppNavDrawer extends StatelessWidget {
     final user = currentUser;
 
     return Drawer(
-      child: SafeArea(
-        child: Column(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: SafeArea(
+            top: true,
+            bottom: false,
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface.withOpacity(0.75),
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (user != null)
@@ -136,6 +154,9 @@ class AppNavDrawer extends StatelessWidget {
               },
             ),
           ],
+              ),
+            ),
+          ),
         ),
       ),
     );
