@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'dart:async';
 import '../models/user_models.dart';
@@ -16,7 +17,6 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:photo_view/photo_view.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart';
 import '../widgets/app_toast.dart';
 
 class ChatPage extends StatefulWidget {
@@ -778,6 +778,7 @@ class _ChatPageState extends State<ChatPage> {
                                             Flexible(
                                               child: GestureDetector(
                                                 onLongPressStart: (details) {
+                                                  HapticFeedback.mediumImpact();
                                                   _showMessageOptions(
                                                     context,
                                                     message,
@@ -1576,7 +1577,10 @@ class _MessageBody extends StatelessWidget {
       // Generic link tile
       return InkWell(
         onTap: () => onMessageOptions?.call(context, message),
-        onLongPress: () => onMessageOptions?.call(context, message),
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          onMessageOptions?.call(context, message);
+        },
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1683,7 +1687,10 @@ class _MediaBubble extends StatelessWidget {
     // Generic document bubble
     return InkWell(
       onTap: () => onMessageOptions?.call(context, message),
-      onLongPress: () => onMessageOptions?.call(context, message),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        onMessageOptions?.call(context, message);
+      },
       child: Container(
         width: 260,
         padding: const EdgeInsets.all(12),
@@ -1744,7 +1751,10 @@ class _DocumentTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () => onMessageOptions?.call(context, message),
-      onLongPress: () => onMessageOptions?.call(context, message),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        onMessageOptions?.call(context, message);
+      },
       child: Container(
         width: 260,
         padding: const EdgeInsets.all(12),
