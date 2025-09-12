@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'pages/splash_page.dart';
 import 'theme.dart';
+import 'services/theme_controller.dart';
 import 'providers/theme_provider.dart';
 
 final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
@@ -32,6 +33,7 @@ class AppRoot extends StatelessWidget {
 void main() async {
   print('🚀 App starting...');
   WidgetsFlutterBinding.ensureInitialized();
+  await ThemeController.instance.load();
 
   runApp(const AppRoot());
 }

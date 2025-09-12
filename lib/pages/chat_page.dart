@@ -6,6 +6,7 @@ import '../models/message_status.dart';
 import '../services/chat_services.dart';
 import '../services/message_status_service.dart';
 import '../widgets/network_image.dart';
+// Drawer not shown on ChatPage; use a back button
 import '../services/read_tracker.dart';
 import '../widgets/reply_preview.dart';
 import '../widgets/message_status_icon.dart';
@@ -530,6 +531,7 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
       ),
       body: Stack(
         children: [
@@ -611,8 +613,8 @@ class _ChatPageState extends State<ChatPage> {
                             return false;
                           },
                             child: CustomScrollView(
-                              controller: _scrollController,
-                              physics: const AlwaysScrollableScrollPhysics(),
+                            controller: _scrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
                               reverse: true,
                               slivers: [
                                 // Messages list
@@ -658,26 +660,26 @@ class _ChatPageState extends State<ChatPage> {
                                         ClipRRect(
                                           borderRadius: BorderRadius.circular(avatarSize / 2),
                                           child: SafeNetworkImage(
-                                            imageUrl: message.userImage ?? '',
-                                            width: avatarSize,
-                                            height: avatarSize,
-                                            errorWidget: CircleAvatar(
-                                              radius: avatarSize / 2,
-                                              backgroundColor: scheme.primary,
-                                              child: Text(
-                                                message.senderName.isNotEmpty
-                                                    ? message.senderName[0]
-                                                          .toUpperCase()
-                                                    : '?',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                          imageUrl: message.userImage ?? '',
+                                          width: avatarSize,
+                                          height: avatarSize,
+                                          errorWidget: CircleAvatar(
+                                            radius: avatarSize / 2,
+                                            backgroundColor: scheme.primary,
+                                            child: Text(
+                                              message.senderName.isNotEmpty
+                                                  ? message.senderName[0]
+                                                        .toUpperCase()
+                                                  : '?',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            highQuality: true,
-                                            fit: BoxFit.cover,
+                                          ),
+                                          highQuality: true,
+                                          fit: BoxFit.cover,
                                           ),
                                         ),
                                         SizedBox(width: avatarGap),
@@ -705,7 +707,7 @@ class _ChatPageState extends State<ChatPage> {
                                             color: message.isOwnMessage
                                                 ? scheme.primary
                                                 : Theme.of(context)
-                                                    .colorScheme
+                                                      .colorScheme
                                                     .surfaceVariant,
                                             border: message.isOwnMessage
                                                 ? null
@@ -789,7 +791,7 @@ class _ChatPageState extends State<ChatPage> {
                                                       fontSize: 10,
                                                       color: message.isOwnMessage
                                                           ? scheme.onPrimary
-                                                              .withValues(
+                                                                .withValues(
                                                                   alpha: 0.7)
                                                           : scheme.onSurfaceVariant,
                                                     ),
@@ -817,28 +819,28 @@ class _ChatPageState extends State<ChatPage> {
                                         ClipRRect(
                                           borderRadius: BorderRadius.circular(avatarSize / 2),
                                           child: SafeNetworkImage(
-                                            imageUrl:
-                                                currentUser?.userImageUrl ?? '',
-                                            width: avatarSize,
-                                            height: avatarSize,
-                                            errorWidget: CircleAvatar(
-                                              radius: avatarSize / 2,
-                                              backgroundColor: scheme.primary,
-                                              child: Text(
-                                                (currentUser?.name.isNotEmpty ??
-                                                        false)
-                                                    ? currentUser!.name[0]
-                                                          .toUpperCase()
-                                                    : 'Y',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                          imageUrl:
+                                              currentUser?.userImageUrl ?? '',
+                                          width: avatarSize,
+                                          height: avatarSize,
+                                          errorWidget: CircleAvatar(
+                                            radius: avatarSize / 2,
+                                            backgroundColor: scheme.primary,
+                                            child: Text(
+                                              (currentUser?.name.isNotEmpty ??
+                                                      false)
+                                                  ? currentUser!.name[0]
+                                                        .toUpperCase()
+                                                  : 'Y',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            highQuality: true,
-                                            fit: BoxFit.cover,
+                                          ),
+                                          highQuality: true,
+                                          fit: BoxFit.cover,
                                           ),
                                         ),
                                       ] else
@@ -957,68 +959,68 @@ class _ChatPageState extends State<ChatPage> {
               right: 12,
               bottom: 12,
               child: SafeArea(
-                top: false,
-                child: Column(
+              top: false,
+              child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_replyingTo != null)
-                      Container(
-                        width: double.infinity,
+                children: [
+                  if (_replyingTo != null)
+                    Container(
+                      width: double.infinity,
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: scheme.outline),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 3,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: scheme.primary,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: scheme.outline),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: scheme.primary,
+                                borderRadius: BorderRadius.circular(2),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Replying to ${SenderNameUtils.parseSenderName(_replyingTo!.senderName)}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: scheme.primary,
-                                      ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Replying to ${SenderNameUtils.parseSenderName(_replyingTo!.senderName)}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: scheme.primary,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _replyingTo!.message,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: scheme.onSurface,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _replyingTo!.message,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: scheme.onSurface,
                                     ),
-                                  ],
-                                ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
-                              IconButton(
-                                onPressed: _cancelReply,
-                                icon: Icon(
-                                  Icons.close,
-                                  color: scheme.onSurfaceVariant,
-                                ),
+                            ),
+                            IconButton(
+                              onPressed: _cancelReply,
+                              icon: Icon(
+                                Icons.close,
+                                color: scheme.onSurfaceVariant,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
+                    ),
                     LiquidGlass(
                       shape: LiquidRoundedRectangle(
                         borderRadius: const Radius.circular(16),
@@ -1053,15 +1055,15 @@ class _ChatPageState extends State<ChatPage> {
                           horizontal: 12,
                           vertical: 10,
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _messageController,
-                                minLines: 1,
-                                maxLines: 5,
-                                textInputAction: TextInputAction.newline,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            minLines: 1,
+                            maxLines: 5,
+                            textInputAction: TextInputAction.newline,
                                 decoration: const InputDecoration(
                                   hintText: 'Message',
                                   filled: false,
@@ -1069,11 +1071,11 @@ class _ChatPageState extends State<ChatPage> {
                                   focusedBorder: InputBorder.none,
                                   border: InputBorder.none,
                                   contentPadding: EdgeInsets.zero,
-                                ),
-                                onSubmitted: (_) => _sendMessage(),
-                              ),
                             ),
-                            const SizedBox(width: 8),
+                            onSubmitted: (_) => _sendMessage(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                             LiquidGlass(
                               shape: LiquidRoundedRectangle(
                                 borderRadius: const Radius.circular(12),
@@ -1105,7 +1107,7 @@ class _ChatPageState extends State<ChatPage> {
                                       lightness: 0.96,
                                     ),
                               child: FilledButton(
-                                onPressed: _sendMessage,
+                          onPressed: _sendMessage,
                                 style: FilledButton.styleFrom(
                                   backgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,
@@ -1124,9 +1126,9 @@ class _ChatPageState extends State<ChatPage> {
                             ),
                           ],
                         ),
-                      ),
                     ),
-                  ],
+                  ),
+                ],
                 ),
               ),
             ),
@@ -1136,7 +1138,7 @@ class _ChatPageState extends State<ChatPage> {
               right: 12,
               bottom: 12,
               child: SafeArea(
-                top: false,
+              top: false,
                 child: Row(
                   children: [
                     Expanded(

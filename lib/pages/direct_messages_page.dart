@@ -12,10 +12,10 @@ import 'token_input_page.dart';
 import 'new_dm_page.dart';
 import 'chat_page.dart';
 import '../widgets/network_image.dart';
+import '../widgets/app_nav_drawer.dart';
 import '../services/read_tracker.dart';
 import '../widgets/app_toast.dart';
-import 'profile_page.dart';
-import 'settings_page.dart';
+// removed profile/settings app bar actions in favor of drawer
 
 // Persistent caches (per app session)
 final Map<String, Contact> _contactsCacheById = {};
@@ -447,6 +447,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     }).toList();
 
     return Scaffold(
+      drawer: const AppNavDrawer(),
       appBar: AppBar(
         centerTitle: false,
         backgroundColor: Colors.transparent,
@@ -458,80 +459,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
             color: isDark ? Colors.white : const Color(0xFF1B1B1B),
           ),
         ),
-        actions: [
-          // Profile icon
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ProfilePage()),
-                );
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: scheme.primary.withOpacity(0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: scheme.primary,
-                  foregroundColor: Colors.white,
-                  child: (currentUser?.userImageUrl != null &&
-                          currentUser!.userImageUrl!.isNotEmpty)
-                      ? ClipOval(
-                          child: Image.network(
-                            currentUser!.userImageUrl!,
-                            width: 32,
-                            height: 32,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.person, size: 18);
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Icon(Icons.person, size: 18);
-                            },
-                          ),
-                        )
-                      : const Icon(Icons.person, size: 18),
-                ),
-              ),
-            ),
-          ),
-          // Settings icon
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.primary.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SettingsPage()),
-                  );
-                },
-                tooltip: 'Settings',
-              ),
-            ),
-          ),
-        ],
+        actions: const [],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -739,7 +667,22 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
             );
           },
           closedBuilder: (context, openContainer) {
-            return Container(
+            return TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 120),
+              tween: Tween(begin: 1.0, end: 1.0),
+              builder: (context, scale, child) {
+                return MouseRegion(
+                  onEnter: (_) => setState(() {}),
+                  onExit: (_) => setState(() {}),
+                  child: AnimatedScale(
+                    duration: const Duration(milliseconds: 120),
+                    scale: MediaQuery.of(context).size.width > 600 ? 1.02 : 1.0,
+                    curve: Curves.easeOut,
+                    child: child!,
+                  ),
+                );
+              },
+              child: Container(
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -975,6 +918,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                   ),
                 ),
               ),
+            ),
             );
           },
         )

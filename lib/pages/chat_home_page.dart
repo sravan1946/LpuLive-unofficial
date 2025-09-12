@@ -6,6 +6,8 @@ import 'personal_groups_page.dart';
 import 'direct_messages_page.dart';
 import '../services/chat_services.dart';
 import '../models/user_models.dart';
+import '../services/theme_controller.dart';
+import '../widgets/app_nav_drawer.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -13,13 +15,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     print('🏠 MyApp built - main app launched!');
-    return MaterialApp(
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.instance.themeModeListenable,
+      builder: (context, mode, _) {
+        return MaterialApp(
       title: 'LPU Live Chat',
       theme: lpuTheme,
       darkTheme: lpuDarkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: mode,
       home: const ChatHomePage(),
       debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }
@@ -112,15 +119,12 @@ class _ChatHomePageState extends State<ChatHomePage> {
         }
       },
       child: Scaffold(
+        drawer: const AppNavDrawer(),
         body: PageTransitionSwitcher(
           duration: const Duration(milliseconds: 300),
           transitionBuilder: (child, animation, secondaryAnimation) {
-            final SharedAxisTransitionType type =
-                _selectedIndex == 0 || _selectedIndex == 1
-                    ? SharedAxisTransitionType.horizontal
-                    : SharedAxisTransitionType.scaled;
             return SharedAxisTransition(
-              transitionType: type,
+              transitionType: SharedAxisTransitionType.horizontal,
               animation: animation,
               secondaryAnimation: secondaryAnimation,
               child: child,

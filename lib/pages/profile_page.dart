@@ -3,6 +3,7 @@ import '../models/user_models.dart';
 import '../widgets/network_image.dart';
 import 'token_input_page.dart';
 import '../services/chat_services.dart';
+// drawer not used on profile; using back button
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -62,7 +63,11 @@ class ProfilePage extends StatelessWidget {
     final user = currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      // No drawer here; show a back button instead of hamburger
+      appBar: AppBar(
+        title: const Text('Profile'),
+        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
+      ),
       body: user == null
           ? Center(
               child: Column(
@@ -153,11 +158,6 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => _logout(context),
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Logout'),
-                  ),
                 ],
               ),
             ),

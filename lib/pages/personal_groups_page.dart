@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/app_toast.dart';
-import '../models/user_models.dart';
-import 'profile_page.dart';
-import 'settings_page.dart';
+// user info not needed in this app bar anymore
+import '../widgets/app_nav_drawer.dart';
 
 class PersonalGroupsPage extends StatelessWidget {
   final dynamic wsService; // Placeholder for future use
@@ -13,59 +12,11 @@ class PersonalGroupsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
+      drawer: const AppNavDrawer(),
       appBar: AppBar(
         centerTitle: false,
         title: const Text('Personal Groups'),
-        actions: [
-          // Profile icon
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ProfilePage()),
-                );
-              },
-              child: CircleAvatar(
-                radius: 16,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                foregroundColor: Theme.of(context).colorScheme.onSurface,
-                child: (currentUser?.userImageUrl != null &&
-                        currentUser!.userImageUrl!.isNotEmpty)
-                    ? ClipOval(
-                        child: Image.network(
-                          currentUser!.userImageUrl!,
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.person, size: 18);
-                          },
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Icon(Icons.person, size: 18);
-                          },
-                        ),
-                      )
-                    : const Icon(Icons.person, size: 18),
-              ),
-            ),
-          ),
-          // Settings icon
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: IconButton(
-              icon: const Icon(Icons.settings_outlined),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettingsPage()),
-                );
-              },
-              tooltip: 'Settings',
-            ),
-          ),
-        ],
+        actions: const [],
       ),
       body: Center(
         child: Column(
