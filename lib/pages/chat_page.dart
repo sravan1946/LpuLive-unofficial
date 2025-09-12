@@ -336,62 +336,109 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  void _showMessageContextMenu(ChatMessage message, Offset position) {
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-
-    // Haptic feedback when opening context menu
-    HapticFeedback.selectionClick();
-
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(position, position),
-        Offset.zero & overlay.size,
+  void _showPDFViewer(String pdfUrl, String? fileName) {
+    // Navigate to PDF viewer page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: Text(fileName ?? 'PDF Viewer'),
+          ),
+          body: const Center(
+            child: Text('PDF Viewer not implemented yet'),
+          ),
+        ),
       ),
-      items: [
-        const PopupMenuItem<String>(
-          value: 'reply',
-          child: Row(
-            children: [Icon(Icons.reply), SizedBox(width: 8), Text('Reply')],
-          ),
-        ),
-        if (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)
-          const PopupMenuItem<String>(
-            value: 'download',
-            child: Row(
-              children: [
-                Icon(Icons.download),
-                SizedBox(width: 8),
-                Text('Download'),
-              ],
-            ),
-          ),
-        const PopupMenuItem<String>(
-          value: 'copy',
-          child: Row(
-            children: [Icon(Icons.copy), SizedBox(width: 8), Text('Copy text')],
-          ),
-        ),
-      ],
-    ).then((value) {
-      if (value != null) {
-        switch (value) {
-          case 'reply':
-            _replyToMessage(message);
-            break;
-          case 'download':
-            if (message.mediaUrl != null) {
-              _downloadMedia(message.mediaUrl!);
-            }
-            break;
-          case 'copy':
-            _copyMessageText(message);
-            break;
-        }
-      }
-    });
+    );
   }
+
+  void _downloadPDFDirectly(String pdfUrl, String? fileName) async {
+    // Use the same download logic as _downloadMedia
+    _downloadMedia(pdfUrl);
+  }
+
+  void _showMessageOptions(BuildContext context, ChatMessage message) {
+    final url = message.mediaUrl ?? '';
+    final fileName = message.mediaName;
+    final isPDF = url.toLowerCase().endsWith('.pdf') || 
+                  (fileName?.toLowerCase().endsWith('.pdf') ?? false);
+    
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Reply option (same as regular messages)
+              ListTile(
+                leading: const Icon(Icons.reply),
+                title: const Text('Reply'),
+                subtitle: const Text('Reply to this message'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _replyToMessage(message);
+                },
+              ),
+              if (isPDF) ...[
+                ListTile(
+                  leading: const Icon(Icons.visibility),
+                  title: const Text('View PDF'),
+                  subtitle: const Text('Open in PDF viewer'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showPDFViewer(url, fileName);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.download),
+                  title: const Text('Download PDF'),
+                  subtitle: const Text('Save to Downloads folder'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _downloadPDFDirectly(url, fileName);
+                  },
+                ),
+              ] else if (url.isNotEmpty) ...[
+                ListTile(
+                  leading: const Icon(Icons.download),
+                  title: const Text('Download File'),
+                  subtitle: const Text('Save to Downloads folder'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _downloadMedia(url);
+                  },
+                ),
+              ],
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text('Copy text'),
+                subtitle: const Text('Copy message content'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _copyMessageText(message);
+                },
+              ),
+              if (url.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.open_in_browser),
+                  title: const Text('Open in Browser'),
+                  subtitle: const Text('View in external app'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final uri = Uri.parse(url);
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
 
   void _downloadMedia(String url) async {
     try {
@@ -717,9 +764,9 @@ class _ChatPageState extends State<ChatPage> {
                                             Flexible(
                                               child: GestureDetector(
                                                 onLongPressStart: (details) {
-                                                  _showMessageContextMenu(
+                                                  _showMessageOptions(
+                                                    context,
                                                     message,
-                                                    details.globalPosition,
                                                   );
                                                 },
                                                 child: Container(
@@ -822,6 +869,7 @@ class _ChatPageState extends State<ChatPage> {
                                                           message: message,
                                                           onImageTap:
                                                               _showFullScreenImage,
+                                                          onMessageOptions: _showMessageOptions,
                                                         )
                                                       else
                                                         _MessageBody(
@@ -830,6 +878,7 @@ class _ChatPageState extends State<ChatPage> {
                                                               .isOwnMessage,
                                                           onImageTap:
                                                               _showFullScreenImage,
+                                                          onMessageOptions: _showMessageOptions,
                                                         ),
                                                       const SizedBox(height: 4),
                                                       Row(
@@ -1429,11 +1478,13 @@ class _MessageBody extends StatelessWidget {
   final ChatMessage message;
   final bool isOwn;
   final Function(String) onImageTap;
+  final Function(BuildContext, ChatMessage)? onMessageOptions;
 
   const _MessageBody({
     required this.message,
     required this.isOwn,
     required this.onImageTap,
+    this.onMessageOptions,
   });
 
   bool _isImageUrl(String s) {
@@ -1541,7 +1592,7 @@ class _MessageBody extends StatelessWidget {
           ),
         );
       } else {
-        return _DocumentTile(url: url, isOwn: isOwn);
+        return _DocumentTile(url: url, isOwn: isOwn, message: message, onMessageOptions: onMessageOptions);
       }
     }
 
@@ -1581,11 +1632,12 @@ class _MessageBody extends StatelessWidget {
         );
       }
       if (_isDocUrl(text)) {
-        return _DocumentTile(url: text, isOwn: isOwn);
+        return _DocumentTile(url: text, isOwn: isOwn, message: message, onMessageOptions: onMessageOptions);
       }
       // Generic link tile
-      return GestureDetector(
-        onTap: () => _openUrl(text),
+      return InkWell(
+        onTap: () => onMessageOptions?.call(context, message),
+        onLongPress: () => onMessageOptions?.call(context, message),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1649,7 +1701,8 @@ class _MessageBody extends StatelessWidget {
 class _MediaBubble extends StatelessWidget {
   final ChatMessage message;
   final Function(String)? onImageTap;
-  const _MediaBubble({required this.message, this.onImageTap});
+  final Function(BuildContext, ChatMessage)? onMessageOptions;
+  const _MediaBubble({required this.message, this.onImageTap, this.onMessageOptions});
 
   bool get _isImage => (message.mediaType ?? '').startsWith('image/');
 
@@ -1690,10 +1743,8 @@ class _MediaBubble extends StatelessWidget {
 
     // Generic document bubble
     return InkWell(
-      onTap: () async {
-        final uri = Uri.parse(url);
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      },
+      onTap: () => onMessageOptions?.call(context, message),
+      onLongPress: () => onMessageOptions?.call(context, message),
       child: Container(
         width: 260,
         padding: const EdgeInsets.all(12),
@@ -1745,45 +1796,16 @@ class _MediaBubble extends StatelessWidget {
 class _DocumentTile extends StatelessWidget {
   final String url;
   final bool isOwn;
-  const _DocumentTile({required this.url, required this.isOwn});
+  final ChatMessage message;
+  final Function(BuildContext, ChatMessage)? onMessageOptions;
+  const _DocumentTile({required this.url, required this.isOwn, required this.message, this.onMessageOptions});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
-      onTap: () async {
-        try {
-          final response =
-              await CustomHttpClient.getWithCertificateHandling(url) ??
-              await http.get(Uri.parse(url));
-          if (response.statusCode >= 200 && response.statusCode < 300) {
-            final bytes = response.bodyBytes;
-            final filename = _deriveFilename(url, response.headers);
-            final dir = await getApplicationDocumentsDirectory();
-            final file = File('${dir.path}/$filename');
-            await file.writeAsBytes(bytes, flush: true);
-            if (context.mounted) {
-              showAppToast(
-                context,
-                'Saved to ${file.path}',
-                type: ToastType.success,
-              );
-            }
-          } else {
-            if (context.mounted) {
-              showAppToast(
-                context,
-                'Download failed (${response.statusCode})',
-                type: ToastType.error,
-              );
-            }
-          }
-        } catch (e) {
-          if (context.mounted) {
-            showAppToast(context, 'Download error: $e', type: ToastType.error);
-          }
-        }
-      },
+      onTap: () => onMessageOptions?.call(context, message),
+      onLongPress: () => onMessageOptions?.call(context, message),
       child: Container(
         width: 260,
         padding: const EdgeInsets.all(12),
@@ -1823,20 +1845,6 @@ class _DocumentTile extends StatelessWidget {
     );
   }
 
-  String _deriveFilename(String u, Map<String, String> headers) {
-    final cd = headers['content-disposition'] ?? headers['Content-Disposition'];
-    if (cd != null) {
-      final utf8Match = RegExp(r"filename\*=UTF-8''([^;]+)").firstMatch(cd);
-      if (utf8Match != null) {
-        return utf8Match.group(1)!.split('/').last;
-      }
-      final simpleMatch = RegExp(r'filename="?([^";]+)"?').firstMatch(cd);
-      if (simpleMatch != null) {
-        return simpleMatch.group(1)!.split('/').last;
-      }
-    }
-    return u.split('?').first.split('/').last;
-  }
 }
 
 class _FullScreenImageViewer extends StatelessWidget {
