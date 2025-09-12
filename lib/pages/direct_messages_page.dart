@@ -505,7 +505,14 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: SearchBar(
-              leading: const Icon(Icons.search),
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 4, right: 2),
+                child: Icon(
+                  Icons.search,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
               hintText: 'Search people',
               onChanged: (v) => setState(() => _query = v),
             ),
