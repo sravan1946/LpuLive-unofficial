@@ -202,6 +202,15 @@ class _ChatPageState extends State<ChatPage> {
     return null;
   }
 
+  // In ascending _messages list, determine whether to show a date header before index
+  bool _shouldShowDateHeaderBefore(int index) {
+    if (_messages.isEmpty) return false;
+    if (index <= 0) return true; // show header before the first item
+    final prevTs = _messages[index - 1].timestamp;
+    final curTs = _messages[index].timestamp;
+    return _isDifferentCalendarDay(prevTs, curTs);
+  }
+
   Future<void> _loadMessages() async {
     if (currentUser == null) return;
     setState(() {
@@ -633,7 +642,8 @@ class _ChatPageState extends State<ChatPage> {
                                   message.isOwnMessage && isNewBlock;
                               const double avatarSize = 32;
                               const double avatarGap = 8;
-                              return Align(
+                              final bool showDateHeader = _shouldShowDateHeaderBefore(realIndex);
+                              final messageWidget = Align(
                                 alignment: message.isOwnMessage
                                     ? Alignment.centerRight
                                     : Alignment.centerLeft,
@@ -838,6 +848,18 @@ class _ChatPageState extends State<ChatPage> {
                                   ],
                                 ),
                               );
+
+                              if (showDateHeader) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    _DateBanner(label: _dateLabelFor(message.timestamp)),
+                                    const SizedBox(height: 8),
+                                    messageWidget,
+                                  ],
+                                );
+                              }
+                              return messageWidget;
                                       },
                                       childCount: _messages.length + (_unreadDividerIndex() == null ? 0 : 1),
                                     ),
@@ -1228,6 +1250,75 @@ class _UnreadDivider extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _DateBanner extends StatelessWidget {
+  final String label;
+  const _DateBanner({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(color: scheme.primary.withValues(alpha: 0.24)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(48),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(color: scheme.primary.withValues(alpha: 0.24)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+String _dateLabelFor(String isoTs) {
+  DateTime dt;
+  try {
+    dt = DateTime.parse(isoTs).toLocal();
+  } catch (_) {
+    return '';
+  }
+  final now = DateTime.now();
+  final yesterday = now.subtract(const Duration(days: 1));
+  if (_isSameDay(dt, now)) return 'Today';
+  if (_isSameDay(dt, yesterday)) return 'Yesterday';
+  return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+}
+
+bool _isDifferentCalendarDay(String prevIso, String curIso) {
+  try {
+    final p = DateTime.parse(prevIso).toLocal();
+    final c = DateTime.parse(curIso).toLocal();
+    return !_isSameDay(p, c);
+  } catch (_) {
+    return false;
   }
 }
 
