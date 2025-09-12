@@ -20,12 +20,12 @@ class MyApp extends StatelessWidget {
       valueListenable: ThemeController.instance.themeModeListenable,
       builder: (context, mode, _) {
         return MaterialApp(
-      title: 'LPU Live Chat',
-      theme: lpuTheme,
-      darkTheme: lpuDarkTheme,
-      themeMode: mode,
-      home: const ChatHomePage(),
-      debugShowCheckedModeBanner: false,
+          title: 'LPU Live Chat',
+          theme: lpuTheme,
+          darkTheme: lpuDarkTheme,
+          themeMode: mode,
+          home: const ChatHomePage(),
+          debugShowCheckedModeBanner: false,
         );
       },
     );
@@ -70,19 +70,11 @@ class _ChatHomePageState extends State<ChatHomePage> {
         _scaffoldKey.currentState?.openDrawer();
       });
     }
+
     _pages = [
-      UniversityGroupsPage(
-        wsService: _wsService,
-        onOpenDrawer: openDrawer,
-      ),
-      PersonalGroupsPage(
-        wsService: _wsService,
-        onOpenDrawer: openDrawer,
-      ),
-      DirectMessagesPage(
-        wsService: _wsService,
-        onOpenDrawer: openDrawer,
-      ),
+      UniversityGroupsPage(wsService: _wsService, onOpenDrawer: openDrawer),
+      PersonalGroupsPage(wsService: _wsService, onOpenDrawer: openDrawer),
+      DirectMessagesPage(wsService: _wsService, onOpenDrawer: openDrawer),
     ];
   }
 
@@ -133,7 +125,6 @@ class _ChatHomePageState extends State<ChatHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) async {

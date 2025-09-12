@@ -456,7 +456,9 @@ class WebSocketChatService {
   void _handleSocketClosed(String reason) {
     _channel = null;
     if (_explicitlyClosed || !_shouldAttemptReconnect) {
-      debugPrint('🔕 [WebSocket] Not reconnecting (explicitly closed or disabled).');
+      debugPrint(
+        '🔕 [WebSocket] Not reconnecting (explicitly closed or disabled).',
+      );
       _setStatus(ConnectionStatus.disconnected);
       return;
     }
@@ -466,12 +468,15 @@ class WebSocketChatService {
 
   void _scheduleReconnect(String reason) {
     _reconnectTimer?.cancel();
-    final baseDelayMs = 1000 * pow(2, min(_reconnectAttempts, 5)).toInt(); // cap at 32s
+    final baseDelayMs =
+        1000 * pow(2, min(_reconnectAttempts, 5)).toInt(); // cap at 32s
     final jitterMs = _random.nextInt(500);
     final delayMs = min(30000, baseDelayMs) + jitterMs; // cap total at ~30.5s
     _reconnectAttempts += 1;
     _setStatus(ConnectionStatus.reconnecting);
-    debugPrint('⏳ [WebSocket] Scheduling reconnect in ${delayMs}ms (attempt: $_reconnectAttempts). Reason: $reason');
+    debugPrint(
+      '⏳ [WebSocket] Scheduling reconnect in ${delayMs}ms (attempt: $_reconnectAttempts). Reason: $reason',
+    );
     _reconnectTimer = Timer(Duration(milliseconds: delayMs), () async {
       if (_explicitlyClosed || !_shouldAttemptReconnect) {
         debugPrint('🔕 [WebSocket] Reconnect cancelled before attempt.');

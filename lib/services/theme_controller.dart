@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeController {
   static const String _kThemeModeKey = 'app_theme_mode_v1';
   static final ThemeController instance = ThemeController._internal();
-  final ValueNotifier<ThemeMode> _themeMode = ValueNotifier<ThemeMode>(ThemeMode.system);
+  final ValueNotifier<ThemeMode> _themeMode = ValueNotifier<ThemeMode>(
+    ThemeMode.system,
+  );
 
   ThemeController._internal();
 
@@ -36,11 +38,9 @@ class ThemeController {
       final str = mode == ThemeMode.light
           ? 'light'
           : mode == ThemeMode.dark
-              ? 'dark'
-              : 'system';
+          ? 'dark'
+          : 'system';
       await prefs.setString(_kThemeModeKey, str);
     } catch (_) {}
   }
 }
-
-

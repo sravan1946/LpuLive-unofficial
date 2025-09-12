@@ -14,7 +14,8 @@ class ThemeProvider extends InheritedWidget {
   });
 
   static ThemeService of(BuildContext context) {
-    final provider = context.dependOnInheritedWidgetOfExactType<ThemeProvider>();
+    final provider = context
+        .dependOnInheritedWidgetOfExactType<ThemeProvider>();
     return provider?.themeService ?? globalThemeService;
   }
 

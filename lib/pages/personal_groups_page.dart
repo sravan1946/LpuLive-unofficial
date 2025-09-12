@@ -8,7 +8,11 @@ class PersonalGroupsPage extends StatelessWidget {
   final dynamic wsService; // Placeholder for future use
   final VoidCallback? onOpenDrawer;
 
-  const PersonalGroupsPage({super.key, required this.wsService, this.onOpenDrawer});
+  const PersonalGroupsPage({
+    super.key,
+    required this.wsService,
+    this.onOpenDrawer,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +62,11 @@ class PersonalGroupsPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.message_outlined, size: 64, color: scheme.onSurfaceVariant),
+              Icon(
+                Icons.message_outlined,
+                size: 64,
+                color: scheme.onSurfaceVariant,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Personal Groups',
@@ -98,17 +106,17 @@ class PersonalGroupsPage extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      scheme.primary.withOpacity(0.28),
-                      scheme.primary.withOpacity(0.14),
+                      scheme.primary.withValues(alpha: 0.28),
+                      scheme.primary.withValues(alpha: 0.14),
                     ],
                   ),
                   border: Border.all(
-                    color: scheme.primary.withOpacity(0.30),
+                    color: scheme.primary.withValues(alpha: 0.30),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: scheme.primary.withOpacity(0.25),
+                      color: scheme.primary.withValues(alpha: 0.25),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -117,8 +125,8 @@ class PersonalGroupsPage extends StatelessWidget {
                 child: Material(
                   type: MaterialType.transparency,
                   child: InkWell(
-                    splashColor: Colors.white.withOpacity(0.12),
-                    highlightColor: Colors.white.withOpacity(0.06),
+                    splashColor: Colors.white.withValues(alpha: 0.12),
+                    highlightColor: Colors.white.withValues(alpha: 0.06),
                     customBorder: const CircleBorder(),
                     onTap: () {
                       _showCreateGroupSheet(context);

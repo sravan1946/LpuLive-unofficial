@@ -17,7 +17,11 @@ class UniversityGroupsPage extends StatefulWidget {
   final WebSocketChatService wsService;
   final VoidCallback? onOpenDrawer;
 
-  const UniversityGroupsPage({super.key, required this.wsService, this.onOpenDrawer});
+  const UniversityGroupsPage({
+    super.key,
+    required this.wsService,
+    this.onOpenDrawer,
+  });
 
   @override
   State<UniversityGroupsPage> createState() => _UniversityGroupsPageState();
@@ -298,21 +302,15 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: isDark
-                        ? [
-                            const Color(0xFF2A2A2A),
-                            const Color(0xFF1E1E1E),
-                          ]
-                        : [
-                            Colors.white,
-                            const Color(0xFFF8F9FA),
-                          ],
+                        ? [const Color(0xFF2A2A2A), const Color(0xFF1E1E1E)]
+                        : [Colors.white, const Color(0xFFF8F9FA)],
                   ),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
                       color: isDark
-                          ? Colors.black.withOpacity(0.15)
-                          : Colors.black.withOpacity(0.04),
+                          ? Colors.black.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.04),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
@@ -321,17 +319,13 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 child: SearchBar(
                   leading: Padding(
                     padding: const EdgeInsets.only(left: 4, right: 2),
-                    child: Icon(
-                      Icons.search,
-                      size: 20,
-                      color: scheme.primary,
-                    ),
+                    child: Icon(Icons.search, size: 20, color: scheme.primary),
                   ),
                   hintText: 'Search courses',
                   onChanged: (v) => setState(() => _query = v),
-                  backgroundColor: MaterialStateProperty.all(Colors.transparent),
-                  elevation: MaterialStateProperty.all(0),
-                  shape: MaterialStateProperty.all(
+                  backgroundColor: WidgetStateProperty.all(Colors.transparent),
+                  elevation: WidgetStateProperty.all(0),
+                  shape: WidgetStateProperty.all(
                     RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -388,13 +382,12 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       _sortCourseGroups();
       await TokenStorage.saveCurrentUser();
       await _saveUnreadCounts();
-    } finally {
-    }
+    } finally {}
   }
 
   Widget _buildCourseList(List<CourseGroup> data, ColorScheme scheme) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     if (data.isEmpty) {
       return Center(
         child: Column(
@@ -408,15 +401,15 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    scheme.primary.withOpacity(0.1),
-                    scheme.primary.withOpacity(0.05),
+                    scheme.primary.withValues(alpha: 0.1),
+                    scheme.primary.withValues(alpha: 0.05),
                   ],
                 ),
               ),
               child: Icon(
                 Icons.school_outlined,
                 size: 64,
-                color: scheme.primary.withOpacity(0.6),
+                color: scheme.primary.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 24),
@@ -474,278 +467,286 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
         final hasUnread = unread > 0;
 
         return OpenContainer(
-          transitionType: ContainerTransitionType.fadeThrough,
-          closedElevation: 0,
-          openElevation: 0,
-          closedColor: Colors.transparent,
-          closedShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          openBuilder: (context, _) {
-            // Clear unread when opening
-            _unreadByGroup[course.courseName] = 0;
-            _saveUnreadCounts();
-            ConversationReadTracker.setLastReadToNow(course.courseName);
-            final isWritable = _isGroupWritable(course);
-            return ChatPage(
-              groupId: course.courseName,
-              title: course.courseName.replaceFirst(
-                RegExp(r'^[A-Z]+\d+\s*-\s*'),
-                '',
+              transitionType: ContainerTransitionType.fadeThrough,
+              closedElevation: 0,
+              openElevation: 0,
+              closedColor: Colors.transparent,
+              closedShape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              wsService: widget.wsService,
-              isReadOnly: !isWritable,
-            );
-          },
-          closedBuilder: (context, openContainer) {
-            return TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 120),
-              tween: Tween(begin: 1.0, end: 1.0),
-              builder: (context, scale, child) {
-                return MouseRegion(
-                  onEnter: (_) => setState(() {}),
-                  onExit: (_) => setState(() {}),
-                  child: AnimatedScale(
-                    duration: const Duration(milliseconds: 120),
-                    scale: MediaQuery.of(context).size.width > 600 ? 1.02 : 1.0,
-                    curve: Curves.easeOut,
-                    child: child!,
+              openBuilder: (context, _) {
+                // Clear unread when opening
+                _unreadByGroup[course.courseName] = 0;
+                _saveUnreadCounts();
+                ConversationReadTracker.setLastReadToNow(course.courseName);
+                final isWritable = _isGroupWritable(course);
+                return ChatPage(
+                  groupId: course.courseName,
+                  title: course.courseName.replaceFirst(
+                    RegExp(r'^[A-Z]+\d+\s*-\s*'),
+                    '',
                   ),
+                  wsService: widget.wsService,
+                  isReadOnly: !isWritable,
                 );
               },
-              child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                          const Color(0xFF2A2A2A),
-                          const Color(0xFF1E1E1E),
-                        ]
-                      : [
-                          Colors.white,
-                          const Color(0xFFFAFAFA),
-                        ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: isDark
-                        ? Colors.black.withOpacity(0.2)
-                        : Colors.black.withOpacity(0.04),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                  ),
-                  BoxShadow(
-                    color: scheme.primary.withOpacity(0.03),
-                    blurRadius: 12,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-                border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF333333)
-                      : const Color(0xFFE5E5E5),
-                  width: 0.5,
-                ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _unreadByGroup[course.courseName] = 0;
-                    });
-                    _saveUnreadCounts();
-                    openContainer();
+              closedBuilder: (context, openContainer) {
+                return TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 120),
+                  tween: Tween(begin: 1.0, end: 1.0),
+                  builder: (context, scale, child) {
+                    return MouseRegion(
+                      onEnter: (_) => setState(() {}),
+                      onExit: (_) => setState(() {}),
+                      child: AnimatedScale(
+                        duration: const Duration(milliseconds: 120),
+                        scale: MediaQuery.of(context).size.width > 600
+                            ? 1.02
+                            : 1.0,
+                        curve: Curves.easeOut,
+                        child: child!,
+                      ),
+                    );
                   },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        // Enhanced avatar with gradient
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                scheme.primary,
-                                scheme.primary.withOpacity(0.8),
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: scheme.primary.withOpacity(0.15),
-                                blurRadius: 12,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: CircleAvatar(
-                            radius: 24,
-                            backgroundColor: Colors.transparent,
-                            child: const Icon(
-                              Icons.school,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: isDark
+                            ? [const Color(0xFF2A2A2A), const Color(0xFF1E1E1E)]
+                            : [Colors.white, const Color(0xFFFAFAFA)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isDark
+                              ? Colors.black.withValues(alpha: 0.2)
+                              : Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
                         ),
-                        const SizedBox(width: 16),
-                        // Course info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        BoxShadow(
+                          color: scheme.primary.withValues(alpha: 0.03),
+                          blurRadius: 12,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF333333)
+                            : const Color(0xFFE5E5E5),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _unreadByGroup[course.courseName] = 0;
+                          });
+                          _saveUnreadCounts();
+                          openContainer();
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
                             children: [
-                              Text(
-                                course.courseName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: hasUnread
-                                      ? FontWeight.w700
-                                      : FontWeight.w600,
-                                  color: isDark
-                                      ? Colors.white
-                                      : const Color(0xFF1B1B1B),
+                              // Enhanced avatar with gradient
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      scheme.primary,
+                                      scheme.primary.withValues(alpha: 0.8),
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: scheme.primary.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: Colors.transparent,
+                                  child: const Icon(
+                                    Icons.school,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
                                 ),
                               ),
-                              if (readOnly) ...[
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? const Color(0xFF333333)
-                                        : const Color(0xFFF0F0F0),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.lock_outline,
-                                        size: 10,
+                              const SizedBox(width: 16),
+                              // Course info
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      course.courseName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: hasUnread
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF1B1B1B),
+                                      ),
+                                    ),
+                                    if (readOnly) ...[
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isDark
+                                              ? const Color(0xFF333333)
+                                              : const Color(0xFFF0F0F0),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.lock_outline,
+                                              size: 10,
+                                              color: isDark
+                                                  ? Colors.white70
+                                                  : const Color(0xFF666666),
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              'Read Only',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: isDark
+                                                    ? Colors.white70
+                                                    : const Color(0xFF666666),
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      lastMessage,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: hasUnread
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
                                         color: isDark
                                             ? Colors.white70
                                             : const Color(0xFF666666),
                                       ),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        'Read Only',
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          color: isDark
-                                              ? Colors.white70
-                                              : const Color(0xFF666666),
-                                          fontWeight: FontWeight.w500,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Trailing info
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    lastMessageTime.isNotEmpty
+                                        ? _formatTimestamp(lastMessageTime)
+                                        : '',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? Colors.white54
+                                          : const Color(0xFF8A8A8A),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (hasUnread) ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                scheme.primary,
+                                                scheme.primary.withValues(
+                                                  alpha: 0.8,
+                                                ),
+                                              ],
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: scheme.primary
+                                                    .withValues(alpha: 0.15),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Text(
+                                            unread > 99 ? '99+' : '$unread',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                      ] else if (course.messages.isNotEmpty &&
+                                          course
+                                              .messages
+                                              .last
+                                              .isOwnMessage) ...[
+                                        Icon(
+                                          Icons.done_all,
+                                          size: 16,
+                                          color: scheme.primary,
+                                        ),
+                                      ],
                                     ],
                                   ),
-                                ),
-                              ],
-                              const SizedBox(height: 4),
-                              Text(
-                                lastMessage,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: hasUnread
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                  color: isDark
-                                      ? Colors.white70
-                                      : const Color(0xFF666666),
-                                ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        // Trailing info
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              lastMessageTime.isNotEmpty
-                                  ? _formatTimestamp(lastMessageTime)
-                                  : '',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark
-                                    ? Colors.white54
-                                    : const Color(0xFF8A8A8A),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (hasUnread) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          scheme.primary,
-                                          scheme.primary.withOpacity(0.8),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: scheme.primary.withOpacity(0.15),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Text(
-                                      unread > 99 ? '99+' : '$unread',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ] else if (course.messages.isNotEmpty &&
-                                    course.messages.last.isOwnMessage) ...[
-                                  Icon(
-                                    Icons.done_all,
-                                    size: 16,
-                                    color: scheme.primary,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-            );
-          },
-        )
+                );
+              },
+            )
             .animate(delay: (40 * index).ms)
             .fadeIn(duration: 300.ms, curve: Curves.easeOut)
             .moveY(begin: 8, end: 0, duration: 300.ms, curve: Curves.easeOut);

@@ -20,7 +20,12 @@ class ThemeSettingsPage extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text('Appearance', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                'Appearance',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 12),
               Text('Theme', style: TextStyle(color: scheme.onSurfaceVariant)),
               const SizedBox(height: 8),
@@ -56,7 +61,12 @@ class _ThemeOption extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _ThemeOption({required this.label, required this.icon, required this.selected, required this.onTap});
+  const _ThemeOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +88,3 @@ class _ThemeOption extends StatelessWidget {
     );
   }
 }
-
-
-

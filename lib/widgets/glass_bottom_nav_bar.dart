@@ -25,14 +25,14 @@ class GlassBottomNavBar extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: colorScheme.surface.withOpacity(0.55),
+              color: colorScheme.surface.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: colorScheme.outline.withOpacity(0.15),
+                color: colorScheme.outline.withValues(alpha: 0.15),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -111,22 +111,22 @@ class _GlassIndicator extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            colorScheme.primary.withOpacity(0.12),
-            colorScheme.primary.withOpacity(0.05),
+            colorScheme.primary.withValues(alpha: 0.12),
+            colorScheme.primary.withValues(alpha: 0.05),
             Colors.transparent,
           ],
           stops: const [0.0, 0.5, 1.0],
         ),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.primary.withOpacity(0.18),
+            color: colorScheme.primary.withValues(alpha: 0.18),
             blurRadius: 18,
             spreadRadius: 0.5,
             offset: const Offset(0, -4), // subtle glow upward (top shadow)
           ),
         ],
         border: Border.all(
-          color: colorScheme.primary.withOpacity(0.12),
+          color: colorScheme.primary.withValues(alpha: 0.12),
           width: 1,
         ),
       ),
@@ -154,8 +154,9 @@ class _NavItem extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final Color foregroundColor =
-        isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant;
+    final Color foregroundColor = isSelected
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant;
 
     return Expanded(
       child: InkWell(
@@ -183,10 +184,13 @@ class _NavItem extends StatelessWidget {
               const SizedBox(height: 2),
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
-                style: theme.textTheme.labelSmall?.copyWith(
+                style:
+                    theme.textTheme.labelSmall?.copyWith(
                       color: foregroundColor,
                       height: 1,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
                     ) ??
                     TextStyle(color: foregroundColor, height: 1),
                 child: Text(label),
@@ -198,5 +202,3 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
-
-

@@ -37,4 +37,3 @@ void main() async {
 
   runApp(const AppRoot());
 }
-

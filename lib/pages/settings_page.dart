@@ -35,12 +35,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeService = ThemeProvider.of(context);
-    
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        centerTitle: false,
-      ),
+      appBar: AppBar(title: const Text('Settings'), centerTitle: false),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -88,9 +85,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                 Icon(
                                   themeService.getThemeIcon(mode),
                                   size: 20,
-                                  color: isSelected 
-                                    ? theme.colorScheme.primary 
-                                    : theme.colorScheme.onSurfaceVariant,
+                                  color: isSelected
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurfaceVariant,
                                 ),
                                 const SizedBox(width: 12),
                                 Text(themeService.getThemeDisplayName(mode)),
@@ -109,9 +106,9 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Future settings sections can be added here
           Card(
             child: Padding(
@@ -132,9 +129,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                     title: const Text('Push Notifications'),
-                    subtitle: const Text('Receive notifications for new messages'),
+                    subtitle: const Text(
+                      'Receive notifications for new messages',
+                    ),
                     trailing: Switch(
-                      value: true, // This would be connected to actual notification settings
+                      value:
+                          true, // This would be connected to actual notification settings
                       onChanged: (value) {
                         // Handle notification toggle
                       },
@@ -145,9 +145,9 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           // App Version at bottom
           Center(
             child: Text(

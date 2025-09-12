@@ -16,7 +16,10 @@ class ConversationReadTracker {
 
   static Future<void> setLastReadToNow(String conversationId) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key(conversationId), DateTime.now().toIso8601String());
+    await prefs.setString(
+      _key(conversationId),
+      DateTime.now().toIso8601String(),
+    );
   }
 
   static Future<void> setLastReadTo(String conversationId, String isoTs) async {
@@ -38,5 +41,3 @@ class OpenConversations {
 
   static bool isOpen(String conversationId) => _open.contains(conversationId);
 }
-
-

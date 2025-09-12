@@ -3,15 +3,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeService extends ChangeNotifier {
   static const String _themeKey = 'theme_mode';
-  
+
   ThemeMode _themeMode = ThemeMode.system;
-  
+
   ThemeMode get themeMode => _themeMode;
-  
+
   ThemeService() {
     _loadTheme();
   }
-  
+
   Future<void> _loadTheme() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -22,7 +22,7 @@ class ThemeService extends ChangeNotifier {
       print('Error loading theme: $e');
     }
   }
-  
+
   Future<void> setThemeMode(ThemeMode mode) async {
     try {
       _themeMode = mode;
@@ -33,7 +33,7 @@ class ThemeService extends ChangeNotifier {
       print('Error saving theme: $e');
     }
   }
-  
+
   String getThemeDisplayName(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.light:
@@ -44,7 +44,7 @@ class ThemeService extends ChangeNotifier {
         return 'System';
     }
   }
-  
+
   IconData getThemeIcon(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.light:

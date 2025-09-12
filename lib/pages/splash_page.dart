@@ -67,20 +67,22 @@ class _SplashPageState extends State<SplashPage>
       if (!decoded || currentUser?.chatToken.isEmpty != false) {
         await TokenStorage.clearToken();
         currentUser = null;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
-          ),
-        );
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+            ),
+          );
+        }
         return;
       }
 
       // Lightweight server validation
       try {
         final api = ChatApiService();
-        await api.fetchContacts(currentUser!.chatToken).timeout(
-              const Duration(seconds: 6),
-            );
+        await api
+            .fetchContacts(currentUser!.chatToken)
+            .timeout(const Duration(seconds: 6));
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const ChatHomePage()),
@@ -133,23 +135,24 @@ class _SplashPageState extends State<SplashPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.asset(
-                      'assets/icon.png',
-                      width: 92,
-                      height: 92,
-                    ),
+                    Image.asset('assets/icon.png', width: 92, height: 92),
                     const SizedBox(height: 20),
                     Text(
-                      'LPU Live',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: color.onSurface,
-                      ),
-                    )
+                          'LPU Live',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: color.onSurface,
+                          ),
+                        )
                         .animate()
                         .fadeIn(duration: 400.ms, curve: Curves.easeOut)
-                        .moveY(begin: 8, end: 0, duration: 400.ms, curve: Curves.easeOut),
+                        .moveY(
+                          begin: 8,
+                          end: 0,
+                          duration: 400.ms,
+                          curve: Curves.easeOut,
+                        ),
                   ],
                 ),
               ),
