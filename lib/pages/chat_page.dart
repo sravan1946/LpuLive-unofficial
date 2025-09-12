@@ -675,11 +675,11 @@ class _ChatPageState extends State<ChatPage> {
                             slivers: [
                               // Messages list
                               SliverPadding(
-                                padding: const EdgeInsets.fromLTRB(
+                                padding: EdgeInsets.fromLTRB(
                                   16,
                                   16,
                                   16,
-                                  80,
+                                  _replyingTo != null ? 160 : 80,
                                 ),
                                 sliver: SliverList(
                                   delegate: SliverChildBuilderDelegate(
