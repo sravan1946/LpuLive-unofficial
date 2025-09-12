@@ -13,6 +13,7 @@ class PersonalGroupsPage extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
+        centerTitle: false,
         title: const Text('Personal Groups'),
         actions: [
           Padding(

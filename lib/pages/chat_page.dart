@@ -597,15 +597,17 @@ class _ChatPageState extends State<ChatPage> {
                             }
                             return false;
                           },
-                          child: RefreshIndicator(
-                            onRefresh: _loadMessages,
-                            child: ListView.builder(
+                            child: CustomScrollView(
                               controller: _scrollController,
                               physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.all(16),
                               reverse: true,
-                              itemCount: _messages.length + (_unreadDividerIndex() == null ? 0 : 1),
-                              itemBuilder: (context, index) {
+                              slivers: [
+                                // Messages list
+                                SliverPadding(
+                                  padding: const EdgeInsets.all(16),
+                                  sliver: SliverList(
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, index) {
                               // When reversed, adjust divider placement and message index mapping
                               final dividerAt = _unreadDividerIndex();
                               if (dividerAt != null && index == (_messages.length - dividerAt)) {
@@ -832,10 +834,20 @@ class _ChatPageState extends State<ChatPage> {
                                   ],
                                 ),
                               );
-                              },
+                                      },
+                                      childCount: _messages.length + (_unreadDividerIndex() == null ? 0 : 1),
+                                    ),
+                                  ),
+                                ),
+                                // Beginning of conversation header (pinned at top)
+                                if (_hasReachedTop && _messages.isNotEmpty)
+                                  SliverPersistentHeader(
+                                    pinned: true,
+                                    delegate: _BeginningHeaderDelegate(),
+                                  ),
+                              ],
                             ),
                           ),
-                        ),
                         // Loading older messages indicator (top overlay)
                         if (_isLoadingMore)
                           Positioned(
@@ -885,44 +897,6 @@ class _ChatPageState extends State<ChatPage> {
                                         ),
                                       ),
                                     ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Beginning of conversation indicator
-                        if (_hasReachedTop && _messages.isNotEmpty)
-                          Positioned(
-                            top: 8,
-                            left: 0,
-                            right: 0,
-                            child: IgnorePointer(
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .surface
-                                        .withValues(alpha: 0.9),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outlineVariant,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Beginning of conversation',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
                                   ),
                                 ),
                               ),
@@ -1669,5 +1643,44 @@ class _FullScreenImageViewer extends StatelessWidget {
         );
       }
     }
+  }
+}
+
+class _BeginningHeaderDelegate extends SliverPersistentHeaderDelegate {
+  @override
+  double get minExtent => 40.0;
+
+  @override
+  double get maxExtent => 40.0;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Theme.of(context).colorScheme.surface,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+          child: Text(
+            'Beginning of conversation',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
+    return false;
   }
 }

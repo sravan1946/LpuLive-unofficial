@@ -446,6 +446,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: false,
         title: const Text('Direct Messages'),
         actions: [
           Padding(

@@ -231,21 +231,15 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Expanded(
-                child: Text(
-                  _selectedCourse != null
-                      ? _selectedCourse!.courseName.replaceFirst(
-                          RegExp(r'^[A-Z]+\d+\s*-\s*'),
-                          '',
-                        )
-                      : 'University Groups',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          centerTitle: false,
+          title: Text(
+            _selectedCourse != null
+                ? _selectedCourse!.courseName.replaceFirst(
+                    RegExp(r'^[A-Z]+\d+\s*-\s*'),
+                    '',
+                  )
+                : 'University Groups',
+            overflow: TextOverflow.ellipsis,
           ),
           actions: [
             Padding(
