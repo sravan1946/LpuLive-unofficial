@@ -263,25 +263,50 @@ class _NewDMPageState extends State<NewDMPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Start New Conversation'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        centerTitle: false,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        title: Text(
+          'Start New Conversation',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF1B1B1B),
+          ),
+        ),
       ),
-      body: Column(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [
+                    const Color(0xFF121212),
+                    const Color(0xFF1E1E1E),
+                    const Color(0xFF2A1A10),
+                  ]
+                : [
+                    const Color(0xFFF8F9FA),
+                    const Color(0xFFFFF5F0),
+                    const Color(0xFFFFE9D6),
+                  ],
+          ),
+        ),
+        child: Column(
         children: [
           // Search section with improved design
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
+              color: scheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Theme.of(
-                  context,
-                ).colorScheme.outline.withValues(alpha: 0.2),
+                color: scheme.outline.withValues(alpha: 0.2),
               ),
             ),
             child: Column(
@@ -289,20 +314,14 @@ class _NewDMPageState extends State<NewDMPage> {
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.search,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 24,
-                    ),
+                    Icon(Icons.search, color: scheme.primary, size: 24),
                     const SizedBox(width: 8),
-                    Text(
-                      'Find Someone',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
+                    Text('Find Someone',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: scheme.onSurface,
+                        )),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -314,29 +333,21 @@ class _NewDMPageState extends State<NewDMPage> {
                         decoration: InputDecoration(
                           hintText:
                               'Enter Registration Number (e.g., 12345678)',
-                          hintStyle: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
+                          hintStyle: TextStyle(color: scheme.onSurfaceVariant),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
+                            borderSide: BorderSide(color: scheme.outline),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.primary,
+                              color: scheme.primary,
                               width: 2,
                             ),
                           ),
                           filled: true,
-                          fillColor: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest
-                              .withValues(alpha: 0.3),
+                          fillColor:
+                              scheme.surfaceContainerHighest.withValues(alpha: 0.3),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 14,
@@ -347,22 +358,20 @@ class _NewDMPageState extends State<NewDMPage> {
                     ),
                     const SizedBox(width: 12),
                     IconButton(
-                      icon: _isSearching
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.search),
-                      onPressed: _isSearching ? null : _searchUser,
-                      tooltip: 'Search User',
-                      style: IconButton.styleFrom(
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.primaryContainer,
-                        foregroundColor: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
+                        icon: _isSearching
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.search),
+                        onPressed: _isSearching ? null : _searchUser,
+                        tooltip: 'Search User',
+                        style: IconButton.styleFrom(
+                          backgroundColor: scheme.primaryContainer,
+                          foregroundColor: scheme.primary,
+                        )),
                   ],
                 ),
               ],
@@ -375,18 +384,16 @@ class _NewDMPageState extends State<NewDMPage> {
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color: scheme.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.3),
+                  color: scheme.primary.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: scheme.primary,
                     child: Text(
                       _selectedContact!.name.isNotEmpty
                           ? _selectedContact!.name[0].toUpperCase()
@@ -403,26 +410,18 @@ class _NewDMPageState extends State<NewDMPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _selectedContact!.name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
+                        Text(_selectedContact!.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: scheme.onPrimaryContainer,
+                            )),
                         const SizedBox(height: 4),
-                        Text(
-                          _selectedContact!.category,
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onPrimaryContainer,
-                            fontSize: 12,
-                          ),
-                        ),
+                        Text(_selectedContact!.category,
+                            style: TextStyle(
+                              color: scheme.onPrimaryContainer,
+                              fontSize: 12,
+                            )),
                       ],
                     ),
                   ),
@@ -632,6 +631,7 @@ class _NewDMPageState extends State<NewDMPage> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }

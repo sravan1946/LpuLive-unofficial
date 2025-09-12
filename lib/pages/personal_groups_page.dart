@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import '../widgets/app_toast.dart';
 // user info not needed in this app bar anymore
 // Drawer is provided by parent Scaffold; do not declare here
@@ -12,9 +13,12 @@ class PersonalGroupsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () {
@@ -23,42 +27,111 @@ class PersonalGroupsPage extends StatelessWidget {
           },
           tooltip: 'Menu',
         ),
-        title: const Text('Personal Groups'),
+        title: Text(
+          'Personal Groups',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF1B1B1B),
+          ),
+        ),
         actions: const [],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.group_add, size: 64, color: scheme.onSurfaceVariant),
-            const SizedBox(height: 16),
-            Text(
-              'Personal Groups',
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Create and manage your own groups',
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Coming Soon!',
-              style: TextStyle(
-                color: scheme.primary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [
+                    const Color(0xFF121212),
+                    const Color(0xFF1E1E1E),
+                    const Color(0xFF2A1A10),
+                  ]
+                : [
+                    const Color(0xFFF8F9FA),
+                    const Color(0xFFFFF5F0),
+                    const Color(0xFFFFE9D6),
+                  ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.group_add, size: 64, color: scheme.onSurfaceVariant),
+              const SizedBox(height: 16),
+              Text(
+                'Personal Groups',
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Create and manage your own groups',
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Coming Soon!',
+                style: TextStyle(
+                  color: scheme.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showCreateGroupSheet(context);
-        },
-        tooltip: 'Create New Group',
-        child: const Icon(Icons.add),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 88),
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      scheme.primary.withOpacity(0.28),
+                      scheme.primary.withOpacity(0.14),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: scheme.primary.withOpacity(0.30),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.primary.withOpacity(0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    splashColor: Colors.white.withOpacity(0.12),
+                    highlightColor: Colors.white.withOpacity(0.06),
+                    customBorder: const CircleBorder(),
+                    onTap: () {
+                      _showCreateGroupSheet(context);
+                    },
+                    child: const Center(
+                      child: Icon(Icons.add_rounded, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

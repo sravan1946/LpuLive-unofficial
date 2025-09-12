@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:animations/animations.dart';
 import 'dart:async';
+import 'dart:ui';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_models.dart';
@@ -548,29 +549,72 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           ],
         ),
       ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: scheme.primary.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 88),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: scheme.primary.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: OpenContainer(
+            transitionType: ContainerTransitionType.fadeThrough,
+            closedShape: const CircleBorder(),
+            closedElevation: 0,
+            closedColor: scheme.primary,
+            openBuilder: (context, _) => const NewDMPage(),
+            closedBuilder: (context, open) => SizedBox(
+              width: 56,
+              height: 56,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      // Match Personal page: slightly more transparent glass
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          scheme.primary.withOpacity(0.24),
+                          scheme.primary.withOpacity(0.10),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: scheme.primary.withOpacity(0.24),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: scheme.primary.withOpacity(0.20),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: InkWell(
+                        splashColor: Colors.white.withOpacity(0.12),
+                        highlightColor: Colors.white.withOpacity(0.06),
+                        customBorder: const CircleBorder(),
+                        onTap: open,
+                        child: const Center(
+                          child: Icon(Icons.add_rounded, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ],
-        ),
-        child: OpenContainer(
-          transitionType: ContainerTransitionType.fadeThrough,
-          closedShape: const CircleBorder(),
-          closedElevation: 0,
-          closedColor: scheme.primary,
-          openBuilder: (context, _) => const NewDMPage(),
-          closedBuilder: (context, open) => FloatingActionButton(
-            onPressed: open,
-            tooltip: 'Start New DM',
-            backgroundColor: scheme.primary,
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.add),
           ),
         ),
       ),
