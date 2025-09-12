@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/app_toast.dart';
 import '../models/user_models.dart';
 import 'profile_page.dart';
+import 'settings_page.dart';
 
 class PersonalGroupsPage extends StatelessWidget {
   final dynamic wsService; // Placeholder for future use
@@ -16,8 +17,9 @@ class PersonalGroupsPage extends StatelessWidget {
         centerTitle: false,
         title: const Text('Personal Groups'),
         actions: [
+          // Profile icon
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.only(right: 8),
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () {
@@ -48,6 +50,19 @@ class PersonalGroupsPage extends StatelessWidget {
                       )
                     : const Icon(Icons.person, size: 18),
               ),
+            ),
+          ),
+          // Settings icon
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsPage()),
+                );
+              },
+              tooltip: 'Settings',
             ),
           ),
         ],

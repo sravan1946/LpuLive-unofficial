@@ -11,6 +11,7 @@ import '../services/read_tracker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'profile_page.dart';
+import 'settings_page.dart';
 
 class UniversityGroupsPage extends StatefulWidget {
   final WebSocketChatService wsService;
@@ -242,8 +243,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
             overflow: TextOverflow.ellipsis,
           ),
           actions: [
+            // Profile icon
             Padding(
-              padding: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.only(right: 8),
               child: InkWell(
                 borderRadius: BorderRadius.circular(20),
                 onTap: () {
@@ -274,6 +276,19 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                         )
                       : const Icon(Icons.person, size: 18),
                 ),
+              ),
+            ),
+            // Settings icon
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
+                },
+                tooltip: 'Settings',
               ),
             ),
           ],

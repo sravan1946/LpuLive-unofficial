@@ -15,6 +15,7 @@ import '../widgets/network_image.dart';
 import '../services/read_tracker.dart';
 import '../widgets/app_toast.dart';
 import 'profile_page.dart';
+import 'settings_page.dart';
 
 // Persistent caches (per app session)
 final Map<String, Contact> _contactsCacheById = {};
@@ -449,8 +450,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         centerTitle: false,
         title: const Text('Direct Messages'),
         actions: [
+          // Profile icon
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.only(right: 8),
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () {
@@ -481,6 +483,19 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                       )
                     : const Icon(Icons.person, size: 18),
               ),
+            ),
+          ),
+          // Settings icon
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsPage()),
+                );
+              },
+              tooltip: 'Settings',
             ),
           ),
         ],
