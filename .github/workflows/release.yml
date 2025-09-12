@@ -37,7 +37,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          name: "Release ${{ github.ref_name }}"
+          name: "LpuLive ${{ github.ref_name }}"
           body: "Automated release of LpuLive-unofficial build."
           files: release/*.apk
           repository: sravan1946/LpuLive-builds
