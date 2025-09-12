@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'dart:ui';
 import 'dart:async';
 import '../models/user_models.dart';
 import '../models/message_status.dart';
 import '../services/chat_services.dart';
 import '../services/message_status_service.dart';
 import '../widgets/network_image.dart';
-// Drawer not shown on ChatPage; use a back button
 import '../services/read_tracker.dart';
 import '../widgets/reply_preview.dart';
 import '../widgets/message_status_icon.dart';
@@ -121,22 +120,24 @@ class _ChatPageState extends State<ChatPage> {
 
         if (localMessageIndex != -1) {
           // Update the local message with server data and mark as sent
-          setState(() {
-            _statusService.updateLocalMessageWithServerData(
-              _messages,
-              localMessageIndex,
-              message,
-            );
-            _messages.sort((a, b) {
-              try {
-                final dateA = DateTime.parse(a.timestamp);
-                final dateB = DateTime.parse(b.timestamp);
-                return dateA.compareTo(dateB);
-              } catch (_) {
-                return 0;
-              }
+          if (mounted) {
+            setState(() {
+              _statusService.updateLocalMessageWithServerData(
+                _messages,
+                localMessageIndex,
+                message,
+              );
+              _messages.sort((a, b) {
+                try {
+                  final dateA = DateTime.parse(a.timestamp);
+                  final dateB = DateTime.parse(b.timestamp);
+                  return dateA.compareTo(dateB);
+                } catch (_) {
+                  return 0;
+                }
+              });
             });
-          });
+          }
           // No auto-scrolling
         } else {
           // Check if message already exists to prevent duplicates
@@ -144,7 +145,7 @@ class _ChatPageState extends State<ChatPage> {
             (existingMessage) => existingMessage.id == message.id,
           );
 
-          if (!messageExists) {
+          if (!messageExists && mounted) {
             setState(() {
               _messages = [..._messages, message];
               _statusService.setStatus(message.id, MessageStatus.sent);
@@ -209,9 +210,11 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _loadMessages() async {
     if (currentUser == null) return;
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
     try {
       _currentPage = 1;
       final loaded = await _apiService.fetchChatMessages(
@@ -219,12 +222,14 @@ class _ChatPageState extends State<ChatPage> {
         currentUser!.chatToken,
         page: _currentPage,
       );
-      setState(() {
-        _messages = loaded;
-        _isLoading = false;
-        // Initialize status for loaded messages
-        _statusService.initializeStatuses(_messages);
-      });
+      if (mounted) {
+        setState(() {
+          _messages = loaded;
+          _isLoading = false;
+          // Initialize status for loaded messages
+          _statusService.initializeStatuses(_messages);
+        });
+      }
 
       // If there are messages and no last-read marker, set it to the last message
       if (_messages.isNotEmpty && _lastReadAt == null) {
@@ -248,10 +253,10 @@ class _ChatPageState extends State<ChatPage> {
         // No auto-scrolling; list is reversed so latest is at bottom/start
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         showAppToast(
           context,
           'Failed to load messages: $e',
@@ -263,9 +268,11 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _loadOlderMessages() async {
     if (currentUser == null || _isLoadingMore) return;
-    setState(() {
-      _isLoadingMore = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
     try {
       // For reversed list, record current scroll position to maintain it
       final double currentScrollPosition = _scrollController.hasClients
@@ -278,7 +285,7 @@ class _ChatPageState extends State<ChatPage> {
         currentUser!.chatToken,
         page: nextPage,
       );
-      if (older.isNotEmpty) {
+      if (older.isNotEmpty && mounted) {
         setState(() {
           // older list is ascending; ensure combined stays ascending
           _messages = [...older, ..._messages];
@@ -322,18 +329,22 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _replyToMessage(ChatMessage message) {
-    setState(() {
-      _replyingTo = message;
-    });
+    if (mounted) {
+      setState(() {
+        _replyingTo = message;
+      });
+    }
     _messageController.clear();
     // Focus on the text field
     FocusScope.of(context).requestFocus(FocusNode());
   }
 
   void _cancelReply() {
-    setState(() {
-      _replyingTo = null;
-    });
+    if (mounted) {
+      setState(() {
+        _replyingTo = null;
+      });
+    }
   }
 
   void _showPDFViewer(String pdfUrl, String? fileName) {
@@ -483,9 +494,11 @@ class _ChatPageState extends State<ChatPage> {
       return;
     }
 
-    setState(() {
-      _isSending = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isSending = true;
+      });
+    }
 
     // Capture reply target before clearing state
     final String? capturedReplyToId = _replyingTo?.id;
@@ -511,14 +524,16 @@ class _ChatPageState extends State<ChatPage> {
     );
 
     // Add optimistic message with sending status
-    setState(() {
-      _messages = [..._messages, optimistic];
-      _statusService.setStatus(localMessageId, MessageStatus.sending);
-      _replyingTo = null;
-      _isSending = false;
-      // Sending marks conversation as read; divider should disappear instantly
-      _lastReadAt = DateTime.now();
-    });
+    if (mounted) {
+      setState(() {
+        _messages = [..._messages, optimistic];
+        _statusService.setStatus(localMessageId, MessageStatus.sending);
+        _replyingTo = null;
+        _isSending = false;
+        // Sending marks conversation as read; divider should disappear instantly
+        _lastReadAt = DateTime.now();
+      });
+    }
 
     // Sending a message should clear unread divider going forward
     ConversationReadTracker.setLastReadToNow(widget.groupId);
@@ -550,13 +565,13 @@ class _ChatPageState extends State<ChatPage> {
         await TokenStorage.saveCurrentUser();
       }
     } catch (e) {
-      setState(() {
-        _isSending = false;
-        // Remove the failed message from the UI
-        _messages.removeWhere((msg) => msg.id == localMessageId);
-        _statusService.removeStatus(localMessageId);
-      });
       if (mounted) {
+        setState(() {
+          _isSending = false;
+          // Remove the failed message from the UI
+          _messages.removeWhere((msg) => msg.id == localMessageId);
+          _statusService.removeStatus(localMessageId);
+        });
         showAppToast(
           context,
           'Failed to send message: $e',
@@ -569,7 +584,6 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -665,7 +679,7 @@ class _ChatPageState extends State<ChatPage> {
                                   16,
                                   16,
                                   16,
-                                  140,
+                                  80,
                                 ),
                                 sliver: SliverList(
                                   delegate: SliverChildBuilderDelegate(
@@ -1153,37 +1167,8 @@ class _ChatPageState extends State<ChatPage> {
                           ),
                         ),
                       ),
-                    LiquidGlass(
-                      shape: LiquidRoundedRectangle(
-                        borderRadius: const Radius.circular(16),
-                        side: BorderSide(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.transparent
-                              : scheme.primary.withValues(alpha: 0.12),
-                          width: 1,
-                        ),
-                      ),
-                      settings: isDark
-                          ? LiquidGlassSettings(
-                              glassColor: scheme.onSurface.withValues(
-                                alpha: 0.12,
-                              ),
-                              blur: 5,
-                              thickness: 10,
-                              lightIntensity: 0.85,
-                              ambientStrength: 10.06,
-                              blend: 20,
-                            )
-                          : LiquidGlassSettings(
-                              glassColor: Colors.black.withValues(alpha: 0.12),
-                              blur: 12,
-                              thickness: 12,
-                              lightIntensity: 0.7,
-                              ambientStrength: 0.10,
-                              blend: 20,
-                              saturation: 0.9,
-                              lightness: 0.96,
-                            ),
+                    _CustomGlassContainer(
+                      borderRadius: 16,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -1210,58 +1195,12 @@ class _ChatPageState extends State<ChatPage> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            LiquidGlass(
-                              shape: LiquidRoundedRectangle(
-                                borderRadius: const Radius.circular(12),
-                                side: BorderSide(
-                                  color:
-                                      Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? Colors.transparent
-                                      : scheme.primary.withValues(alpha: 0.12),
-                                  width: 1,
-                                ),
-                              ),
-                              glassContainsChild: false,
-                              settings: isDark
-                                  ? LiquidGlassSettings(
-                                      glassColor: scheme.onSurface.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      blur: 8,
-                                      thickness: 8,
-                                      lightIntensity: 0.4,
-                                      ambientStrength: 1.05,
-                                      blend: 20,
-                                    )
-                                  : LiquidGlassSettings(
-                                      glassColor: Colors.black.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      blur: 12,
-                                      thickness: 10,
-                                      lightIntensity: 0.7,
-                                      ambientStrength: 0.10,
-                                      blend: 20,
-                                      saturation: 0.9,
-                                      lightness: 0.96,
-                                    ),
-                              child: FilledButton(
-                                onPressed: _sendMessage,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  minimumSize: const Size(44, 44),
-                                  padding: EdgeInsets.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.send_rounded,
-                                  color: scheme.primary,
-                                  size: 22,
-                                ),
+                            _CustomGlassButton(
+                              onPressed: _sendMessage,
+                              child: Icon(
+                                Icons.send_rounded,
+                                color: scheme.primary,
+                                size: 22,
                               ),
                             ),
                           ],
@@ -1973,5 +1912,128 @@ class _BeginningHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
     return false;
+  }
+}
+
+class _CustomGlassContainer extends StatelessWidget {
+  final Widget child;
+  final double borderRadius;
+
+  const _CustomGlassContainer({
+    required this.child,
+    required this.borderRadius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      scheme.surface.withValues(alpha: 0.2),
+                      scheme.surface.withValues(alpha: 0.1),
+                    ]
+                  : [
+                      Colors.white.withValues(alpha: 0.25),
+                      Colors.white.withValues(alpha: 0.1),
+                    ],
+            ),
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color: isDark
+                  ? scheme.outline.withValues(alpha: 0.2)
+                  : scheme.outline.withValues(alpha: 0.3),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _CustomGlassButton extends StatelessWidget {
+  final Widget child;
+  final VoidCallback? onPressed;
+
+  const _CustomGlassButton({
+    required this.child,
+    this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          scheme.surface.withValues(alpha: 0.3),
+                          scheme.surface.withValues(alpha: 0.15),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.4),
+                          Colors.white.withValues(alpha: 0.2),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark
+                      ? scheme.outline.withValues(alpha: 0.2)
+                      : scheme.outline.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(child: child),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
