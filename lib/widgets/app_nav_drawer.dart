@@ -92,7 +92,16 @@ class AppNavDrawer extends StatelessWidget {
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            // Registration number hidden per request
+                            const SizedBox(height: 2),
+                            Text(
+                              user.id,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: scheme.onSurface.withOpacity(0.6),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
                         ),
                       ),

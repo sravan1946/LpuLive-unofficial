@@ -41,7 +41,7 @@ class User {
     return User(
       chatToken: chatToken,
       name: name,
-      displayName: name,
+      displayName: name.contains(' : ') ? name.split(' : ')[0] : name,
       id: name.contains(' : ') ? name.split(' : ')[1] : name,
       department: department,
       category: category,
