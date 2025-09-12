@@ -58,7 +58,7 @@ class PersonalGroupsPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.group_add, size: 64, color: scheme.onSurfaceVariant),
+              Icon(Icons.message_outlined, size: 64, color: scheme.onSurfaceVariant),
               const SizedBox(height: 16),
               Text(
                 'Personal Groups',
