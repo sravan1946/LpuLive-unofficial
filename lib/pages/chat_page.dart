@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:photo_view/photo_view.dart';
 import 'package:path_provider/path_provider.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/pdf_viewer.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -352,13 +353,9 @@ class _ChatPageState extends State<ChatPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(
-            title: Text(fileName ?? 'PDF Viewer'),
-          ),
-          body: const Center(
-            child: Text('PDF Viewer not implemented yet'),
-          ),
+        builder: (context) => PDFViewer(
+          pdfUrl: pdfUrl,
+          fileName: fileName,
         ),
       ),
     );
