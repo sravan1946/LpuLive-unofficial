@@ -377,7 +377,7 @@ class _PDFViewerState extends State<PDFViewer> {
       filePath: localPath!,
       enableSwipe: true,
       swipeHorizontal: false,
-      autoSpacing: true,
+      autoSpacing: false,
       pageFling: false,
       pageSnap: false,
       defaultPage: 0,
