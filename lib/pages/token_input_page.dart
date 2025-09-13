@@ -6,6 +6,7 @@ import '../services/chat_services.dart';
 import 'webview_login_page.dart';
 import 'chat_home_page.dart';
 import '../theme.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/app_toast.dart';
 
 class TokenInputApp extends StatelessWidget {
@@ -16,13 +17,21 @@ class TokenInputApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     print('🔐 TokenInputApp built - login screen shown');
-    return MaterialApp(
-      title: 'LPU Live - Login',
-      theme: lpuTheme,
-      darkTheme: lpuDarkTheme,
-      themeMode: ThemeMode.system,
-      home: UnifiedLoginScreen(autoLoggedOut: autoLoggedOut),
-      debugShowCheckedModeBanner: false,
+    return ThemeProvider(
+      themeService: globalThemeService,
+      child: AnimatedBuilder(
+        animation: globalThemeService,
+        builder: (context, child) {
+          return MaterialApp(
+            title: 'LPU Live - Login',
+            theme: lpuTheme,
+            darkTheme: lpuDarkTheme,
+            themeMode: globalThemeService.themeMode,
+            home: UnifiedLoginScreen(autoLoggedOut: autoLoggedOut),
+            debugShowCheckedModeBanner: false,
+          );
+        },
+      ),
     );
   }
 }

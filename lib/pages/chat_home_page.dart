@@ -6,7 +6,7 @@ import 'personal_groups_page.dart';
 import 'direct_messages_page.dart';
 import '../services/chat_services.dart';
 import '../models/user_models.dart';
-import '../services/theme_controller.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/app_nav_drawer.dart';
 import '../widgets/glass_bottom_nav_bar.dart';
 import '../widgets/connectivity_banner.dart';
@@ -17,18 +17,21 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     print('🏠 MyApp built - main app launched!');
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: ThemeController.instance.themeModeListenable,
-      builder: (context, mode, _) {
-        return MaterialApp(
-          title: 'LPU Live Chat',
-          theme: lpuTheme,
-          darkTheme: lpuDarkTheme,
-          themeMode: mode,
-          home: const ChatHomePage(),
-          debugShowCheckedModeBanner: false,
-        );
-      },
+    return ThemeProvider(
+      themeService: globalThemeService,
+      child: AnimatedBuilder(
+        animation: globalThemeService,
+        builder: (context, child) {
+          return MaterialApp(
+            title: 'LPU Live Chat',
+            theme: lpuTheme,
+            darkTheme: lpuDarkTheme,
+            themeMode: globalThemeService.themeMode,
+            home: const ChatHomePage(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
+      ),
     );
   }
 }
