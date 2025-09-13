@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../models/user_models.dart';
 import '../widgets/network_image.dart';
 import '../services/chat_services.dart';
@@ -8,8 +9,34 @@ import '../pages/profile_page.dart';
 import '../pages/theme_settings_page.dart';
 import '../pages/notifications_page.dart';
 
-class AppNavDrawer extends StatelessWidget {
+class AppNavDrawer extends StatefulWidget {
   const AppNavDrawer({super.key});
+
+  @override
+  State<AppNavDrawer> createState() => _AppNavDrawerState();
+}
+
+class _AppNavDrawerState extends State<AppNavDrawer> {
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _getAppVersion();
+  }
+
+  Future<void> _getAppVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _appVersion = packageInfo.version;
+      });
+    } catch (e) {
+      setState(() {
+        _appVersion = 'Unknown'; // fallback version
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +174,21 @@ class AppNavDrawer extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // Version text
+                  if (_appVersion.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Center(
+                        child: Text(
+                          'Version: $_appVersion',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurface.withValues(alpha: 0.6),
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.logout, color: Colors.redAccent),
