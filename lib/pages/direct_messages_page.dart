@@ -12,6 +12,7 @@ import '../utils/timestamp_utils.dart';
 import 'token_input_page.dart';
 import 'new_dm_page.dart';
 import 'chat_page.dart';
+import 'dm_requests_page.dart';
 import '../widgets/network_image.dart';
 import '../services/read_tracker.dart';
 import '../widgets/app_toast.dart';
@@ -58,6 +59,19 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
   // Unread counters per DM group
   final Map<String, int> _unreadByGroup = {};
+
+  // Count REQD status messages
+  int _getRequestCount() {
+    if (currentUser == null) return 0;
+    int count = 0;
+    for (final group in currentUser!.groups) {
+      final dmMatch = RegExp(r'^\d+\s*:\s*\d+$').firstMatch(group.name);
+      if (dmMatch != null && group.inviteStatus.trim().toUpperCase() == 'REQD') {
+        count++;
+      }
+    }
+    return count;
+  }
 
   Future<void> _loadUnreadCounts() async {
     try {
@@ -474,7 +488,50 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
             color: isDark ? Colors.white : const Color(0xFF1B1B1B),
           ),
         ),
-        actions: const [],
+        actions: [
+          if (_getRequestCount() > 0)
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.person_add_outlined),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => DmRequestsPage(
+                          wsService: widget.wsService,
+                        ),
+                      ),
+                    );
+                  },
+                  tooltip: 'DM Requests',
+                ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '${_getRequestCount()}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(

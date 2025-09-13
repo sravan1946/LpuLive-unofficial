@@ -340,6 +340,105 @@ class ChatApiService {
       throw Exception('Error creating group: $e');
     }
   }
+
+  Future<CreateGroupResult> performGroupAction(
+    String chatToken,
+    String action,
+    String groupName,
+  ) async {
+    try {
+      final url = '$_baseUrl/api/groups/actions';
+      final requestBody = {
+        'ChatToken': chatToken,
+        'Action': action,
+        'Group': groupName,
+      };
+
+      debugPrint('🌐 [ChatApiService] Making HTTP request to: $url');
+      debugPrint(
+        '📤 [ChatApiService] Headers: {"Content-Type": "application/json"}',
+      );
+      debugPrint('📤 [ChatApiService] Body: ${jsonEncode(requestBody)}');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      debugPrint('📥 [ChatApiService] Response Status: ${response.statusCode}');
+      debugPrint('📥 [ChatApiService] Response Headers: ${response.headers}');
+      debugPrint('📥 [ChatApiService] Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        
+        // Handle the specific response format for group actions
+        if (data.containsKey('statusCode') && data.containsKey('message')) {
+          final result = CreateGroupResult(
+            statusCode: data['statusCode'] ?? '',
+            message: data['message'] ?? '',
+            name: '',
+            data: data,
+          );
+          debugPrint(
+            '✅ [ChatApiService] Group action result: ${result.isSuccess ? 'Success' : 'Failed'} - ${result.message}',
+          );
+          return result;
+        } else {
+          // Fallback to original parsing for other response formats
+          final result = CreateGroupResult.fromJson(data);
+          debugPrint(
+            '✅ [ChatApiService] Group action result: ${result.isSuccess ? 'Success' : 'Failed'} - ${result.message}',
+          );
+          return result;
+        }
+      } else {
+        // Try to extract error message from response body
+        try {
+          final Map<String, dynamic> errorData = jsonDecode(response.body);
+          if (errorData.containsKey('error')) {
+            debugPrint('❌ [ChatApiService] API Error: ${errorData['error']}');
+            // Return a CreateGroupResult with error info instead of throwing
+            return CreateGroupResult(
+              statusCode: response.statusCode.toString(),
+              message: errorData['error'],
+              name: '',
+              data: errorData,
+            );
+          }
+        } on FormatException catch (parseError) {
+          // Only catch JSON parsing errors, not our API error exceptions
+          debugPrint(
+            '❌ [ChatApiService] Failed to parse error response: $parseError',
+          );
+          return CreateGroupResult(
+            statusCode: response.statusCode.toString(),
+            message: 'Failed to perform group action: ${response.statusCode}',
+            name: '',
+            data: null,
+          );
+        }
+        // No error field in response, return generic error
+        return CreateGroupResult(
+          statusCode: response.statusCode.toString(),
+          message: 'Failed to perform group action: ${response.statusCode}',
+          name: '',
+          data: null,
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ [ChatApiService] Exception in performGroupAction: $e');
+      // If it's already an API error (contains status code), don't wrap it
+      if (e.toString().contains('400') ||
+          e.toString().contains('401') ||
+          e.toString().contains('403') ||
+          e.toString().contains('404')) {
+        rethrow; // Re-throw the original API error
+      }
+      throw Exception('Error performing group action: $e');
+    }
+  }
 }
 
 enum ConnectionStatus { connecting, connected, disconnected, reconnecting }
