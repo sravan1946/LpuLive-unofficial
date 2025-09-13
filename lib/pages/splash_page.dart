@@ -135,7 +135,7 @@ class _SplashPageState extends State<SplashPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.asset('assets/icon.png', width: 92, height: 92),
+                    Image.asset('assets/icon-noglow.png', width: 92, height: 92),
                     const SizedBox(height: 20),
                     Text(
                           'LPU Live',
