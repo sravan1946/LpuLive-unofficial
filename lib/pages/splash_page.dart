@@ -47,11 +47,14 @@ class _SplashPageState extends State<SplashPage>
 
       // Try to decode stored token into currentUser
       bool decoded = false;
+      debugPrint('🔍 [SplashPage] Attempting to decode saved token...');
       try {
         final Map<String, dynamic> jsonData = jsonDecode(savedToken);
         currentUser = User.fromJson(jsonData);
         decoded = true;
-      } catch (_) {
+        debugPrint('✅ [SplashPage] Token decoded successfully (JSON format)');
+      } catch (e) {
+        debugPrint('⚠️ [SplashPage] JSON decode failed: $e, trying base64...');
         try {
           final decodedBytes = base64Decode(savedToken);
           final decodedString = utf8.decode(decodedBytes);
@@ -59,7 +62,9 @@ class _SplashPageState extends State<SplashPage>
           final Map<String, dynamic> jsonData = jsonDecode(urlDecodedString);
           currentUser = User.fromJson(jsonData);
           decoded = true;
-        } catch (_) {
+          debugPrint('✅ [SplashPage] Token decoded successfully (Base64 format)');
+        } catch (e2) {
+          debugPrint('❌ [SplashPage] Base64 decode also failed: $e2');
           decoded = false;
         }
       }
@@ -77,25 +82,53 @@ class _SplashPageState extends State<SplashPage>
         return;
       }
 
-      // Lightweight server validation
+      // Server validation using authorize endpoint
+      debugPrint('🔍 [SplashPage] Attempting to authorize user with token: ${currentUser!.chatToken}');
       try {
         final api = ChatApiService();
-        await api
-            .fetchContacts(currentUser!.chatToken)
+        final updatedUser = await api
+            .authorizeUser(currentUser!.chatToken)
             .timeout(const Duration(seconds: 6));
+        
+        debugPrint('✅ [SplashPage] Authorization successful, updating user data...');
+        // Update currentUser with new token and data from server
+        currentUser = updatedUser;
+        await TokenStorage.saveCurrentUser();
+        
         if (!mounted) return;
+        debugPrint('🚀 [SplashPage] Navigating to ChatHomePage...');
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const ChatHomePage()),
         );
-      } catch (_) {
-        await TokenStorage.clearToken();
-        currentUser = null;
-        if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
-          ),
-        );
+      } catch (e) {
+        // Only clear token for unauthorized access, not for network errors
+        if (e is UnauthorizedException) {
+          debugPrint('❌ [SplashPage] User unauthorized, clearing token and logging out...');
+          await TokenStorage.clearToken();
+          currentUser = null;
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+            ),
+          );
+        } else if (e is NetworkException) {
+          debugPrint('🌐 [SplashPage] Network error during authorization, keeping token and going to app...');
+          // For network errors, keep the token and go to app (user can retry later)
+          if (!mounted) return;
+          debugPrint('🚀 [SplashPage] Navigating to ChatHomePage (network error)...');
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const ChatHomePage()),
+          );
+        } else {
+          debugPrint('⚠️ [SplashPage] Other error during authorization: $e, keeping token and going to app...');
+          // For other errors, keep the token and go to app (assume token is still valid)
+          if (!mounted) return;
+          debugPrint('🚀 [SplashPage] Navigating to ChatHomePage (other error)...');
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const ChatHomePage()),
+          );
+        }
       }
     });
   }

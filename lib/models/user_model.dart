@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'group_model.dart';
 
 class User {
@@ -38,6 +39,29 @@ class User {
     final oneToOne = json['OneToOne'] ?? false;
     final isChatSuspended = json['IsChatSuspended'] ?? false;
 
+    // Handle groups - they can be either objects or arrays depending on the endpoint
+    List<Group> parsedGroups = [];
+    if (groups is List<dynamic>) {
+      debugPrint('🔍 [User.fromJson] Processing ${groups.length} groups');
+      for (int i = 0; i < groups.length; i++) {
+        final group = groups[i];
+        debugPrint('🔍 [User.fromJson] Group $i type: ${group.runtimeType}');
+        if (group is Map<String, dynamic>) {
+          // Object format (from regular endpoints)
+          debugPrint('🔍 [User.fromJson] Parsing group $i as object');
+          parsedGroups.add(Group.fromJson(group));
+        } else if (group is List<dynamic>) {
+          // Array format (from authorize endpoint)
+          debugPrint('🔍 [User.fromJson] Parsing group $i as array: $group');
+          parsedGroups.add(Group.fromArray(group));
+        } else {
+          debugPrint('⚠️ [User.fromJson] Unknown group format: ${group.runtimeType} - $group');
+        }
+      }
+    } else {
+      debugPrint('⚠️ [User.fromJson] Groups is not a List: ${groups.runtimeType}');
+    }
+
     return User(
       chatToken: chatToken,
       name: name,
@@ -46,9 +70,7 @@ class User {
       department: department,
       category: category,
       userImageUrl: userImageUrl,
-      groups: (groups as List<dynamic>)
-          .map((group) => Group.fromJson(group))
-          .toList(),
+      groups: parsedGroups,
       createGroups: createGroups,
       oneToOne: oneToOne,
       isChatSuspended: isChatSuspended,

@@ -9,6 +9,7 @@ import '../models/user_models.dart';
 import '../services/theme_controller.dart';
 import '../widgets/app_nav_drawer.dart';
 import '../widgets/glass_bottom_nav_bar.dart';
+import '../widgets/connectivity_banner.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -144,26 +145,27 @@ class _ChatHomePageState extends State<ChatHomePage> {
       child: Scaffold(
         key: _scaffoldKey,
         drawer: const AppNavDrawer(),
-        body: Stack(
-          children: [
-            // Content with transitions
-            Positioned.fill(
-              child: PageTransitionSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, animation, secondaryAnimation) {
-                  return SharedAxisTransition(
-                    transitionType: SharedAxisTransitionType.horizontal,
-                    animation: animation,
-                    secondaryAnimation: secondaryAnimation,
-                    child: child,
-                  );
-                },
-                child: KeyedSubtree(
-                  key: ValueKey(_selectedIndex),
-                  child: _pages[_selectedIndex],
+        body: ConnectivityBanner(
+          child: Stack(
+            children: [
+              // Content with transitions
+              Positioned.fill(
+                child: PageTransitionSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, animation, secondaryAnimation) {
+                    return SharedAxisTransition(
+                      transitionType: SharedAxisTransitionType.horizontal,
+                      animation: animation,
+                      secondaryAnimation: secondaryAnimation,
+                      child: child,
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(_selectedIndex),
+                    child: _pages[_selectedIndex],
+                  ),
                 ),
               ),
-            ),
             // Floating glass bottom navigation
             Positioned(
               left: 0,
@@ -178,6 +180,7 @@ class _ChatHomePageState extends State<ChatHomePage> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

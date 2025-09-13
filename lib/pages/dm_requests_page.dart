@@ -364,15 +364,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
           _requestMessages.removeWhere((d) => d.dmName == dm.dmName);
         });
         
-        // Update the group status in currentUser
-        for (int i = 0; i < currentUser!.groups.length; i++) {
-          if (currentUser!.groups[i].name == dm.dmName) {
-            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-              inviteStatus: 'ACPTD',
-            );
-          }
-        }
-        await TokenStorage.saveCurrentUser();
+        // Note: currentUser is automatically updated by performGroupAction via authorize endpoint
         
         // Show success message
         if (mounted) {
@@ -415,15 +407,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
           _requestMessages.removeWhere((d) => d.dmName == dm.dmName);
         });
         
-        // Update the group status in currentUser
-        for (int i = 0; i < currentUser!.groups.length; i++) {
-          if (currentUser!.groups[i].name == dm.dmName) {
-            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-              inviteStatus: 'REJCT',
-            );
-          }
-        }
-        await TokenStorage.saveCurrentUser();
+        // Note: currentUser is automatically updated by performGroupAction via authorize endpoint
         
         // Show success message
         if (mounted) {
@@ -466,15 +450,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
           _requestMessages.removeWhere((d) => d.dmName == dm.dmName);
         });
         
-        // Update the group status in currentUser
-        for (int i = 0; i < currentUser!.groups.length; i++) {
-          if (currentUser!.groups[i].name == dm.dmName) {
-            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-              inviteStatus: 'BLOCK',
-            );
-          }
-        }
-        await TokenStorage.saveCurrentUser();
+        // Note: currentUser is automatically updated by performGroupAction via authorize endpoint
         
         // Show success message
         if (mounted) {
@@ -517,15 +493,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
           _requestMessages.removeWhere((d) => d.dmName == dm.dmName);
         });
         
-        // Update the group status in currentUser
-        for (int i = 0; i < currentUser!.groups.length; i++) {
-          if (currentUser!.groups[i].name == dm.dmName) {
-            currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-              inviteStatus: 'ACPTD',
-            );
-          }
-        }
-        await TokenStorage.saveCurrentUser();
+        // Note: currentUser is automatically updated by performGroupAction via authorize endpoint
         
         // Show success message
         if (mounted) {

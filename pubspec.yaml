@@ -54,7 +54,7 @@ dependencies:
   uuid: ^4.2.1
 
    # WebView for Cloudflare Turnstile
-  webview_flutter: ^4.8.0
+  webview_flutter: ^4.9.0
 
   # Open links and files
   url_launcher: ^6.3.0
@@ -79,6 +79,9 @@ dependencies:
   
   # Permission handling for downloads
   permission_handler: ^11.3.1
+  
+  # Internet connectivity detection
+  connectivity_plus: ^6.0.5
 
 dev_dependencies:
   flutter_test:

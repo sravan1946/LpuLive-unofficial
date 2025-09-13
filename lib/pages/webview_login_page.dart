@@ -4,6 +4,9 @@ import 'dart:math';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
+import '../services/connectivity_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../widgets/connectivity_banner.dart';
 import 'token_input_page.dart';
 import 'chat_home_page.dart';
 import 'dart:developer' as developer;
@@ -23,19 +26,35 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
   bool _isRedirecting = false;
   int _checkAttempts = 0;
   static const int _maxCheckAttempts = 30; // 30 seconds timeout
+  bool _hasInternetConnection = true;
+  final ConnectivityService _connectivityService = ConnectivityService();
 
   @override
   void dispose() {
+    // Properly dispose of the WebView controller
+    _controller = null;
     super.dispose();
   }
 
+  Future<void> _checkConnectivity() async {
+    final hasInternet = await _connectivityService.hasInternetConnection();
+    if (mounted) {
+      setState(() {
+        _hasInternetConnection = hasInternet;
+        // Don't set error message for network issues - let the UI handle it
+        if (hasInternet) {
+          _errorMessage = null;
+        }
+      });
+    }
+  }
+
   Future<void> _periodicUrlCheck() async {
-    if (!mounted) return;
+    if (!mounted || _controller == null) return;
 
     try {
       // Get current URL
-      final currentUrl = await _controller?.currentUrl();
-      if (_controller == null) return;
+      final currentUrl = await _controller!.currentUrl();
       if (currentUrl != null) {
         bool isChatUrl =
             currentUrl.contains('/chat') ||
@@ -64,12 +83,35 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Check connectivity first
+    _checkConnectivity();
+    
+    // Listen for connectivity changes
+    _connectivityService.connectivityStream.listen((List<ConnectivityResult> results) {
+      if (results.isNotEmpty && results.first != ConnectivityResult.none) {
+        // Internet might be back, check again
+        _checkConnectivity();
+      } else {
+        // No connectivity
+        if (mounted) {
+          setState(() {
+            _hasInternetConnection = false;
+            // Don't set error message - let the UI handle it gracefully
+          });
+        }
+      }
+    });
 
     try {
-      _controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setNavigationDelegate(
-          NavigationDelegate(
+      _controller = WebViewController();
+      if (_controller == null) {
+        throw Exception('Failed to create WebView controller');
+      }
+      
+      _controller!.setJavaScriptMode(JavaScriptMode.unrestricted);
+      _controller!.setNavigationDelegate(
+        NavigationDelegate(
             onPageStarted: (String url) async {
               setState(() {
                 _isLoading = true;
@@ -125,7 +167,16 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
             onWebResourceError: (WebResourceError error) {
               setState(() {
                 _isLoading = false;
-                _errorMessage = 'Failed to load page: ${error.description}';
+                // Only show error for critical failures, not network timeouts or minor issues
+                if (error.errorCode == -2 || error.errorCode == -1009) {
+                  // Network error - let connectivity service handle it
+                  return;
+                } else if (error.errorCode == -1001) {
+                  // Timeout - don't show error, just keep loading
+                  return;
+                } else {
+                  _errorMessage = 'Failed to load page: ${error.description}';
+                }
               });
             },
             onNavigationRequest: (NavigationRequest request) {
@@ -188,8 +239,16 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
               }
             },
           ),
-        )
-        ..loadRequest(Uri.parse('https://lpulive.lpu.in'));
+        );
+      
+      // Load the login page after a short delay to ensure WebView is ready
+      if (_controller != null) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (_controller != null) {
+            _controller!.loadRequest(Uri.parse('https://lpulive.lpu.in'));
+          }
+        });
+      }
 
       // Start periodic URL checking as backup
       Future.delayed(const Duration(seconds: 2), _periodicUrlCheck);
@@ -434,7 +493,10 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              _controller?.reload();
+              _checkConnectivity();
+              if (_hasInternetConnection && _controller != null) {
+                _controller!.reload();
+              }
             },
             tooltip: 'Refresh',
           ),
@@ -449,10 +511,114 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // Only show WebView when not redirecting
-          if (!_isRedirecting && _controller != null)
+      body: ConnectivityBanner(
+        child: Stack(
+          children: [
+          // Show no internet message when there's no connectivity
+          if (!_hasInternetConnection)
+            Container(
+              color: Colors.grey.shade100,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.wifi_off,
+                      size: 64,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No Internet Connection',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Please check your network connection and try again.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        _checkConnectivity();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          // Show error message when there's an error (but not network error)
+          else if (_errorMessage != null && _hasInternetConnection)
+            Container(
+              color: Colors.grey.shade100,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.orange.shade600,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Login Error',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        _errorMessage!,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.orange.shade600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _errorMessage = null;
+                            });
+                            if (_controller != null) {
+                              _controller!.reload();
+                            }
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                        const SizedBox(width: 16),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(builder: (context) => const TokenInputApp()),
+                            );
+                          },
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text('Back'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            )
+          // Only show WebView when not redirecting and has internet and no errors
+          else if (!_isRedirecting && _controller != null && _errorMessage == null)
             WebViewWidget(controller: _controller!)
           else ...[
             // Show redirecting screen and keep WebView running invisibly
@@ -499,37 +665,8 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
               ),
             ),
 
-          if (_errorMessage != null)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                color: Colors.red.shade100,
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(Icons.error, color: Colors.red.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: TextStyle(color: Colors.red.shade700),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close, color: Colors.red.shade700),
-                      onPressed: () {
-                        setState(() {
-                          _errorMessage = null;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
+        ),
       ),
     );
   }

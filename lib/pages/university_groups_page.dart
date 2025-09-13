@@ -10,6 +10,8 @@ import 'chat_page.dart';
 import '../services/read_tracker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'token_input_page.dart';
+import '../widgets/app_toast.dart';
 // profile/settings actions removed; use drawer instead
 // Drawer lives at parent Scaffold; this page should not define its own drawer
 
@@ -350,6 +352,42 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   Future<void> _refreshCourses() async {
     if (currentUser == null) return;
     try {
+      // First, refresh user data with authorize endpoint
+      try {
+        debugPrint('🔄 [UniversityGroupsPage] Refreshing user data via authorize endpoint...');
+        final updatedUser = await _apiService.authorizeUser(currentUser!.chatToken);
+        currentUser = updatedUser;
+        await TokenStorage.saveCurrentUser();
+        debugPrint('✅ [UniversityGroupsPage] User data refreshed successfully');
+      } catch (e) {
+        if (e is UnauthorizedException) {
+          debugPrint('❌ [UniversityGroupsPage] User unauthorized, logging out...');
+          await TokenStorage.clearToken();
+          currentUser = null;
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+              ),
+            );
+          }
+          return;
+        } else if (e is NetworkException) {
+          debugPrint('🌐 [UniversityGroupsPage] Network error during refresh: $e');
+          if (mounted) {
+            showAppToast(
+              context,
+              'No internet connection. Please check your network and try again.',
+              type: ToastType.error,
+              duration: const Duration(seconds: 3),
+            );
+          }
+          return;
+        }
+        debugPrint('⚠️ [UniversityGroupsPage] Failed to refresh user data: $e');
+        // Continue with refresh even if authorize fails for other errors
+      }
+      
       for (final course in _courseGroups) {
         try {
           final msgs = await _apiService.fetchChatMessages(
@@ -366,21 +404,13 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 lastMessageTime: latest.timestamp,
               );
             }
-            for (int i = 0; i < currentUser!.groups.length; i++) {
-              if (currentUser!.groups[i].name == course.courseName) {
-                currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-                  groupLastMessage: latest.message,
-                  lastMessageTime: latest.timestamp,
-                );
-              }
-            }
+            // Note: currentUser groups are already updated by authorize endpoint
           }
         } catch (_) {
           // ignore individual failures
         }
       }
       _sortCourseGroups();
-      await TokenStorage.saveCurrentUser();
       await _saveUnreadCounts();
     } finally {}
   }

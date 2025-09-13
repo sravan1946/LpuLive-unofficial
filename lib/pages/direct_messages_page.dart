@@ -103,6 +103,42 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   Future<void> _refreshDMs() async {
     if (currentUser == null) return;
     try {
+      // First, refresh user data with authorize endpoint
+      try {
+        debugPrint('🔄 [DirectMessagesPage] Refreshing user data via authorize endpoint...');
+        final updatedUser = await _apiService.authorizeUser(currentUser!.chatToken);
+        currentUser = updatedUser;
+        await TokenStorage.saveCurrentUser();
+        debugPrint('✅ [DirectMessagesPage] User data refreshed successfully');
+      } catch (e) {
+        if (e is UnauthorizedException) {
+          debugPrint('❌ [DirectMessagesPage] User unauthorized, logging out...');
+          await TokenStorage.clearToken();
+          currentUser = null;
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+              ),
+            );
+          }
+          return;
+        } else if (e is NetworkException) {
+          debugPrint('🌐 [DirectMessagesPage] Network error during refresh: $e');
+          if (mounted) {
+            showAppToast(
+              context,
+              'No internet connection. Please check your network and try again.',
+              type: ToastType.error,
+              duration: const Duration(seconds: 3),
+            );
+          }
+          return;
+        }
+        debugPrint('⚠️ [DirectMessagesPage] Failed to refresh user data: $e');
+        // Continue with refresh even if authorize fails for other errors
+      }
+      
       await _loadContactsIfNeeded();
       for (final dm in _directMessages) {
         try {
@@ -112,14 +148,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           );
           if (msgs.isNotEmpty) {
             final latest = msgs.last;
-            for (int i = 0; i < currentUser!.groups.length; i++) {
-              if (currentUser!.groups[i].name == dm.dmName) {
-                currentUser!.groups[i] = currentUser!.groups[i].copyWith(
-                  groupLastMessage: latest.message,
-                  lastMessageTime: latest.timestamp,
-                );
-              }
-            }
+            // Note: currentUser groups are already updated by authorize endpoint
             final idx = _directMessages.indexWhere(
               (d) => d.dmName == dm.dmName,
             );
@@ -135,7 +164,6 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         }
       }
       _sortDirectMessages();
-      await TokenStorage.saveCurrentUser();
       await _saveUnreadCounts();
     } finally {}
   }

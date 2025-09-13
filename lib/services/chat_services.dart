@@ -9,6 +9,25 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'package:uuid/uuid.dart';
 import '../models/user_models.dart';
+import 'connectivity_service.dart';
+
+// Custom exception for unauthorized access
+class UnauthorizedException implements Exception {
+  final String message;
+  UnauthorizedException(this.message);
+  
+  @override
+  String toString() => 'UnauthorizedException: $message';
+}
+
+// Custom exception for network connectivity issues
+class NetworkException implements Exception {
+  final String message;
+  NetworkException(this.message);
+  
+  @override
+  String toString() => 'NetworkException: $message';
+}
 
 // Token Storage Service
 class TokenStorage {
@@ -94,6 +113,75 @@ class CustomHttpClient {
 // API Service for chat functionality
 class ChatApiService {
   static const String _baseUrl = 'https://lpulive.lpu.in';
+
+  /// Authorize user with existing chat token
+  /// Returns updated User object with new token if successful
+  /// Throws exception if token is invalid (401 Unauthorized)
+  Future<User> authorizeUser(String chatToken) async {
+    try {
+      // Check internet connectivity first
+      final connectivityService = ConnectivityService();
+      final hasInternet = await connectivityService.hasInternetConnection();
+      if (!hasInternet) {
+        debugPrint('🌐 [ChatApiService] No internet connection detected');
+        throw NetworkException('No internet connection. Please check your network and try again.');
+      }
+
+      final url = '$_baseUrl/api/authorize';
+      final requestBody = {'ChatToken': chatToken};
+
+      debugPrint('🌐 [ChatApiService] Making authorize request to: $url');
+      debugPrint('📤 [ChatApiService] Body: ${jsonEncode(requestBody)}');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      debugPrint('📥 [ChatApiService] Authorize Response Status: ${response.statusCode}');
+      debugPrint('📥 [ChatApiService] Authorize Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        debugPrint('🔍 [ChatApiService] Parsing authorize response...');
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        debugPrint('🔍 [ChatApiService] JSON parsed successfully, creating User...');
+        final user = User.fromJson(data);
+        debugPrint('✅ [ChatApiService] User authorized successfully');
+        return user;
+      } else if (response.statusCode == 401) {
+        // Handle unauthorized response
+        try {
+          final Map<String, dynamic> errorData = jsonDecode(response.body);
+          final errorMessage = errorData['error'] ?? 'Unauthorized access. Please login again.';
+          debugPrint('❌ [ChatApiService] Authorization failed: $errorMessage');
+          throw UnauthorizedException(errorMessage);
+        } catch (parseError) {
+          debugPrint('❌ [ChatApiService] Authorization failed: 401 Unauthorized');
+          throw UnauthorizedException('Unauthorized access. Please login again.');
+        }
+      } else {
+        debugPrint('❌ [ChatApiService] Authorization failed: ${response.statusCode}');
+        throw Exception('Authorization failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is UnauthorizedException) {
+        rethrow;
+      }
+      
+      // Handle network connectivity issues
+      if (e.toString().contains('SocketException') || 
+          e.toString().contains('ClientException') ||
+          e.toString().contains('Failed host lookup') ||
+          e.toString().contains('No address associated with hostname')) {
+        debugPrint('🌐 [ChatApiService] Network error during authorization: $e');
+        throw NetworkException('No internet connection. Please check your network and try again.');
+      }
+      
+      debugPrint('❌ [ChatApiService] Exception in authorizeUser: $e');
+      throw Exception('Error during authorization: $e');
+    }
+  }
 
   Future<List<ChatMessage>> fetchChatMessages(
     String courseName,
@@ -308,6 +396,26 @@ class ChatApiService {
         debugPrint(
           '✅ [ChatApiService] Group creation result: ${result.isSuccess ? 'Success' : 'Failed'} - ${result.message}',
         );
+        
+        // If the group creation was successful, refresh user data with authorize endpoint
+        if (result.isSuccess) {
+          try {
+            debugPrint('🔄 [ChatApiService] Refreshing user data after successful group creation...');
+            final updatedUser = await authorizeUser(chatToken);
+            currentUser = updatedUser;
+            await TokenStorage.saveCurrentUser();
+            debugPrint('✅ [ChatApiService] User data refreshed successfully');
+          } catch (e) {
+            if (e is NetworkException) {
+              debugPrint('🌐 [ChatApiService] Network error during user refresh after group creation: $e');
+              // Don't fail the group creation for network errors, just log the warning
+            } else {
+              debugPrint('⚠️ [ChatApiService] Failed to refresh user data after group creation: $e');
+            }
+            // Don't fail the group creation if refresh fails, just log the warning
+          }
+        }
+        
         return result;
       } else {
         // Try to extract error message from response body
@@ -374,25 +482,43 @@ class ChatApiService {
         final Map<String, dynamic> data = jsonDecode(response.body);
         
         // Handle the specific response format for group actions
+        CreateGroupResult result;
         if (data.containsKey('statusCode') && data.containsKey('message')) {
-          final result = CreateGroupResult(
+          result = CreateGroupResult(
             statusCode: data['statusCode'] ?? '',
             message: data['message'] ?? '',
             name: '',
             data: data,
           );
-          debugPrint(
-            '✅ [ChatApiService] Group action result: ${result.isSuccess ? 'Success' : 'Failed'} - ${result.message}',
-          );
-          return result;
         } else {
           // Fallback to original parsing for other response formats
-          final result = CreateGroupResult.fromJson(data);
-          debugPrint(
-            '✅ [ChatApiService] Group action result: ${result.isSuccess ? 'Success' : 'Failed'} - ${result.message}',
-          );
-          return result;
+          result = CreateGroupResult.fromJson(data);
         }
+        
+        debugPrint(
+          '✅ [ChatApiService] Group action result: ${result.isSuccess ? 'Success' : 'Failed'} - ${result.message}',
+        );
+        
+        // If the group action was successful, refresh user data with authorize endpoint
+        if (result.isSuccess) {
+          try {
+            debugPrint('🔄 [ChatApiService] Refreshing user data after successful group action...');
+            final updatedUser = await authorizeUser(chatToken);
+            currentUser = updatedUser;
+            await TokenStorage.saveCurrentUser();
+            debugPrint('✅ [ChatApiService] User data refreshed successfully');
+          } catch (e) {
+            if (e is NetworkException) {
+              debugPrint('🌐 [ChatApiService] Network error during user refresh after group action: $e');
+              // Don't fail the group action for network errors, just log the warning
+            } else {
+              debugPrint('⚠️ [ChatApiService] Failed to refresh user data after group action: $e');
+            }
+            // Don't fail the group action if refresh fails, just log the warning
+          }
+        }
+        
+        return result;
       } else {
         // Try to extract error message from response body
         try {
@@ -514,7 +640,7 @@ class WebSocketChatService {
                 _shouldAttemptReconnect = false;
                 _explicitlyClosed = true;
                 _reconnectTimer?.cancel();
-                _channel?.sink.close(status.goingAway);
+                _channel?.sink.close(status.normalClosure);
                 _setStatus(ConnectionStatus.disconnected);
                 // The UI will handle the logout
               }
@@ -628,7 +754,7 @@ class WebSocketChatService {
     _explicitlyClosed = true;
     _shouldAttemptReconnect = false;
     _reconnectTimer?.cancel();
-    _channel?.sink.close(status.goingAway);
+    _channel?.sink.close(status.normalClosure);
     _channel = null;
     // Keep controllers alive so listeners remain valid if a new instance is not created.
     // They will be closed when the service is disposed by GC/app shutdown.
@@ -641,7 +767,7 @@ class WebSocketChatService {
     _explicitlyClosed = true;
     _shouldAttemptReconnect = false;
     _reconnectTimer?.cancel();
-    _channel?.sink.close(status.goingAway);
+    _channel?.sink.close(status.normalClosure);
     _channel = null;
     _messageController.close();
     _systemMessageController.close();
