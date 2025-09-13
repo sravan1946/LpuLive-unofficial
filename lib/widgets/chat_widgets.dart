@@ -551,6 +551,15 @@ class MediaBubble extends StatelessWidget {
     }
 
     // Generic document bubble
+    final isPDF = (message.mediaType ?? '').contains('pdf') || 
+                  url.toLowerCase().endsWith('.pdf') ||
+                  name.toLowerCase().endsWith('.pdf');
+    final isPowerPoint = url.toLowerCase().endsWith('.ppt') || 
+                        url.toLowerCase().endsWith('.pptx') ||
+                        name.toLowerCase().endsWith('.ppt') ||
+                        name.toLowerCase().endsWith('.pptx');
+    final canViewInApp = isPDF || isPowerPoint;
+    
     return InkWell(
       onTap: () => onMessageOptions?.call(context, message),
       onLongPress: () {
@@ -563,15 +572,48 @@ class MediaBubble extends StatelessWidget {
         decoration: BoxDecoration(
           color: scheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: scheme.outline),
+          border: Border.all(
+            color: canViewInApp 
+                ? scheme.primary.withValues(alpha: 0.5)
+                : scheme.outline,
+            width: canViewInApp ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
-            Icon(
-              (message.mediaType ?? '').contains('pdf')
-                  ? Icons.picture_as_pdf_outlined
-                  : Icons.insert_drive_file_outlined,
-              color: scheme.primary,
+            Stack(
+              children: [
+                Icon(
+                  isPDF 
+                      ? Icons.picture_as_pdf_outlined
+                      : isPowerPoint
+                          ? Icons.slideshow_outlined
+                          : Icons.insert_drive_file_outlined,
+                  color: scheme.primary,
+                ),
+                if (canViewInApp)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: scheme.surface,
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.visibility,
+                        size: 8,
+                        color: scheme.onPrimary,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -583,9 +625,21 @@ class MediaBubble extends StatelessWidget {
                     name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: scheme.onSurface),
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontWeight: canViewInApp ? FontWeight.w500 : FontWeight.normal,
+                    ),
                   ),
-                  if (message.mediaType != null)
+                  if (canViewInApp)
+                    Text(
+                      isPDF ? 'Tap to view' : 'Tap to view presentation',
+                      style: TextStyle(
+                        color: scheme.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    )
+                  else if (message.mediaType != null)
                     Text(
                       message.mediaType!,
                       style: TextStyle(
@@ -612,9 +666,30 @@ class DocumentTile extends StatelessWidget {
   final Function(BuildContext, ChatMessage)? onMessageOptions;
   const DocumentTile({super.key, required this.url, required this.isOwn, required this.message, this.onMessageOptions});
 
+  bool _isPDF() {
+    final fileName = message.mediaName ?? url.split('/').last;
+    return url.toLowerCase().endsWith('.pdf') || fileName.toLowerCase().endsWith('.pdf');
+  }
+
+  bool _isPowerPoint() {
+    final fileName = message.mediaName ?? url.split('/').last;
+    return url.toLowerCase().endsWith('.ppt') || 
+           url.toLowerCase().endsWith('.pptx') ||
+           fileName.toLowerCase().endsWith('.ppt') ||
+           fileName.toLowerCase().endsWith('.pptx');
+  }
+
+  bool _canViewInApp() {
+    return _isPDF() || _isPowerPoint();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final canViewInApp = _canViewInApp();
+    final isPDF = _isPDF();
+    final isPowerPoint = _isPowerPoint();
+    
     return InkWell(
       onTap: () => onMessageOptions?.call(context, message),
       onLongPress: () {
@@ -629,23 +704,76 @@ class DocumentTile extends StatelessWidget {
               ? scheme.primary.withValues(alpha: 0.15)
               : scheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: scheme.outline),
+          border: Border.all(
+            color: canViewInApp 
+                ? scheme.primary.withValues(alpha: 0.5)
+                : scheme.outline,
+            width: canViewInApp ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.picture_as_pdf_outlined,
-              color: isOwn ? scheme.onPrimary : scheme.primary,
+            Stack(
+              children: [
+                Icon(
+                  isPDF 
+                      ? Icons.picture_as_pdf_outlined
+                      : isPowerPoint
+                          ? Icons.slideshow_outlined
+                          : Icons.insert_drive_file_outlined,
+                  color: isOwn ? scheme.onPrimary : scheme.primary,
+                ),
+                if (canViewInApp)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isOwn ? scheme.primary : scheme.surface,
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.visibility,
+                        size: 8,
+                        color: isOwn ? scheme.onPrimary : scheme.onPrimary,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                url.split('/').last,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: isOwn ? scheme.onPrimary : scheme.onSurface,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message.mediaName ?? url.split('/').last,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isOwn ? scheme.onPrimary : scheme.onSurface,
+                      fontWeight: canViewInApp ? FontWeight.w500 : FontWeight.normal,
+                    ),
+                  ),
+                  if (canViewInApp)
+                    Text(
+                      isPDF ? 'Tap to view' : 'Tap to view presentation',
+                      style: TextStyle(
+                        color: isOwn 
+                            ? scheme.onPrimary.withValues(alpha: 0.7)
+                            : scheme.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 8),

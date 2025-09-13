@@ -11,6 +11,7 @@ import '../services/message_status_service.dart';
 import '../services/read_tracker.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/pdf_viewer.dart';
+import '../widgets/powerpoint_viewer.dart';
 import '../widgets/chat_widgets.dart';
 
 class ChatHandlers {
@@ -56,6 +57,24 @@ class ChatHandlers {
     downloadMedia(pdfUrl);
   }
 
+  static void showPowerPointViewer(BuildContext context, String pptUrl, String? fileName) {
+    // Navigate to PowerPoint viewer page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PowerPointViewer(
+          pptUrl: pptUrl,
+          fileName: fileName,
+        ),
+      ),
+    );
+  }
+
+  static void downloadPowerPointDirectly(String pptUrl, String? fileName, Function(String) downloadMedia) {
+    // Use the same download logic as downloadMedia
+    downloadMedia(pptUrl);
+  }
+
   static void showMessageOptions(
     BuildContext context,
     ChatMessage message,
@@ -70,6 +89,10 @@ class ChatHandlers {
     final fileName = message.mediaName;
     final isPDF = url.toLowerCase().endsWith('.pdf') || 
                   (fileName?.toLowerCase().endsWith('.pdf') ?? false);
+    final isPowerPoint = url.toLowerCase().endsWith('.ppt') || 
+                        url.toLowerCase().endsWith('.pptx') ||
+                        (fileName?.toLowerCase().endsWith('.ppt') ?? false) ||
+                        (fileName?.toLowerCase().endsWith('.pptx') ?? false);
     
     showModalBottomSheet(
       context: context,
@@ -107,6 +130,25 @@ class ChatHandlers {
                   onTap: () {
                     Navigator.pop(context);
                     downloadPDFDirectly(url, fileName);
+                  },
+                ),
+              ] else if (isPowerPoint) ...[
+                ListTile(
+                  leading: const Icon(Icons.slideshow),
+                  title: const Text('View Presentation'),
+                  subtitle: const Text('Open in PowerPoint viewer'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showPowerPointViewer(context, url, fileName);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.download),
+                  title: const Text('Download Presentation'),
+                  subtitle: const Text('Save to Downloads folder'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    downloadPowerPointDirectly(url, fileName, downloadMedia);
                   },
                 ),
               ] else if (url.isNotEmpty) ...[
