@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
 import 'dart:async';
 import '../models/user_models.dart';
 import '../models/message_status.dart';
@@ -16,6 +15,7 @@ import '../utils/chat_utils.dart';
 import '../services/chat_handlers.dart';
 import '../services/chat_data.dart';
 import '../widgets/app_toast.dart';
+import 'group_details_page.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -174,6 +174,22 @@ class _ChatPageState extends State<ChatPage> {
       appBar: AppBar(
         title: Text(widget.title),
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => GroupDetailsPage(
+                    groupName: widget.groupId,
+                    groupId: widget.groupId,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Group Details',
+          ),
+        ],
       ),
       body: Stack(
         children: [

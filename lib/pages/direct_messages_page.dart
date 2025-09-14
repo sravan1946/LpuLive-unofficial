@@ -15,6 +15,7 @@ import 'chat_page.dart';
 import 'dm_requests_page.dart';
 import '../widgets/network_image.dart';
 import '../services/read_tracker.dart';
+import '../services/avatar_cache_service.dart';
 import '../widgets/app_toast.dart';
 // removed profile/settings app bar actions in favor of drawer
 // Drawer is provided by parent Scaffold; do not declare here
@@ -22,10 +23,8 @@ import '../widgets/app_toast.dart';
 // Persistent caches (per app session)
 final Map<String, Contact> _contactsCacheById = {};
 final Map<String, _DmMeta> _dmMetaCacheByGroup = {};
-final Map<String, String> _avatarCacheByUserId = {};
 bool _contactsLoaded = false;
 bool _avatarsLoaded = false;
-const String _kAvatarCacheKey = 'dm_avatar_cache_v1';
 const String _kUnreadDmKey = 'unread_dm_counts_v1';
 
 // Avatars may be absolute or relative; we keep what we have and rely on network image fetcher
@@ -187,39 +186,13 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
   Future<void> _loadAvatarCacheIfNeeded() async {
     if (_avatarsLoaded) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kAvatarCacheKey);
-      if (raw != null && raw.isNotEmpty) {
-        final Map<String, dynamic> m = jsonDecode(raw);
-        _avatarCacheByUserId.clear();
-        for (final e in m.entries) {
-          final k = e.key;
-          final v = e.value?.toString();
-          if (v != null && v.isNotEmpty) {
-            _avatarCacheByUserId[k] = v;
-          }
-        }
-      }
-    } catch (_) {
-      // ignore
-    } finally {
-      _avatarsLoaded = true;
-      if (mounted) setState(() {});
-    }
+    await AvatarCacheService.loadCache();
+    _avatarsLoaded = true;
+    if (mounted) setState(() {});
   }
 
   Future<void> _saveAvatarForUser(String userId, String? url) async {
-    if (userId.isEmpty || url == null || url.isEmpty) return;
-    final existing = _avatarCacheByUserId[userId];
-    if (existing == url) return;
-    _avatarCacheByUserId[userId] = url;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kAvatarCacheKey, jsonEncode(_avatarCacheByUserId));
-    } catch (_) {
-      // ignore
-    }
+    await AvatarCacheService.cacheAvatar(userId, url);
   }
 
   void _handleSystemMessage(Map<String, dynamic> message) {
@@ -302,11 +275,28 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     if (_contactsLoaded) return;
     try {
       final contacts = await _apiService.fetchContacts(currentUser!.chatToken);
+      
+      // Cache userimageurl from contacts
+      for (final contact in contacts) {
+        if (contact.userimageurl != null && contact.userimageurl!.isNotEmpty) {
+          await AvatarCacheService.cacheAvatar(contact.userid, contact.userimageurl);
+          print('💾 [DirectMessagesPage] Cached userimageurl for ${contact.userid}: ${contact.userimageurl}');
+        }
+      }
+      
       setState(() {
         for (final c in contacts) {
           _contactsCacheById[c.userid] = c;
         }
         _contactsLoaded = true;
+        
+        // Debug: Print contacts cache
+        print('🔍 [DirectMessagesPage] Loaded ${contacts.length} contacts:');
+        for (final contact in contacts) {
+          print('🔍 [DirectMessagesPage] Contact: userid="${contact.userid}", name="${contact.name}"');
+        }
+        print('🔍 [DirectMessagesPage] Contacts cache size: ${_contactsCacheById.length}');
+        print('🔍 [DirectMessagesPage] Contacts loaded: $_contactsLoaded');
       });
     } catch (e) {
       // Non-fatal. We'll fall back to messages endpoint per DM as needed.
@@ -316,13 +306,27 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   // Derive the other participant's ID from the DM name (format: "<idA> : <idB>")
   String _otherUserIdForDm(String dmName) {
     final parts = dmName.split(RegExp(r'\s*:\s*'));
-    if (parts.length != 2) return dmName;
+    if (parts.length != 2) {
+      // If it's not in "idA : idB" format, it might be just a single user ID
+      // In this case, return the dmName itself as the other user ID
+      return dmName;
+    }
     final idA = parts[0];
     final idB = parts[1];
     final me = currentUser?.id;
     if (me == idA) return idB;
     if (me == idB) return idA;
     return idB;
+  }
+
+  // Extract just the name part from contact name (format: "Name : UserID")
+  String _extractNameFromContact(String contactName) {
+    final parts = contactName.split(RegExp(r'\s*:\s*'));
+    if (parts.length >= 2) {
+      // Return the name part (everything before the last " : ")
+      return parts.sublist(0, parts.length - 1).join(' : ').trim();
+    }
+    return contactName; // Return as-is if no separator found
   }
 
   // Lazy-load meta (name/avatar) via messages endpoint, but only if contacts didn't have it
@@ -333,19 +337,43 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       return;
     }
 
+    // Ensure contacts are loaded before proceeding
+    if (!_contactsLoaded) {
+      await _loadContactsIfNeeded();
+    }
+
     final otherId = _otherUserIdForDm(groupId);
     final contact = _contactsCacheById[otherId];
-    final cachedAvatar = _avatarCacheByUserId[otherId];
-    if (contact != null || (cachedAvatar != null && cachedAvatar.isNotEmpty)) {
-      // Contacts may have name; avatar may be from persistent cache
-      final name = (contact != null && contact.name.isNotEmpty)
-          ? contact.name
-          : otherId;
-      final avatarUrl =
-          (contact?.userimageurl ?? contact?.avatar) ?? cachedAvatar;
-      _dmMetaCacheByGroup[groupId] = _DmMeta(name: name, avatarUrl: avatarUrl);
+    final cachedAvatar = AvatarCacheService.getCachedAvatar(otherId);
+    
+    print('🔍 [DirectMessagesPage] _ensureDmMetaLoaded for groupId: "$groupId"');
+    print('🔍 [DirectMessagesPage] Extracted otherId: "$otherId"');
+    print('🔍 [DirectMessagesPage] Contact found: ${contact != null}');
+    if (contact != null) {
+      print('🔍 [DirectMessagesPage] Contact name: "${contact.name}"');
+    }
+    print('🔍 [DirectMessagesPage] Cached avatar found: ${cachedAvatar != null}');
+    
+    // Check if we already have sufficient data (name and avatar) to avoid API call
+    final hasContactName = contact != null && contact.name.isNotEmpty;
+    final hasCachedAvatar = cachedAvatar != null && cachedAvatar.isNotEmpty;
+    
+    // If we have contact name, use it immediately and avoid API call
+    if (hasContactName) {
+      final avatarUrl = cachedAvatar ?? (contact.userimageurl ?? contact.avatar);
+      // Extract just the name part (before the " : " separator)
+      final displayName = _extractNameFromContact(contact.name);
+      _dmMetaCacheByGroup[groupId] = _DmMeta(name: displayName, avatarUrl: avatarUrl);
       _safeRebuild();
-      return;
+      print('🔍 [DirectMessagesPage] Using contact name for $groupId: "${displayName}" (from "${contact.name}")');
+      return; // Don't call API if we have contact name
+    }
+    
+    // If we have cached avatar but no contact name, use it but still try API for name
+    if (hasCachedAvatar) {
+      _dmMetaCacheByGroup[groupId] = _DmMeta(name: otherId, avatarUrl: cachedAvatar);
+      _safeRebuild();
+      // Continue to API call to try to get name
     }
 
     _dmMetaLoading.add(groupId);
@@ -379,26 +407,66 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   }
 
   String _displayNameForDm(DirectMessage dm) {
+    print('🔍 [DirectMessagesPage] _displayNameForDm called for dmName: "${dm.dmName}"');
+    
     final meta = _dmMetaCacheByGroup[dm.dmName];
-    if (meta != null && meta.name.isNotEmpty) return meta.name;
+    if (meta != null && meta.name.isNotEmpty) {
+      print('🔍 [DirectMessagesPage] Found name in meta cache: "${meta.name}"');
+      return meta.name;
+    }
+    
     final otherId = _otherUserIdForDm(dm.dmName);
+    print('🔍 [DirectMessagesPage] Extracted otherId: "$otherId"');
+    
     final contact = _contactsCacheById[otherId];
-    if (contact != null && contact.name.isNotEmpty) return contact.name;
+    if (contact != null && contact.name.isNotEmpty) {
+      final displayName = _extractNameFromContact(contact.name);
+      print('🔍 [DirectMessagesPage] Found name in contacts cache for $otherId: "${displayName}" (from "${contact.name}")');
+      return displayName;
+    }
+    
+    // Special case: if dmName is just a single user ID (not in "idA : idB" format)
+    // and we couldn't find the other user, try using the dmName itself as the user ID
+    if (dm.dmName == otherId && !dm.dmName.contains(':')) {
+      print('🔍 [DirectMessagesPage] DM name is single user ID, trying direct lookup for: "${dm.dmName}"');
+      // dmName is just a single user ID, try to find contact for this ID
+      final directContact = _contactsCacheById[dm.dmName];
+      if (directContact != null && directContact.name.isNotEmpty) {
+        final displayName = _extractNameFromContact(directContact.name);
+        print('🔍 [DirectMessagesPage] Found direct contact: "${displayName}" (from "${directContact.name}")');
+        return displayName;
+      } else {
+        print('🔍 [DirectMessagesPage] No direct contact found for "${dm.dmName}"');
+      }
+    }
+    
+    print('🔍 [DirectMessagesPage] Returning otherId as fallback: "$otherId"');
     return otherId;
   }
 
   String? _avatarUrlForDm(DirectMessage dm) {
+    final otherId = _otherUserIdForDm(dm.dmName);
+    
+    // First try the new AvatarCacheService (contains avatars from all sources)
+    final cachedAvatar = AvatarCacheService.getCachedAvatar(otherId);
+    if (cachedAvatar != null && cachedAvatar.isNotEmpty) {
+      return _normalizeAvatar(cachedAvatar);
+    }
+    
+    // Fallback to DM meta cache (from chat messages API)
     final meta = _dmMetaCacheByGroup[dm.dmName];
     if (meta != null && meta.avatarUrl != null && meta.avatarUrl!.isNotEmpty) {
       return _normalizeAvatar(meta.avatarUrl);
     }
-    final otherId = _otherUserIdForDm(dm.dmName);
+    
+    // Final fallback to contacts cache
     final contact = _contactsCacheById[otherId];
     final fromContacts = contact?.userimageurl ?? contact?.avatar;
     if (fromContacts != null && fromContacts.isNotEmpty) {
       return _normalizeAvatar(fromContacts);
     }
-    return _normalizeAvatar(_avatarCacheByUserId[otherId]);
+    
+    return null;
   }
 
   void _sortDirectMessages() {

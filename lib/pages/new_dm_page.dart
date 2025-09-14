@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
+import '../services/avatar_cache_service.dart';
+import '../widgets/network_image.dart';
 import '../widgets/app_toast.dart';
 
 class NewDMPage extends StatefulWidget {
@@ -24,7 +26,69 @@ class _NewDMPageState extends State<NewDMPage> {
     super.initState();
     print('🚀 [NewDMPage] New DM page initialized - USING PRINT');
     debugPrint('🚀 [NewDMPage] New DM page initialized - USING DEBUGPRINT');
+    _loadAvatarCache();
     _loadContacts();
+  }
+
+  Future<void> _loadAvatarCache() async {
+    await AvatarCacheService.loadCache();
+  }
+
+  String? _getAvatarUrlForContact(Contact contact) {
+    // First try contact's own avatar fields
+    final contactAvatar = contact.userimageurl ?? contact.avatar;
+    if (contactAvatar != null && contactAvatar.isNotEmpty) {
+      return contactAvatar;
+    }
+    
+    // Then try cached avatar
+    return AvatarCacheService.getCachedAvatar(contact.userid);
+  }
+
+  Widget _buildContactAvatar(Contact contact, ColorScheme scheme, {double size = 32}) {
+    final avatarUrl = _getAvatarUrlForContact(contact);
+    
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: size / 2,
+        backgroundColor: scheme.primary,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size / 2),
+          child: SafeNetworkImage(
+            imageUrl: avatarUrl,
+            width: size,
+            height: size,
+            errorWidget: CircleAvatar(
+              radius: size / 2,
+              backgroundColor: scheme.primary,
+              child: Text(
+                contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: size * 0.4,
+                ),
+              ),
+            ),
+            fit: BoxFit.cover,
+          ),
+        ),
+      );
+    }
+    
+    // Fallback to initials
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: scheme.primary,
+      child: Text(
+        contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '?',
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: size * 0.4,
+        ),
+      ),
+    );
   }
 
   @override
@@ -55,6 +119,14 @@ class _NewDMPageState extends State<NewDMPage> {
       debugPrint(
         '📥 [NewDMPage] Response Data: ${contacts.map((c) => {"userid": c.userid, "name": c.name, "category": c.category}).toList()}',
       );
+
+      // Cache userimageurl from contacts
+      for (final contact in contacts) {
+        if (contact.userimageurl != null && contact.userimageurl!.isNotEmpty) {
+          await AvatarCacheService.cacheAvatar(contact.userid, contact.userimageurl);
+          print('💾 [NewDMPage] Cached userimageurl for ${contact.userid}: ${contact.userimageurl}');
+        }
+      }
 
       if (mounted && contacts.isNotEmpty) {
         showAppToast(
@@ -398,19 +470,7 @@ class _NewDMPageState extends State<NewDMPage> {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: scheme.primary,
-                      child: Text(
-                        _selectedContact!.name.isNotEmpty
-                            ? _selectedContact!.name[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
+                    _buildContactAvatar(_selectedContact!, scheme, size: 40),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -583,21 +643,7 @@ class _NewDMPageState extends State<NewDMPage> {
                                     horizontal: 16,
                                     vertical: 8,
                                   ),
-                                  leading: CircleAvatar(
-                                    backgroundColor: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                    child: Text(
-                                      contact.name.isNotEmpty
-                                          ? contact.name[0].toUpperCase()
-                                          : '?',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                  ),
+                                  leading: _buildContactAvatar(contact, Theme.of(context).colorScheme),
                                   title: Text(
                                     contact.name,
                                     style: TextStyle(

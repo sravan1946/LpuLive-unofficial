@@ -9,7 +9,9 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'package:uuid/uuid.dart';
 import '../models/user_models.dart';
+import '../models/group_user_model.dart';
 import 'connectivity_service.dart';
+import 'avatar_cache_service.dart';
 
 // Custom exception for unauthorized access
 class UnauthorizedException implements Exception {
@@ -216,6 +218,14 @@ class ChatApiService {
               return 0;
             }
           });
+
+          // Cache userImage from chat messages
+          for (final message in messages) {
+            if (message.userImage != null && message.userImage!.isNotEmpty) {
+              await AvatarCacheService.cacheAvatar(message.sender, message.userImage);
+              debugPrint('💾 [ChatApiService] Cached userImage for ${message.sender}: ${message.userImage}');
+            }
+          }
 
           return messages;
         } else {
@@ -563,6 +573,69 @@ class ChatApiService {
         rethrow; // Re-throw the original API error
       }
       throw Exception('Error performing group action: $e');
+    }
+  }
+
+  Future<GroupDetails> fetchGroupUsers(String chatToken, String groupName) async {
+    try {
+      final url = '$_baseUrl/api/groups/group-users';
+      final requestBody = {
+        'chat_token': chatToken,
+        'group_name': groupName,
+      };
+
+      debugPrint('🌐 [ChatApiService] Making HTTP request to: $url');
+      debugPrint(
+        '📤 [ChatApiService] Headers: {"Content-Type": "application/json"}',
+      );
+      debugPrint('📤 [ChatApiService] Body: ${jsonEncode(requestBody)}');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      debugPrint('📥 [ChatApiService] Response Status: ${response.statusCode}');
+      debugPrint('📥 [ChatApiService] Response Headers: ${response.headers}');
+      debugPrint('📥 [ChatApiService] Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final groupDetails = GroupDetails.fromJson(data);
+        debugPrint(
+          '✅ [ChatApiService] Successfully fetched group details with ${groupDetails.users.length} users',
+        );
+        return groupDetails;
+      } else {
+        // Try to extract error message from response body
+        try {
+          final Map<String, dynamic> errorData = jsonDecode(response.body);
+          if (errorData.containsKey('error')) {
+            debugPrint('❌ [ChatApiService] API Error: ${errorData['error']}');
+            throw Exception('${errorData['error']} (${response.statusCode})');
+          } else {
+            // No error field in response, throw generic error
+            throw Exception('Failed to fetch group users: ${response.statusCode}');
+          }
+        } on FormatException catch (parseError) {
+          // Only catch JSON parsing errors, not our API error exceptions
+          debugPrint(
+            '❌ [ChatApiService] Failed to parse error response: $parseError',
+          );
+          throw Exception('Failed to fetch group users: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ChatApiService] Exception in fetchGroupUsers: $e');
+      // If it's already an API error (contains status code), don't wrap it
+      if (e.toString().contains('400') ||
+          e.toString().contains('401') ||
+          e.toString().contains('403') ||
+          e.toString().contains('404')) {
+        rethrow; // Re-throw the original API error
+      }
+      throw Exception('Error fetching group users: $e');
     }
   }
 }
