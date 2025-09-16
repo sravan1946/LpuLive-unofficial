@@ -454,7 +454,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
 
     if (confirmed != true) {
-      showAppToast(context, 'Deletion cancelled', type: ToastType.info);
+      if (mounted) {
+        showAppToast(context, 'Deletion cancelled', type: ToastType.info);
+      }
       return;
     }
 

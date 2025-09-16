@@ -1,7 +1,7 @@
-/// Defines the core chat message model, including optional media and reply data.
+// Defines the core chat message model, including optional media and reply data.
 import 'current_user_state.dart';
 
-/// Represents a chat message with sender, time, and optional media/reply info.
+// Represents a chat message with sender, time, and optional media/reply info.
 class ChatMessage {
   /// Unique message identifier.
   final String id;

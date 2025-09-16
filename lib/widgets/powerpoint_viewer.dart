@@ -292,7 +292,7 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
                 errorMessage ?? 'Something went wrong. Please try downloading the file.',
                 style: TextStyle(
                   fontSize: 16,
-                  color: colorScheme.onSurface.withOpacity(0.7),
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),

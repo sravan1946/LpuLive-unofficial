@@ -365,7 +365,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       final displayName = _extractNameFromContact(contact.name);
       _dmMetaCacheByGroup[groupId] = _DmMeta(name: displayName, avatarUrl: avatarUrl);
       _safeRebuild();
-      print('🔍 [DirectMessagesPage] Using contact name for $groupId: "${displayName}" (from "${contact.name}")');
+      print('🔍 [DirectMessagesPage] Using contact name for $groupId: "$displayName" (from "${contact.name}")');
       return; // Don't call API if we have contact name
     }
     
@@ -421,7 +421,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     final contact = _contactsCacheById[otherId];
     if (contact != null && contact.name.isNotEmpty) {
       final displayName = _extractNameFromContact(contact.name);
-      print('🔍 [DirectMessagesPage] Found name in contacts cache for $otherId: "${displayName}" (from "${contact.name}")');
+      print('🔍 [DirectMessagesPage] Found name in contacts cache for $otherId: "$displayName" (from "${contact.name}")');
       return displayName;
     }
     
@@ -433,7 +433,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       final directContact = _contactsCacheById[dm.dmName];
       if (directContact != null && directContact.name.isNotEmpty) {
         final displayName = _extractNameFromContact(directContact.name);
-        print('🔍 [DirectMessagesPage] Found direct contact: "${displayName}" (from "${directContact.name}")');
+        print('🔍 [DirectMessagesPage] Found direct contact: "$displayName" (from "${directContact.name}")');
         return displayName;
       } else {
         print('🔍 [DirectMessagesPage] No direct contact found for "${dm.dmName}"');

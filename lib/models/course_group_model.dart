@@ -1,4 +1,4 @@
-/// Aggregates chat messages for a given course section.
+// Aggregates chat messages for a given course section.
 import 'chat_message_model.dart';
 
 class CourseGroup {

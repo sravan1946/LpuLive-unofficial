@@ -1,4 +1,4 @@
-/// Group listing item with last message metadata and flags.
+// Group listing item with last message metadata and flags.
 import 'package:flutter/foundation.dart';
 
 class Group {

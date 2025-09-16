@@ -1,4 +1,4 @@
-/// Barrel file exporting frequently used user- and chat-related models.
+// Barrel file exporting frequently used user- and chat-related models.
 export 'user_model.dart';
 export 'group_model.dart';
 export 'chat_message_model.dart';

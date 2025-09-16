@@ -1,4 +1,4 @@
-/// Authenticated user profile and permissions.
+// Authenticated user profile and permissions.
 import 'package:flutter/foundation.dart';
 import 'group_model.dart';
 

@@ -70,15 +70,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         children: ThemeMode.values.map((mode) {
                           final isSelected = currentTheme == mode;
                           return ListTile(
-                            leading: Radio<ThemeMode>(
-                              value: mode,
-                              groupValue: currentTheme,
-                              onChanged: (ThemeMode? value) {
-                                if (value != null) {
-                                  themeService.setThemeMode(value);
-                                }
-                              },
-                              activeColor: theme.colorScheme.primary,
+                            leading: Icon(
+                              isSelected
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_unchecked,
+                              color: isSelected
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
+                              size: 20,
                             ),
                             title: Row(
                               children: [

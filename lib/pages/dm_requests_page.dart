@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:async';
-import 'dart:ui';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../utils/timestamp_utils.dart';
@@ -227,7 +226,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
       final displayName = _extractNameFromContact(contact.name);
       _dmMetaCacheByGroup[groupId] = _DmMeta(name: displayName, avatarUrl: avatarUrl);
       _safeRebuild();
-      print('🔍 [DmRequestsPage] Using contact name for $groupId: "${displayName}" (from "${contact.name}")');
+      print('🔍 [DmRequestsPage] Using contact name for $groupId: "$displayName" (from "${contact.name}")');
       return; // Don't call API if we have contact name
     }
     
@@ -283,7 +282,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
     final contact = _contactsCacheById[otherId];
     if (contact != null && contact.name.isNotEmpty) {
       final displayName = _extractNameFromContact(contact.name);
-      print('🔍 [DmRequestsPage] Found name in contacts cache for $otherId: "${displayName}" (from "${contact.name}")');
+      print('🔍 [DmRequestsPage] Found name in contacts cache for $otherId: "$displayName" (from "${contact.name}")');
       return displayName;
     }
     
@@ -295,7 +294,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
       final directContact = _contactsCacheById[dm.dmName];
       if (directContact != null && directContact.name.isNotEmpty) {
         final displayName = _extractNameFromContact(directContact.name);
-        print('🔍 [DmRequestsPage] Found direct contact: "${displayName}" (from "${directContact.name}")');
+        print('🔍 [DmRequestsPage] Found direct contact: "$displayName" (from "${directContact.name}")');
         return displayName;
       } else {
         print('🔍 [DmRequestsPage] No direct contact found for "${dm.dmName}"');
@@ -431,18 +430,22 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
           );
         }
       } else {
+        if (mounted) {
+          showAppToast(
+            context,
+            'Failed to accept request: ${result.message}',
+            type: ToastType.error,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         showAppToast(
           context,
-          'Failed to accept request: ${result.message}',
+          'Failed to accept request: $e',
           type: ToastType.error,
         );
       }
-    } catch (e) {
-      showAppToast(
-        context,
-        'Failed to accept request: $e',
-        type: ToastType.error,
-      );
     }
   }
 
@@ -474,18 +477,22 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
           );
         }
       } else {
+        if (mounted) {
+          showAppToast(
+            context,
+            'Failed to reject request: ${result.message}',
+            type: ToastType.error,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         showAppToast(
           context,
-          'Failed to reject request: ${result.message}',
+          'Failed to reject request: $e',
           type: ToastType.error,
         );
       }
-    } catch (e) {
-      showAppToast(
-        context,
-        'Failed to reject request: $e',
-        type: ToastType.error,
-      );
     }
   }
 
@@ -517,18 +524,22 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
           );
         }
       } else {
+        if (mounted) {
+          showAppToast(
+            context,
+            'Failed to block user: ${result.message}',
+            type: ToastType.error,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         showAppToast(
           context,
-          'Failed to block user: ${result.message}',
+          'Failed to block user: $e',
           type: ToastType.error,
         );
       }
-    } catch (e) {
-      showAppToast(
-        context,
-        'Failed to block user: $e',
-        type: ToastType.error,
-      );
     }
   }
 
@@ -560,18 +571,22 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
           );
         }
       } else {
+        if (mounted) {
+          showAppToast(
+            context,
+            'Failed to unblock user: ${result.message}',
+            type: ToastType.error,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         showAppToast(
           context,
-          'Failed to unblock user: ${result.message}',
+          'Failed to unblock user: $e',
           type: ToastType.error,
         );
       }
-    } catch (e) {
-      showAppToast(
-        context,
-        'Failed to unblock user: $e',
-        type: ToastType.error,
-      );
     }
   }
 
