@@ -84,6 +84,10 @@ class ChatHandlers {
     Function(String, String?) downloadPDFDirectly,
     Function(String) downloadMedia,
     Function(ChatMessage) copyMessageText,
+    {
+      bool isAdmin = false,
+      Future<void> Function(ChatMessage)? onDelete,
+    }
   ) {
     final url = message.mediaUrl ?? '';
     final fileName = message.mediaName;
@@ -180,6 +184,17 @@ class ChatHandlers {
                     Navigator.pop(context);
                     final uri = Uri.parse(url);
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                ),
+              if (isAdmin && onDelete != null)
+                ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: const Text('Delete message'),
+                  subtitle: const Text('Remove this message for everyone'),
+                  onTap: () async {
+                    HapticFeedback.mediumImpact();
+                    Navigator.pop(context);
+                    await onDelete(message);
                   },
                 ),
             ],
@@ -316,6 +331,39 @@ class ChatHandlers {
           'Failed to send message: $e',
           type: ToastType.error,
         );
+      }
+    }
+  }
+
+  static Future<void> deleteMessage(
+    BuildContext context,
+    WebSocketChatService wsService,
+    ChatMessage message,
+  ) async {
+    try {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete message?'),
+          content: const Text('This will delete the message for everyone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+      await wsService.deleteMessage(messageId: message.id);
+      // No toast here; show toast when server confirms deletion
+    } catch (e) {
+      if (context.mounted) {
+        showAppToast(context, 'Failed to delete: $e', type: ToastType.error);
       }
     }
   }

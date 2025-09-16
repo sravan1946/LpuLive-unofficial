@@ -129,4 +129,44 @@ class ChatMessage {
       replyUserId: json['private_reply_userid']?.toString(),
     );
   }
+
+  ChatMessage copyWith({
+    String? id,
+    String? message,
+    String? sender,
+    String? senderName,
+    String? timestamp,
+    bool? isOwnMessage,
+    String? userImage,
+    String? category,
+    String? group,
+    String? mediaId,
+    String? mediaName,
+    String? mediaType,
+    String? mediaUrl,
+    String? replyMessageId,
+    String? replyType,
+    String? replyMessage,
+    String? replyUserId,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      message: message ?? this.message,
+      sender: sender ?? this.sender,
+      senderName: senderName ?? this.senderName,
+      timestamp: timestamp ?? this.timestamp,
+      isOwnMessage: isOwnMessage ?? this.isOwnMessage,
+      userImage: userImage ?? this.userImage,
+      category: category ?? this.category,
+      group: group ?? this.group,
+      mediaId: mediaId ?? this.mediaId,
+      mediaName: mediaName ?? this.mediaName,
+      mediaType: mediaType ?? this.mediaType,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      replyMessageId: replyMessageId ?? this.replyMessageId,
+      replyType: replyType ?? this.replyType,
+      replyMessage: replyMessage ?? this.replyMessage,
+      replyUserId: replyUserId ?? this.replyUserId,
+    );
+  }
 }

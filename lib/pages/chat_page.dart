@@ -16,6 +16,7 @@ import '../services/chat_handlers.dart';
 import '../services/chat_data.dart';
 import '../widgets/app_toast.dart';
 import 'group_details_page.dart';
+import '../models/current_user_state.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -51,6 +52,7 @@ class _ChatPageState extends State<ChatPage> {
   bool _isLoading = false;
   bool _isSending = false;
   late final StreamSubscription<ChatMessage> _messageSubscription;
+  late final VoidCallback _userListener;
   // Reply state
   ChatMessage? _replyingTo;
   // No backend normalization here; media URLs from messages are already normalized in ChatMessage.fromJson
@@ -90,6 +92,21 @@ class _ChatPageState extends State<ChatPage> {
       });
     });
     _messageSubscription = widget.wsService.messageStream.listen((message) {
+      // Handle delete event early by matching on message_id in current list,
+      // regardless of group value in the payload.
+      if (message.message.trim().toLowerCase() == 'message deleted') {
+        final existsInThisChat = _messages.any((m) => m.id == message.id);
+        if (existsInThisChat && mounted) {
+          setState(() {
+            _messages = _messages.where((m) => m.id != message.id).toList();
+            _statusService.removeStatus(message.id);
+          });
+          showAppToast(context, 'Message deleted', type: ToastType.info);
+          return;
+        }
+        // If not found in current list, continue to other handlers
+      }
+
       if (message.group == widget.groupId) {
         // Check if this is a server acknowledgment of our local message
         final localMessageIndex = _statusService.findLocalMessageIndex(
@@ -144,6 +161,12 @@ class _ChatPageState extends State<ChatPage> {
         }
       }
     });
+    // Re-render on currentUser updates (e.g., after authorize refresh)
+    _userListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    currentUserNotifier.addListener(_userListener);
   }
 
   @override
@@ -154,6 +177,7 @@ class _ChatPageState extends State<ChatPage> {
     _messageController.dispose();
     _scrollController.dispose();
     _messageSubscription.cancel();
+    currentUserNotifier.removeListener(_userListener);
     super.dispose();
   }
 
@@ -402,6 +426,19 @@ class _ChatPageState extends State<ChatPage> {
                                                 ),
                                                 onLongPress: () {
                                                   HapticFeedback.mediumImpact();
+                                                  final isAdmin = (currentUser?.groups.firstWhere(
+                                                    (g) => g.name == widget.groupId,
+                                                    orElse: () => Group(
+                                                      name: widget.groupId,
+                                                      groupLastMessage: '',
+                                                      lastMessageTime: '',
+                                                      isActive: true,
+                                                      isAdmin: false,
+                                                      inviteStatus: '',
+                                                      isTwoWay: false,
+                                                      isOneToOne: false,
+                                                    ),
+                                                  ).isAdmin) == true;
                                                   ChatHandlers.showMessageOptions(
                                                     context,
                                                     message,
@@ -416,6 +453,10 @@ class _ChatPageState extends State<ChatPage> {
                                                     (url, fileName) => ChatHandlers.downloadPDFDirectly(url, fileName, (url) => ChatHandlers.downloadMedia(context, url)),
                                                     (url) => ChatHandlers.downloadMedia(context, url),
                                                     (msg) => ChatHandlers.copyMessageText(context, msg),
+                                                    isAdmin: isAdmin,
+                                                    onDelete: (msg) async {
+                                                      await ChatHandlers.deleteMessage(context, widget.wsService, msg);
+                                                    },
                                                   );
                                                 },
                                                 child: Container(
@@ -532,6 +573,22 @@ class _ChatPageState extends State<ChatPage> {
                                                             (url, fileName) => ChatHandlers.downloadPDFDirectly(url, fileName, (url) => ChatHandlers.downloadMedia(ctx, url)),
                                                             (url) => ChatHandlers.downloadMedia(ctx, url),
                                                             (msg) => ChatHandlers.copyMessageText(ctx, msg),
+                                                            isAdmin: (currentUser?.groups.firstWhere(
+                                                              (g) => g.name == widget.groupId,
+                                                              orElse: () => Group(
+                                                                name: widget.groupId,
+                                                                groupLastMessage: '',
+                                                                lastMessageTime: '',
+                                                                isActive: true,
+                                                                isAdmin: false,
+                                                                inviteStatus: '',
+                                                                isTwoWay: false,
+                                                                isOneToOne: false,
+                                                              ),
+                                                            ).isAdmin) == true,
+                                                            onDelete: (m) async {
+                                                              await ChatHandlers.deleteMessage(ctx, widget.wsService, m);
+                                                            },
                                                           ),
                                                         )
                                                       else
@@ -555,6 +612,22 @@ class _ChatPageState extends State<ChatPage> {
                                                             (url, fileName) => ChatHandlers.downloadPDFDirectly(url, fileName, (url) => ChatHandlers.downloadMedia(ctx, url)),
                                                             (url) => ChatHandlers.downloadMedia(ctx, url),
                                                             (msg) => ChatHandlers.copyMessageText(ctx, msg),
+                                                            isAdmin: (currentUser?.groups.firstWhere(
+                                                              (g) => g.name == widget.groupId,
+                                                              orElse: () => Group(
+                                                                name: widget.groupId,
+                                                                groupLastMessage: '',
+                                                                lastMessageTime: '',
+                                                                isActive: true,
+                                                                isAdmin: false,
+                                                                inviteStatus: '',
+                                                                isTwoWay: false,
+                                                                isOneToOne: false,
+                                                              ),
+                                                            ).isAdmin) == true,
+                                                            onDelete: (m) async {
+                                                              await ChatHandlers.deleteMessage(ctx, widget.wsService, m);
+                                                            },
                                                           ),
                                                         ),
                                                       const SizedBox(height: 4),
@@ -956,3 +1029,4 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 }
+

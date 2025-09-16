@@ -412,7 +412,7 @@ class ChatApiService {
           try {
             debugPrint('🔄 [ChatApiService] Refreshing user data after successful group creation...');
             final updatedUser = await authorizeUser(chatToken);
-            currentUser = updatedUser;
+            setCurrentUser(updatedUser);
             await TokenStorage.saveCurrentUser();
             debugPrint('✅ [ChatApiService] User data refreshed successfully');
           } catch (e) {
@@ -514,7 +514,7 @@ class ChatApiService {
           try {
             debugPrint('🔄 [ChatApiService] Refreshing user data after successful group action...');
             final updatedUser = await authorizeUser(chatToken);
-            currentUser = updatedUser;
+            setCurrentUser(updatedUser);
             await TokenStorage.saveCurrentUser();
             debugPrint('✅ [ChatApiService] User data refreshed successfully');
           } catch (e) {
@@ -629,7 +629,7 @@ class ChatApiService {
           try {
             debugPrint('🔄 [ChatApiService] Refreshing user data after critical action...');
             final updatedUser = await authorizeUser(chatToken);
-            currentUser = updatedUser;
+            setCurrentUser(updatedUser);
             await TokenStorage.saveCurrentUser();
             debugPrint('✅ [ChatApiService] User data refreshed successfully');
           } catch (e) {
@@ -929,6 +929,24 @@ class WebSocketChatService {
       _channel!.sink.add(jsonEncode(messageData));
     } catch (e) {
       throw Exception('Failed to send message: $e');
+    }
+  }
+
+  Future<void> deleteMessage({
+    required String messageId,
+  }) async {
+    if (_channel == null) {
+      throw Exception('WebSocket not connected');
+    }
+    final payload = {
+      'action': 'delete',
+      'message_id': messageId,
+    };
+    try {
+      debugPrint('🗑️ [WebSocket] Deleting message: ${jsonEncode(payload)}');
+      _channel!.sink.add(jsonEncode(payload));
+    } catch (e) {
+      throw Exception('Failed to delete message: $e');
     }
   }
 
