@@ -9,6 +9,7 @@ import '../pages/token_input_page.dart';
 import '../pages/profile_page.dart';
 import '../pages/theme_settings_page.dart';
 import '../pages/notifications_page.dart';
+import '../models/current_user_state.dart';
 
 class AppNavDrawer extends StatefulWidget {
   const AppNavDrawer({super.key});
@@ -203,7 +204,7 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
                       final navigator = Navigator.of(context);
                       Navigator.of(context).pop();
                       await TokenStorage.clearToken();
-                      currentUser = null;
+                      setCurrentUser(null);
                       navigator.pushAndRemoveUntil(
                         MaterialPageRoute(
                           builder: (_) => const TokenInputApp(),

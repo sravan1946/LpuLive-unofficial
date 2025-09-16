@@ -17,6 +17,7 @@ import '../widgets/network_image.dart';
 import '../services/read_tracker.dart';
 import '../services/avatar_cache_service.dart';
 import '../widgets/app_toast.dart';
+import '../models/current_user_state.dart';
 // removed profile/settings app bar actions in favor of drawer
 // Drawer is provided by parent Scaffold; do not declare here
 
@@ -52,6 +53,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   StreamSubscription<Map<String, dynamic>>? _systemMessageSubscription;
   String _query = '';
   final ChatApiService _apiService = ChatApiService();
+  late final VoidCallback _userListener;
 
   // Track in-flight loads to avoid duplicate fetches
   final Set<String> _dmMetaLoading = {};
@@ -106,14 +108,14 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       try {
         debugPrint('🔄 [DirectMessagesPage] Refreshing user data via authorize endpoint...');
         final updatedUser = await _apiService.authorizeUser(currentUser!.chatToken);
-        currentUser = updatedUser;
+        setCurrentUser(updatedUser);
         await TokenStorage.saveCurrentUser();
         debugPrint('✅ [DirectMessagesPage] User data refreshed successfully');
       } catch (e) {
         if (e is UnauthorizedException) {
           debugPrint('❌ [DirectMessagesPage] User unauthorized, logging out...');
           await TokenStorage.clearToken();
-          currentUser = null;
+          setCurrentUser(null);
           if (mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
@@ -175,6 +177,14 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     _loadContactsIfNeeded();
     _loadAvatarCacheIfNeeded();
     _loadUnreadCounts();
+    
+    // Listen for user data changes (e.g., when groups are updated)
+    _userListener = () {
+      if (!mounted) return;
+      _initializeDMs();
+      setState(() {});
+    };
+    currentUserNotifier.addListener(_userListener);
   }
 
   void _safeRebuild() {
@@ -239,6 +249,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     _messageController.dispose();
     _messageSubscription?.cancel();
     _systemMessageSubscription?.cancel();
+    currentUserNotifier.removeListener(_userListener);
     super.dispose();
   }
 

@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'token_input_page.dart';
 import '../widgets/app_toast.dart';
+import '../models/current_user_state.dart';
 // profile/settings actions removed; use drawer instead
 // Drawer lives at parent Scaffold; this page should not define its own drawer
 
@@ -35,6 +36,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   CourseGroup? _selectedCourse;
   StreamSubscription<ChatMessage>? _messageSubscription;
   String _query = '';
+  late final VoidCallback _userListener;
 
   // Unread counters per course group
   final Map<String, int> _unreadByGroup = {};
@@ -73,12 +75,21 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     _initializeGroups();
     _setupWebSocketSubscription();
     _loadUnreadCounts();
+    
+    // Listen for user data changes (e.g., when groups are updated)
+    _userListener = () {
+      if (!mounted) return;
+      _initializeGroups();
+      setState(() {});
+    };
+    currentUserNotifier.addListener(_userListener);
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _messageSubscription?.cancel();
+    currentUserNotifier.removeListener(_userListener);
     super.dispose();
   }
 
@@ -356,14 +367,14 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       try {
         debugPrint('🔄 [UniversityGroupsPage] Refreshing user data via authorize endpoint...');
         final updatedUser = await _apiService.authorizeUser(currentUser!.chatToken);
-        currentUser = updatedUser;
+        setCurrentUser(updatedUser);
         await TokenStorage.saveCurrentUser();
         debugPrint('✅ [UniversityGroupsPage] User data refreshed successfully');
       } catch (e) {
         if (e is UnauthorizedException) {
           debugPrint('❌ [UniversityGroupsPage] User unauthorized, logging out...');
           await TokenStorage.clearToken();
-          currentUser = null;
+          setCurrentUser(null);
           if (mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(

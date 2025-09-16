@@ -6,6 +6,7 @@ import 'token_input_page.dart';
 import '../services/chat_services.dart';
 import 'dart:convert';
 import '../models/user_models.dart';
+import '../models/current_user_state.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -50,7 +51,7 @@ class _SplashPageState extends State<SplashPage>
       debugPrint('🔍 [SplashPage] Attempting to decode saved token...');
       try {
         final Map<String, dynamic> jsonData = jsonDecode(savedToken);
-        currentUser = User.fromJson(jsonData);
+        setCurrentUser(User.fromJson(jsonData));
         decoded = true;
         debugPrint('✅ [SplashPage] Token decoded successfully (JSON format)');
       } catch (e) {
@@ -60,7 +61,7 @@ class _SplashPageState extends State<SplashPage>
           final decodedString = utf8.decode(decodedBytes);
           final urlDecodedString = Uri.decodeFull(decodedString);
           final Map<String, dynamic> jsonData = jsonDecode(urlDecodedString);
-          currentUser = User.fromJson(jsonData);
+          setCurrentUser(User.fromJson(jsonData));
           decoded = true;
           debugPrint('✅ [SplashPage] Token decoded successfully (Base64 format)');
         } catch (e2) {
@@ -71,7 +72,7 @@ class _SplashPageState extends State<SplashPage>
 
       if (!decoded || currentUser?.chatToken.isEmpty != false) {
         await TokenStorage.clearToken();
-        currentUser = null;
+        setCurrentUser(null);
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
@@ -92,7 +93,7 @@ class _SplashPageState extends State<SplashPage>
         
         debugPrint('✅ [SplashPage] Authorization successful, updating user data...');
         // Update currentUser with new token and data from server
-        currentUser = updatedUser;
+        setCurrentUser(updatedUser);
         await TokenStorage.saveCurrentUser();
         
         if (!mounted) return;
@@ -105,7 +106,7 @@ class _SplashPageState extends State<SplashPage>
         if (e is UnauthorizedException) {
           debugPrint('❌ [SplashPage] User unauthorized, clearing token and logging out...');
           await TokenStorage.clearToken();
-          currentUser = null;
+          setCurrentUser(null);
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(

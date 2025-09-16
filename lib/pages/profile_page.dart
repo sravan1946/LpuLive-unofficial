@@ -3,6 +3,7 @@ import '../models/user_models.dart';
 import '../widgets/network_image.dart';
 import 'token_input_page.dart';
 import '../services/chat_services.dart';
+import '../models/current_user_state.dart';
 // drawer not used on profile; using back button
 
 class ProfilePage extends StatelessWidget {
@@ -26,7 +27,7 @@ class ProfilePage extends StatelessWidget {
               final navigator = Navigator.of(context);
               navigator.pop();
               await TokenStorage.clearToken();
-              currentUser = null;
+              setCurrentUser(null);
               navigator.pushReplacement(
                 MaterialPageRoute(builder: (context) => const TokenInputApp()),
               );

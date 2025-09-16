@@ -8,6 +8,7 @@ import 'chat_home_page.dart';
 import '../theme.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_toast.dart';
+import '../models/current_user_state.dart';
 
 class TokenInputApp extends StatelessWidget {
   const TokenInputApp({super.key, this.autoLoggedOut = false});
@@ -146,9 +147,9 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
       final jsonData = jsonDecode(urlDecodedString);
 
       // Create User object
-      currentUser = User.fromJson(jsonData);
+      setCurrentUser(User.fromJson(jsonData));
     } catch (e) {
-      currentUser = null;
+      setCurrentUser(null);
     }
   }
 

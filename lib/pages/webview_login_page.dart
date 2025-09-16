@@ -10,6 +10,7 @@ import '../widgets/connectivity_banner.dart';
 import 'token_input_page.dart';
 import 'chat_home_page.dart';
 import 'dart:developer' as developer;
+import '../models/current_user_state.dart';
 
 class WebViewLoginScreen extends StatefulWidget {
   const WebViewLoginScreen({super.key});
@@ -441,7 +442,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
       try {
         developer.log('🔄 Attempting JSON parse...', name: 'WebViewLogin');
         final jsonData = jsonDecode(processedToken);
-        currentUser = User.fromJson(jsonData);
+        setCurrentUser(User.fromJson(jsonData));
         developer.log(
           '✅ JSON parse successful! User created',
           name: 'WebViewLogin',
@@ -458,7 +459,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
         // If it's not JSON, it might be the raw token
         try {
           final jsonData = jsonDecode(tokenData);
-          currentUser = User.fromJson(jsonData);
+          setCurrentUser(User.fromJson(jsonData));
           await TokenStorage.saveToken(tokenData);
           developer.log(
             '✅ Raw token JSON parse successful!',
