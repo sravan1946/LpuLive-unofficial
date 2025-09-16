@@ -88,11 +88,11 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       final seenNames = <String>{};
 
       for (final group in currentUser!.groups) {
-        final courseMatch = RegExp(
-          r'^([A-Z]+\d+)\s*-\s*([A-Z]+\d+)$',
-        ).firstMatch(group.name);
-        if (courseMatch != null && !seenNames.contains(group.name)) {
-          final courseCode = courseMatch.group(1)!;
+        final isUni = !group.isTwoWay && !group.isOneToOne;
+        if (isUni && !seenNames.contains(group.name)) {
+          // Try to extract a course code prefix if present for display; fallback to name
+          final codeMatch = RegExp(r'^[A-Z]+\d+').firstMatch(group.name);
+          final courseCode = codeMatch?.group(0) ?? group.name;
           final courseGroup = CourseGroup(
             courseName: group.name,
             courseCode: courseCode,

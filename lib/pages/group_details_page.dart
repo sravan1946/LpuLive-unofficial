@@ -197,7 +197,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               color: scheme.error,
               onPressed: _confirmAndDeleteGroup,
             ),
-          if (!_isCurrentUserAdminOfGroup())
+          if (!_isCurrentUserAdminOfGroup() && !_isUniversityGroup())
             IconButton(
               tooltip: 'Leave Group',
               icon: const Icon(Icons.exit_to_app),
@@ -382,6 +382,16 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     } catch (_) {
       return false;
     }
+  }
+
+  bool _isUniversityGroup() {
+    // Prefer flags from current user groups when available
+    try {
+      final g = currentUser?.groups.firstWhere((x) => x.name == widget.groupName);
+      if (g != null) return g.isUniversityGroup;
+    } catch (_) {}
+    // If group not found, default to uni (safer default for destructive UI)
+    return true;
   }
 
   Future<void> _confirmAndDeleteGroup() async {

@@ -121,4 +121,9 @@ class Group {
       'isOneToOne': isOneToOne,
     };
   }
+
+  /// Categorization helpers derived from flags
+  bool get isUniversityGroup => !isTwoWay && !isOneToOne;
+  bool get isPersonalGroup => isTwoWay && !isOneToOne;
+  bool get isDirectMessage => isTwoWay && isOneToOne;
 }
