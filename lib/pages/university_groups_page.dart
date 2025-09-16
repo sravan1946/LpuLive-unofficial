@@ -197,7 +197,8 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
 
   String _formatTimestamp(String timestamp) {
     try {
-      final dateTime = DateTime.parse(timestamp);
+      final dateTime = TimestampUtils.parseTimestamp(timestamp);
+      if (dateTime == null) return timestamp;
       final now = DateTime.now();
       final difference = now.difference(dateTime);
 

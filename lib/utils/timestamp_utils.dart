@@ -19,10 +19,17 @@ class TimestampUtils {
     return _parseHumanReadableTimestamp(trimmed);
   }
 
-  /// Parses human-readable timestamp formats like "Today 11:05 AM", "Yesterday 07:55 PM", etc.
+  /// Parses human-readable timestamp formats like "Today 11:05 AM", "Yesterday 07:55 PM",
+  /// weekday names (full and abbreviated), or time-only like "5:55 PM".
   static DateTime? _parseHumanReadableTimestamp(String timestamp) {
     final now = DateTime.now();
     final lowerTimestamp = timestamp.toLowerCase();
+
+    // Time-only: e.g., "5:55 PM" or "5:55pm" (assume today)
+    final timeOnly = _parseTimeString(timestamp);
+    if (timeOnly != null) {
+      return DateTime(now.year, now.month, now.day, timeOnly.hour, timeOnly.minute);
+    }
 
     // Handle "Today" format: "Today 11:05 AM"
     if (lowerTimestamp.startsWith('today')) {
@@ -49,38 +56,42 @@ class TimestampUtils {
       }
     }
 
-    // Handle day names: "Tuesday 11:05 AM", "Monday 09:15 AM", etc.
+    // Handle day names: "Tuesday 11:05 AM", "Mon 09:15 AM", etc.
     final dayNames = [
-      'monday',
-      'tuesday',
-      'wednesday',
-      'thursday',
-      'friday',
-      'saturday',
-      'sunday',
+      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
     ];
+    final dayAbbr = [
+      'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'
+    ];
+
+    // Full names
     for (int i = 0; i < dayNames.length; i++) {
       if (lowerTimestamp.startsWith(dayNames[i])) {
         final timePart = timestamp.substring(dayNames[i].length).trim();
         final time = _parseTimeString(timePart);
         if (time != null) {
-          // Calculate which day of the week this refers to
-          final targetWeekday = i + 1; // Monday = 1, Sunday = 7
-          final currentWeekday = now.weekday; // Monday = 1, Sunday = 7
-
+          final targetWeekday = i + 1; // Monday = 1
+          final currentWeekday = now.weekday; // Monday = 1
           int daysToSubtract = currentWeekday - targetWeekday;
-          if (daysToSubtract < 0) {
-            daysToSubtract += 7; // Go back to previous week
-          }
-
+          if (daysToSubtract < 0) daysToSubtract += 7; // previous week
           final targetDate = now.subtract(Duration(days: daysToSubtract));
-          return DateTime(
-            targetDate.year,
-            targetDate.month,
-            targetDate.day,
-            time.hour,
-            time.minute,
-          );
+          return DateTime(targetDate.year, targetDate.month, targetDate.day, time.hour, time.minute);
+        }
+      }
+    }
+
+    // Abbreviations
+    for (int i = 0; i < dayAbbr.length; i++) {
+      if (lowerTimestamp.startsWith(dayAbbr[i])) {
+        final timePart = timestamp.substring(dayAbbr[i].length).trim();
+        final time = _parseTimeString(timePart);
+        if (time != null) {
+          final targetWeekday = i + 1; // Monday = 1
+          final currentWeekday = now.weekday; // Monday = 1
+          int daysToSubtract = currentWeekday - targetWeekday;
+          if (daysToSubtract < 0) daysToSubtract += 7;
+          final targetDate = now.subtract(Duration(days: daysToSubtract));
+          return DateTime(targetDate.year, targetDate.month, targetDate.day, time.hour, time.minute);
         }
       }
     }
@@ -90,7 +101,7 @@ class TimestampUtils {
 
   /// Parses time strings in 12-hour format with AM/PM (e.g., "11:05 AM", "3:30 PM")
   static DateTime? _parseTimeString(String timeString) {
-    // Parse time formats like "11:05 AM", "07:55 PM", "3:30 PM", etc.
+    // Parse time formats like "11:05 AM", "07:55 PM", "3:30 PM", also without space before AM/PM
     final timeRegex = RegExp(
       r'^(\d{1,2}):(\d{2})\s*(AM|PM)$',
       caseSensitive: false,
@@ -110,13 +121,7 @@ class TimestampUtils {
       }
 
       if (hour24 >= 0 && hour24 <= 23 && minute >= 0 && minute <= 59) {
-        return DateTime(
-          0,
-          1,
-          1,
-          hour24,
-          minute,
-        ); // Year/month/day don't matter for time-only
+        return DateTime(0, 1, 1, hour24, minute); // placeholder date
       }
     }
 
