@@ -1,11 +1,18 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../services/message_status_service.dart';
 import '../widgets/app_toast.dart';
 
 class ChatData {
-  static void stabilizeScrollPosition(ScrollController scrollController, int attemptsRemaining, double targetPosition) {
+  static void stabilizeScrollPosition(
+    ScrollController scrollController,
+    int attemptsRemaining,
+    double targetPosition,
+  ) {
     if (attemptsRemaining <= 0) return;
     if (!scrollController.hasClients) return;
     try {
@@ -16,7 +23,11 @@ class ChatData {
         ),
       );
       Future.delayed(const Duration(milliseconds: 50), () {
-        stabilizeScrollPosition(scrollController, attemptsRemaining - 1, targetPosition);
+        stabilizeScrollPosition(
+          scrollController,
+          attemptsRemaining - 1,
+          targetPosition,
+        );
       });
     } catch (_) {
       // ignore failures from jumpTo when controller is not ready
@@ -35,7 +46,7 @@ class ChatData {
   ) async {
     if (currentUser == null) return;
     setIsLoading(true);
-    
+
     try {
       final page = 1;
       final loaded = await apiService.fetchChatMessages(
@@ -43,7 +54,7 @@ class ChatData {
         currentUser!.chatToken,
         page: page,
       );
-      
+
       setMessages(loaded);
       setIsLoading(false);
       // Initialize status for loaded messages
@@ -96,7 +107,7 @@ class ChatData {
   ) async {
     if (currentUser == null) return;
     setIsLoadingMore(true);
-    
+
     try {
       // For reversed list, record current scroll position to maintain it
       final double currentScrollPosition = scrollController.hasClients
@@ -109,13 +120,13 @@ class ChatData {
         currentUser!.chatToken,
         page: nextPage,
       );
-      
+
       if (older.isNotEmpty) {
         // older list is ascending; ensure combined stays ascending
         setMessages([...older, ...messages]);
         setCurrentPage(nextPage);
         statusService.initializeStatuses([...older, ...messages]);
-        
+
         // For reversed list, maintain the same scroll position after prepending
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!scrollController.hasClients) return;

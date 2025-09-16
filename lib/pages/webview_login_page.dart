@@ -1,16 +1,23 @@
-import 'package:flutter/material.dart';
+// Dart imports:
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:math';
+
+// Flutter imports:
+import 'package:flutter/material.dart';
+
+// Package imports:
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+
+// Project imports:
+import '../models/current_user_state.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../services/connectivity_service.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import '../widgets/connectivity_banner.dart';
-import 'token_input_page.dart';
 import 'chat_home_page.dart';
-import 'dart:developer' as developer;
-import '../models/current_user_state.dart';
+import 'token_input_page.dart';
 
 class WebViewLoginScreen extends StatefulWidget {
   const WebViewLoginScreen({super.key});
@@ -84,12 +91,14 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Check connectivity first
     _checkConnectivity();
-    
+
     // Listen for connectivity changes
-    _connectivityService.connectivityStream.listen((List<ConnectivityResult> results) {
+    _connectivityService.connectivityStream.listen((
+      List<ConnectivityResult> results,
+    ) {
       if (results.isNotEmpty && results.first != ConnectivityResult.none) {
         // Internet might be back, check again
         _checkConnectivity();
@@ -109,139 +118,139 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
       if (_controller == null) {
         throw Exception('Failed to create WebView controller');
       }
-      
+
       _controller!.setJavaScriptMode(JavaScriptMode.unrestricted);
       _controller!.setNavigationDelegate(
         NavigationDelegate(
-            onPageStarted: (String url) async {
-              setState(() {
-                _isLoading = true;
-                _errorMessage = null;
-              });
-            },
-            onPageFinished: (String url) async {
-              // If we're in redirecting mode, don't change the loading state
-              if (!_isRedirecting && _controller != null) {
-                setState(() {
-                  _isLoading = false;
-                });
-              }
-
-              // Wait a bit for the page to be fully ready
-              await Future.delayed(const Duration(milliseconds: 500));
-
-              // Check if we've been redirected to /chat (more flexible detection)
-              bool isChatUrl =
-                  url.contains('/chat') ||
-                  url.contains('chat') ||
-                  url.endsWith('/chat') ||
-                  url.contains('Chat') ||
-                  url.contains('CHAT');
-
-              if (isChatUrl && !_isRedirecting) {
-                setState(() {
-                  _isRedirecting = true;
-                  _isLoading = false;
-                  _errorMessage = null;
-                });
-
-                if (!_isMonitoring) {
-                  _isMonitoring = true;
-                  _checkAttempts = 0; // Reset attempts counter
-                  // Wait a bit more before starting monitoring
-                  await Future.delayed(const Duration(milliseconds: 1000));
-                  await _checkForAuthData();
-                }
-              } else if (!isChatUrl && _isRedirecting) {
-                setState(() {
-                  _isRedirecting = false;
-                  _isMonitoring = false;
-                  _checkAttempts = 0;
-                });
-              } else {
-                if (_isMonitoring && !isChatUrl) {
-                  _isMonitoring = false;
-                  _checkAttempts = 0; // Reset attempts counter
-                }
-              }
-            },
-            onWebResourceError: (WebResourceError error) {
+          onPageStarted: (String url) async {
+            setState(() {
+              _isLoading = true;
+              _errorMessage = null;
+            });
+          },
+          onPageFinished: (String url) async {
+            // If we're in redirecting mode, don't change the loading state
+            if (!_isRedirecting && _controller != null) {
               setState(() {
                 _isLoading = false;
-                // Only show error for critical failures, not network timeouts or minor issues
-                if (error.errorCode == -2 || error.errorCode == -1009) {
-                  // Network error - let connectivity service handle it
-                  return;
-                } else if (error.errorCode == -1001) {
-                  // Timeout - don't show error, just keep loading
-                  return;
-                } else {
-                  _errorMessage = 'Failed to load page: ${error.description}';
-                }
               });
-            },
-            onNavigationRequest: (NavigationRequest request) {
-              // Check if URL contains /chat (more robust detection)
-              bool isChatUrl =
-                  request.url.contains('/chat') ||
-                  request.url.contains('chat') ||
-                  request.url.endsWith('/chat') ||
-                  request.url.contains('Chat') ||
-                  request.url.contains('CHAT');
+            }
 
-              if (isChatUrl) {
-                setState(() {
-                  _isRedirecting = true;
-                  _isLoading = false;
-                  _errorMessage = null;
+            // Wait a bit for the page to be fully ready
+            await Future.delayed(const Duration(milliseconds: 500));
+
+            // Check if we've been redirected to /chat (more flexible detection)
+            bool isChatUrl =
+                url.contains('/chat') ||
+                url.contains('chat') ||
+                url.endsWith('/chat') ||
+                url.contains('Chat') ||
+                url.contains('CHAT');
+
+            if (isChatUrl && !_isRedirecting) {
+              setState(() {
+                _isRedirecting = true;
+                _isLoading = false;
+                _errorMessage = null;
+              });
+
+              if (!_isMonitoring) {
+                _isMonitoring = true;
+                _checkAttempts = 0; // Reset attempts counter
+                // Wait a bit more before starting monitoring
+                await Future.delayed(const Duration(milliseconds: 1000));
+                await _checkForAuthData();
+              }
+            } else if (!isChatUrl && _isRedirecting) {
+              setState(() {
+                _isRedirecting = false;
+                _isMonitoring = false;
+                _checkAttempts = 0;
+              });
+            } else {
+              if (_isMonitoring && !isChatUrl) {
+                _isMonitoring = false;
+                _checkAttempts = 0; // Reset attempts counter
+              }
+            }
+          },
+          onWebResourceError: (WebResourceError error) {
+            setState(() {
+              _isLoading = false;
+              // Only show error for critical failures, not network timeouts or minor issues
+              if (error.errorCode == -2 || error.errorCode == -1009) {
+                // Network error - let connectivity service handle it
+                return;
+              } else if (error.errorCode == -1001) {
+                // Timeout - don't show error, just keep loading
+                return;
+              } else {
+                _errorMessage = 'Failed to load page: ${error.description}';
+              }
+            });
+          },
+          onNavigationRequest: (NavigationRequest request) {
+            // Check if URL contains /chat (more robust detection)
+            bool isChatUrl =
+                request.url.contains('/chat') ||
+                request.url.contains('chat') ||
+                request.url.endsWith('/chat') ||
+                request.url.contains('Chat') ||
+                request.url.contains('CHAT');
+
+            if (isChatUrl) {
+              setState(() {
+                _isRedirecting = true;
+                _isLoading = false;
+                _errorMessage = null;
+              });
+
+              // Start monitoring for auth data
+              if (!_isMonitoring) {
+                _isMonitoring = true;
+                _checkAttempts = 0;
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  if (mounted) {
+                    _checkForAuthData();
+                  }
                 });
-
-                // Start monitoring for auth data
-                if (!_isMonitoring) {
-                  _isMonitoring = true;
-                  _checkAttempts = 0;
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (mounted) {
-                      _checkForAuthData();
-                    }
-                  });
-                }
-
-                return NavigationDecision.navigate;
               }
 
-              // Allow navigation to lpulive.lpu.in and its subdomains
-              if (request.url.startsWith('https://lpulive.lpu.in')) {
-                return NavigationDecision.navigate;
-              }
-              return NavigationDecision.prevent;
-            },
-            onUrlChange: (UrlChange change) {
-              // Also check for /chat URLs in URL changes (for JavaScript redirects)
-              if (change.url != null &&
-                  (change.url!.contains('/chat') ||
-                      change.url!.contains('chat'))) {
-                setState(() {
-                  _isRedirecting = true;
-                  _isLoading = false;
-                  _errorMessage = null;
+              return NavigationDecision.navigate;
+            }
+
+            // Allow navigation to lpulive.lpu.in and its subdomains
+            if (request.url.startsWith('https://lpulive.lpu.in')) {
+              return NavigationDecision.navigate;
+            }
+            return NavigationDecision.prevent;
+          },
+          onUrlChange: (UrlChange change) {
+            // Also check for /chat URLs in URL changes (for JavaScript redirects)
+            if (change.url != null &&
+                (change.url!.contains('/chat') ||
+                    change.url!.contains('chat'))) {
+              setState(() {
+                _isRedirecting = true;
+                _isLoading = false;
+                _errorMessage = null;
+              });
+
+              // Start monitoring for auth data
+              if (!_isMonitoring) {
+                _isMonitoring = true;
+                _checkAttempts = 0;
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  if (mounted) {
+                    _checkForAuthData();
+                  }
                 });
-
-                // Start monitoring for auth data
-                if (!_isMonitoring) {
-                  _isMonitoring = true;
-                  _checkAttempts = 0;
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (mounted) {
-                      _checkForAuthData();
-                    }
-                  });
-                }
               }
-            },
-          ),
-        );
-      
+            }
+          },
+        ),
+      );
+
       // Load the login page after a short delay to ensure WebView is ready
       if (_controller != null) {
         Future.delayed(const Duration(milliseconds: 100), () {
@@ -515,158 +524,158 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
       body: ConnectivityBanner(
         child: Stack(
           children: [
-          // Show no internet message when there's no connectivity
-          if (!_hasInternetConnection)
-            Container(
-              color: Colors.grey.shade100,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.wifi_off,
-                      size: 64,
-                      color: Colors.grey.shade600,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No Internet Connection',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Please check your network connection and try again.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            // Show no internet message when there's no connectivity
+            if (!_hasInternetConnection)
+              Container(
+                color: Colors.grey.shade100,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.wifi_off,
+                        size: 64,
                         color: Colors.grey.shade600,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        _checkConnectivity();
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          // Show error message when there's an error (but not network error)
-          else if (_errorMessage != null && _hasInternetConnection)
-            Container(
-              color: Colors.grey.shade100,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: Colors.orange.shade600,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Login Error',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.orange.shade700,
+                      const SizedBox(height: 16),
+                      Text(
+                        'No Internet Connection',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(color: Colors.grey.shade700),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        _errorMessage!,
+                      const SizedBox(height: 8),
+                      Text(
+                        'Please check your network connection and try again.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.orange.shade600,
+                          color: Colors.grey.shade600,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _errorMessage = null;
-                            });
-                            if (_controller != null) {
-                              _controller!.reload();
-                            }
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _checkConnectivity();
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            // Show error message when there's an error (but not network error)
+            else if (_errorMessage != null && _hasInternetConnection)
+              Container(
+                color: Colors.grey.shade100,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.orange.shade600,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Login Error',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(color: Colors.orange.shade700),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          _errorMessage!,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.orange.shade600),
+                          textAlign: TextAlign.center,
                         ),
-                        const SizedBox(width: 16),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(builder: (context) => const TokenInputApp()),
-                            );
-                          },
-                          icon: const Icon(Icons.arrow_back),
-                          label: const Text('Back'),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _errorMessage = null;
+                              });
+                              if (_controller != null) {
+                                _controller!.reload();
+                              }
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                          ),
+                          const SizedBox(width: 16),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (context) => const TokenInputApp(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.arrow_back),
+                            label: const Text('Back'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            // Only show WebView when not redirecting and has internet and no errors
+            else if (!_isRedirecting &&
+                _controller != null &&
+                _errorMessage == null)
+              WebViewWidget(controller: _controller!)
+            else ...[
+              // Show redirecting screen and keep WebView running invisibly
+              Container(
+                color: Colors.white,
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Redirecting...'),
+                      SizedBox(height: 8),
+                      Text(
+                        'Collecting authentication data...',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            )
-          // Only show WebView when not redirecting and has internet and no errors
-          else if (!_isRedirecting && _controller != null && _errorMessage == null)
-            WebViewWidget(controller: _controller!)
-          else ...[
-            // Show redirecting screen and keep WebView running invisibly
-            Container(
-              color: Colors.white,
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Redirecting...'),
-                    SizedBox(height: 8),
-                    Text(
-                      'Collecting authentication data...',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                  ],
+              // Keep WebView running invisibly to collect auth data
+              Opacity(
+                opacity: 0.0,
+                child: IgnorePointer(
+                  child: _controller != null
+                      ? WebViewWidget(controller: _controller!)
+                      : Container(),
                 ),
               ),
-            ),
-            // Keep WebView running invisibly to collect auth data
-            Opacity(
-              opacity: 0.0,
-              child: IgnorePointer(
-                child: _controller != null
-                    ? WebViewWidget(controller: _controller!)
-                    : Container(),
+            ],
+            if (_isLoading && !_isRedirecting)
+              Container(
+                color: Colors.white,
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Loading login page...'),
+                    ],
+                  ),
+                ),
               ),
-            ),
           ],
-          if (_isLoading && !_isRedirecting)
-            Container(
-              color: Colors.white,
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Loading login page...'),
-                  ],
-                ),
-              ),
-            ),
-
-        ],
         ),
       ),
     );

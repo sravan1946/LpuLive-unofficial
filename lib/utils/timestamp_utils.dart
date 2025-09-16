@@ -28,7 +28,13 @@ class TimestampUtils {
     // Time-only: e.g., "5:55 PM" or "5:55pm" (assume today)
     final timeOnly = _parseTimeString(timestamp);
     if (timeOnly != null) {
-      return DateTime(now.year, now.month, now.day, timeOnly.hour, timeOnly.minute);
+      return DateTime(
+        now.year,
+        now.month,
+        now.day,
+        timeOnly.hour,
+        timeOnly.minute,
+      );
     }
 
     // Handle "Today" format: "Today 11:05 AM"
@@ -58,11 +64,15 @@ class TimestampUtils {
 
     // Handle day names: "Tuesday 11:05 AM", "Mon 09:15 AM", etc.
     final dayNames = [
-      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
     ];
-    final dayAbbr = [
-      'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'
-    ];
+    final dayAbbr = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
     // Full names
     for (int i = 0; i < dayNames.length; i++) {
@@ -75,7 +85,13 @@ class TimestampUtils {
           int daysToSubtract = currentWeekday - targetWeekday;
           if (daysToSubtract < 0) daysToSubtract += 7; // previous week
           final targetDate = now.subtract(Duration(days: daysToSubtract));
-          return DateTime(targetDate.year, targetDate.month, targetDate.day, time.hour, time.minute);
+          return DateTime(
+            targetDate.year,
+            targetDate.month,
+            targetDate.day,
+            time.hour,
+            time.minute,
+          );
         }
       }
     }
@@ -91,7 +107,13 @@ class TimestampUtils {
           int daysToSubtract = currentWeekday - targetWeekday;
           if (daysToSubtract < 0) daysToSubtract += 7;
           final targetDate = now.subtract(Duration(days: daysToSubtract));
-          return DateTime(targetDate.year, targetDate.month, targetDate.day, time.hour, time.minute);
+          return DateTime(
+            targetDate.year,
+            targetDate.month,
+            targetDate.day,
+            time.hour,
+            time.minute,
+          );
         }
       }
     }

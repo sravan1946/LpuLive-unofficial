@@ -1,4 +1,6 @@
 // Group listing item with last message metadata and flags.
+
+// Flutter imports:
 import 'package:flutter/foundation.dart';
 
 class Group {
@@ -65,7 +67,7 @@ class Group {
       array = paddedArray;
       debugPrint('🔍 [Group.fromArray] Padded array to length 8: $array');
     }
-    
+
     try {
       final group = Group(
         name: array[0]?.toString() ?? '',
@@ -77,7 +79,9 @@ class Group {
         isTwoWay: array[6] == true,
         isOneToOne: array[7] == true,
       );
-      debugPrint('🔍 [Group.fromArray] Created group successfully: ${group.name}');
+      debugPrint(
+        '🔍 [Group.fromArray] Created group successfully: ${group.name}',
+      );
       return group;
     } catch (e) {
       debugPrint('❌ [Group.fromArray] Error creating group: $e');

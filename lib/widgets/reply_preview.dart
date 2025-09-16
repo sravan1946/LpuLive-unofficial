@@ -1,4 +1,7 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
 import '../models/chat_message_model.dart';
 
 class ReplyPreview extends StatelessWidget {

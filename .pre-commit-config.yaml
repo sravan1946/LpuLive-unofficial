@@ -1,8 +1,44 @@
 repos:
+  # General code quality hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+        description: Remove trailing whitespace
+        types: [text]
+        files: ^lib/.*$
+      - id: end-of-file-fixer
+        name: Fix End of Files
+        description: Ensure files end with a newline
+        types: [text]
+        files: ^lib/.*$
+      - id: check-yaml
+        name: Check YAML syntax
+        description: Check YAML files for syntax errors
+        types: [yaml]
+        files: ^lib/.*\.yaml$|^lib/.*\.yml$
+
+  # Flutter/Dart specific checks
   - repo: local
     hooks:
+      - id: dart-format
+        name: Dart formatter
+        entry: dart format --set-exit-if-changed
+        language: system
+        types: [dart]
+        files: ^lib/.*\.dart$
+
+      - id: dart-import-sort
+        name: Dart import sorter
+        entry: bash scripts/sort_imports.sh
+        language: system
+        types: [dart]
+        files: ^lib/.*\.dart$
+
       - id: bump-flutter-version
         name: Bump Flutter pubspec version
         entry: bash scripts/bump_version.sh
         language: system
         pass_filenames: false
+        files: ^pubspec\.yaml$

@@ -1,3 +1,4 @@
+// Project imports:
 import '../models/user_models.dart';
 
 class ChatUtils {
@@ -42,7 +43,10 @@ class ChatUtils {
   }
 
   // In ascending _messages list, determine whether to show a date header before index
-  static bool shouldShowDateHeaderBefore(List<ChatMessage> messages, int index) {
+  static bool shouldShowDateHeaderBefore(
+    List<ChatMessage> messages,
+    int index,
+  ) {
     if (messages.isEmpty) return false;
     if (index <= 0) return true; // show header before the first item
     final prevTs = messages[index - 1].timestamp;
@@ -51,7 +55,10 @@ class ChatUtils {
   }
 
   // Determine where to show the unread divider based on last read timestamp
-  static int? unreadDividerIndex(List<ChatMessage> messages, DateTime? lastReadAt) {
+  static int? unreadDividerIndex(
+    List<ChatMessage> messages,
+    DateTime? lastReadAt,
+  ) {
     if (lastReadAt == null || messages.isEmpty) return null;
     // Find first message strictly newer than lastRead
     for (int i = 0; i < messages.length; i++) {

@@ -1,22 +1,27 @@
+// Dart imports:
+import 'dart:async';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
-import '../models/user_models.dart';
+
+// Project imports:
+import '../models/current_user_state.dart';
 import '../models/message_status.dart';
+import '../models/user_models.dart';
+import '../services/chat_data.dart';
+import '../services/chat_handlers.dart';
 import '../services/chat_services.dart';
 import '../services/message_status_service.dart';
-import '../widgets/network_image.dart';
 import '../services/read_tracker.dart';
-import '../widgets/reply_preview.dart';
-import '../widgets/message_status_icon.dart';
-import '../utils/sender_name_utils.dart';
-import '../widgets/chat_widgets.dart';
 import '../utils/chat_utils.dart';
-import '../services/chat_handlers.dart';
-import '../services/chat_data.dart';
+import '../utils/sender_name_utils.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/chat_widgets.dart';
+import '../widgets/message_status_icon.dart';
+import '../widgets/network_image.dart';
+import '../widgets/reply_preview.dart';
 import 'group_details_page.dart';
-import '../models/current_user_state.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -47,7 +52,6 @@ class _ChatPageState extends State<ChatPage> {
   bool _hasReachedTop = false;
   // Removed direction tracking; reversed list uses extentAfter for top detection
 
-
   DateTime? _lastReadAt;
   bool _isLoading = false;
   bool _isSending = false;
@@ -56,7 +60,6 @@ class _ChatPageState extends State<ChatPage> {
   // Reply state
   ChatMessage? _replyingTo;
   // No backend normalization here; media URLs from messages are already normalized in ChatMessage.fromJson
-
 
   @override
   void initState() {
@@ -183,14 +186,6 @@ class _ChatPageState extends State<ChatPage> {
 
   // Auto-scrolling disabled to avoid jank; the list renders from the bottom using reverse: true
 
-
-
-
-
-
-
-
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -298,9 +293,12 @@ class _ChatPageState extends State<ChatPage> {
                                 _currentPage,
                                 (page) => setState(() => _currentPage = page),
                                 _messages,
-                                (messages) => setState(() => _messages = messages),
-                                (loading) => setState(() => _isLoadingMore = loading),
-                                (reached) => setState(() => _hasReachedTop = reached),
+                                (messages) =>
+                                    setState(() => _messages = messages),
+                                (loading) =>
+                                    setState(() => _isLoadingMore = loading),
+                                (reached) =>
+                                    setState(() => _hasReachedTop = reached),
                                 _statusService,
                               );
                             }
@@ -323,7 +321,11 @@ class _ChatPageState extends State<ChatPage> {
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
                                       // When reversed, adjust divider placement and message index mapping
-                                      final dividerAt = ChatUtils.unreadDividerIndex(_messages, _lastReadAt);
+                                      final dividerAt =
+                                          ChatUtils.unreadDividerIndex(
+                                            _messages,
+                                            _lastReadAt,
+                                          );
                                       if (dividerAt != null &&
                                           index ==
                                               (_messages.length - dividerAt)) {
@@ -418,44 +420,91 @@ class _ChatPageState extends State<ChatPage> {
                                               child: SwipeToReplyMessage(
                                                 message: message,
                                                 isReadOnly: widget.isReadOnly,
-                                                onReply: () => ChatHandlers.replyToMessage(
-                                                  context,
-                                                  message,
-                                                  (replyingTo) => setState(() => _replyingTo = replyingTo),
-                                                  _messageController,
-                                                ),
+                                                onReply: () =>
+                                                    ChatHandlers.replyToMessage(
+                                                      context,
+                                                      message,
+                                                      (replyingTo) => setState(
+                                                        () => _replyingTo =
+                                                            replyingTo,
+                                                      ),
+                                                      _messageController,
+                                                    ),
                                                 onLongPress: () {
                                                   HapticFeedback.mediumImpact();
-                                                  final isAdmin = (currentUser?.groups.firstWhere(
-                                                    (g) => g.name == widget.groupId,
-                                                    orElse: () => Group(
-                                                      name: widget.groupId,
-                                                      groupLastMessage: '',
-                                                      lastMessageTime: '',
-                                                      isActive: true,
-                                                      isAdmin: false,
-                                                      inviteStatus: '',
-                                                      isTwoWay: false,
-                                                      isOneToOne: false,
-                                                    ),
-                                                  ).isAdmin) == true;
+                                                  final isAdmin =
+                                                      (currentUser?.groups
+                                                          .firstWhere(
+                                                            (g) =>
+                                                                g.name ==
+                                                                widget.groupId,
+                                                            orElse: () => Group(
+                                                              name: widget
+                                                                  .groupId,
+                                                              groupLastMessage:
+                                                                  '',
+                                                              lastMessageTime:
+                                                                  '',
+                                                              isActive: true,
+                                                              isAdmin: false,
+                                                              inviteStatus: '',
+                                                              isTwoWay: false,
+                                                              isOneToOne: false,
+                                                            ),
+                                                          )
+                                                          .isAdmin) ==
+                                                      true;
                                                   ChatHandlers.showMessageOptions(
                                                     context,
                                                     message,
                                                     widget.isReadOnly,
-                                                    (msg) => ChatHandlers.replyToMessage(
-                                                      context,
-                                                      msg,
-                                                      (replyingTo) => setState(() => _replyingTo = replyingTo),
-                                                      _messageController,
+                                                    (msg) =>
+                                                        ChatHandlers.replyToMessage(
+                                                          context,
+                                                          msg,
+                                                          (
+                                                            replyingTo,
+                                                          ) => setState(
+                                                            () => _replyingTo =
+                                                                replyingTo,
+                                                          ),
+                                                          _messageController,
+                                                        ),
+                                                    (url, fileName) =>
+                                                        ChatHandlers.showPDFViewer(
+                                                          context,
+                                                          url,
+                                                          fileName,
+                                                        ),
+                                                    (
+                                                      url,
+                                                      fileName,
+                                                    ) => ChatHandlers.downloadPDFDirectly(
+                                                      url,
+                                                      fileName,
+                                                      (url) =>
+                                                          ChatHandlers.downloadMedia(
+                                                            context,
+                                                            url,
+                                                          ),
                                                     ),
-                                                    (url, fileName) => ChatHandlers.showPDFViewer(context, url, fileName),
-                                                    (url, fileName) => ChatHandlers.downloadPDFDirectly(url, fileName, (url) => ChatHandlers.downloadMedia(context, url)),
-                                                    (url) => ChatHandlers.downloadMedia(context, url),
-                                                    (msg) => ChatHandlers.copyMessageText(context, msg),
+                                                    (url) =>
+                                                        ChatHandlers.downloadMedia(
+                                                          context,
+                                                          url,
+                                                        ),
+                                                    (msg) =>
+                                                        ChatHandlers.copyMessageText(
+                                                          context,
+                                                          msg,
+                                                        ),
                                                     isAdmin: isAdmin,
                                                     onDelete: (msg) async {
-                                                      await ChatHandlers.deleteMessage(context, widget.wsService, msg);
+                                                      await ChatHandlers.deleteMessage(
+                                                        context,
+                                                        widget.wsService,
+                                                        msg,
+                                                      );
                                                     },
                                                   );
                                                 },
@@ -557,37 +606,92 @@ class _ChatPageState extends State<ChatPage> {
                                                               .isNotEmpty)
                                                         MediaBubble(
                                                           message: message,
-                                                          onImageTap:
-                                                              (url) => ChatHandlers.showFullScreenImage(context, url),
+                                                          onImageTap: (url) =>
+                                                              ChatHandlers.showFullScreenImage(
+                                                                context,
+                                                                url,
+                                                              ),
                                                           onMessageOptions: (ctx, msg) => ChatHandlers.showMessageOptions(
                                                             ctx,
                                                             msg,
                                                             widget.isReadOnly,
-                                                            (replyMsg) => ChatHandlers.replyToMessage(
+                                                            (
+                                                              replyMsg,
+                                                            ) => ChatHandlers.replyToMessage(
                                                               ctx,
                                                               replyMsg,
-                                                              (replyingTo) => setState(() => _replyingTo = replyingTo),
+                                                              (
+                                                                replyingTo,
+                                                              ) => setState(
+                                                                () => _replyingTo =
+                                                                    replyingTo,
+                                                              ),
                                                               _messageController,
                                                             ),
-                                                            (url, fileName) => ChatHandlers.showPDFViewer(ctx, url, fileName),
-                                                            (url, fileName) => ChatHandlers.downloadPDFDirectly(url, fileName, (url) => ChatHandlers.downloadMedia(ctx, url)),
-                                                            (url) => ChatHandlers.downloadMedia(ctx, url),
-                                                            (msg) => ChatHandlers.copyMessageText(ctx, msg),
-                                                            isAdmin: (currentUser?.groups.firstWhere(
-                                                              (g) => g.name == widget.groupId,
-                                                              orElse: () => Group(
-                                                                name: widget.groupId,
-                                                                groupLastMessage: '',
-                                                                lastMessageTime: '',
-                                                                isActive: true,
-                                                                isAdmin: false,
-                                                                inviteStatus: '',
-                                                                isTwoWay: false,
-                                                                isOneToOne: false,
-                                                              ),
-                                                            ).isAdmin) == true,
+                                                            (url, fileName) =>
+                                                                ChatHandlers.showPDFViewer(
+                                                                  ctx,
+                                                                  url,
+                                                                  fileName,
+                                                                ),
+                                                            (
+                                                              url,
+                                                              fileName,
+                                                            ) => ChatHandlers.downloadPDFDirectly(
+                                                              url,
+                                                              fileName,
+                                                              (url) =>
+                                                                  ChatHandlers.downloadMedia(
+                                                                    ctx,
+                                                                    url,
+                                                                  ),
+                                                            ),
+                                                            (url) =>
+                                                                ChatHandlers.downloadMedia(
+                                                                  ctx,
+                                                                  url,
+                                                                ),
+                                                            (msg) =>
+                                                                ChatHandlers.copyMessageText(
+                                                                  ctx,
+                                                                  msg,
+                                                                ),
+                                                            isAdmin:
+                                                                (currentUser
+                                                                    ?.groups
+                                                                    .firstWhere(
+                                                                      (g) =>
+                                                                          g.name ==
+                                                                          widget
+                                                                              .groupId,
+                                                                      orElse: () => Group(
+                                                                        name: widget
+                                                                            .groupId,
+                                                                        groupLastMessage:
+                                                                            '',
+                                                                        lastMessageTime:
+                                                                            '',
+                                                                        isActive:
+                                                                            true,
+                                                                        isAdmin:
+                                                                            false,
+                                                                        inviteStatus:
+                                                                            '',
+                                                                        isTwoWay:
+                                                                            false,
+                                                                        isOneToOne:
+                                                                            false,
+                                                                      ),
+                                                                    )
+                                                                    .isAdmin) ==
+                                                                true,
                                                             onDelete: (m) async {
-                                                              await ChatHandlers.deleteMessage(ctx, widget.wsService, m);
+                                                              await ChatHandlers.deleteMessage(
+                                                                ctx,
+                                                                widget
+                                                                    .wsService,
+                                                                m,
+                                                              );
                                                             },
                                                           ),
                                                         )
@@ -596,37 +700,92 @@ class _ChatPageState extends State<ChatPage> {
                                                           message: message,
                                                           isOwn: message
                                                               .isOwnMessage,
-                                                          onImageTap:
-                                                              (url) => ChatHandlers.showFullScreenImage(context, url),
+                                                          onImageTap: (url) =>
+                                                              ChatHandlers.showFullScreenImage(
+                                                                context,
+                                                                url,
+                                                              ),
                                                           onMessageOptions: (ctx, msg) => ChatHandlers.showMessageOptions(
                                                             ctx,
                                                             msg,
                                                             widget.isReadOnly,
-                                                            (replyMsg) => ChatHandlers.replyToMessage(
+                                                            (
+                                                              replyMsg,
+                                                            ) => ChatHandlers.replyToMessage(
                                                               ctx,
                                                               replyMsg,
-                                                              (replyingTo) => setState(() => _replyingTo = replyingTo),
+                                                              (
+                                                                replyingTo,
+                                                              ) => setState(
+                                                                () => _replyingTo =
+                                                                    replyingTo,
+                                                              ),
                                                               _messageController,
                                                             ),
-                                                            (url, fileName) => ChatHandlers.showPDFViewer(ctx, url, fileName),
-                                                            (url, fileName) => ChatHandlers.downloadPDFDirectly(url, fileName, (url) => ChatHandlers.downloadMedia(ctx, url)),
-                                                            (url) => ChatHandlers.downloadMedia(ctx, url),
-                                                            (msg) => ChatHandlers.copyMessageText(ctx, msg),
-                                                            isAdmin: (currentUser?.groups.firstWhere(
-                                                              (g) => g.name == widget.groupId,
-                                                              orElse: () => Group(
-                                                                name: widget.groupId,
-                                                                groupLastMessage: '',
-                                                                lastMessageTime: '',
-                                                                isActive: true,
-                                                                isAdmin: false,
-                                                                inviteStatus: '',
-                                                                isTwoWay: false,
-                                                                isOneToOne: false,
-                                                              ),
-                                                            ).isAdmin) == true,
+                                                            (url, fileName) =>
+                                                                ChatHandlers.showPDFViewer(
+                                                                  ctx,
+                                                                  url,
+                                                                  fileName,
+                                                                ),
+                                                            (
+                                                              url,
+                                                              fileName,
+                                                            ) => ChatHandlers.downloadPDFDirectly(
+                                                              url,
+                                                              fileName,
+                                                              (url) =>
+                                                                  ChatHandlers.downloadMedia(
+                                                                    ctx,
+                                                                    url,
+                                                                  ),
+                                                            ),
+                                                            (url) =>
+                                                                ChatHandlers.downloadMedia(
+                                                                  ctx,
+                                                                  url,
+                                                                ),
+                                                            (msg) =>
+                                                                ChatHandlers.copyMessageText(
+                                                                  ctx,
+                                                                  msg,
+                                                                ),
+                                                            isAdmin:
+                                                                (currentUser
+                                                                    ?.groups
+                                                                    .firstWhere(
+                                                                      (g) =>
+                                                                          g.name ==
+                                                                          widget
+                                                                              .groupId,
+                                                                      orElse: () => Group(
+                                                                        name: widget
+                                                                            .groupId,
+                                                                        groupLastMessage:
+                                                                            '',
+                                                                        lastMessageTime:
+                                                                            '',
+                                                                        isActive:
+                                                                            true,
+                                                                        isAdmin:
+                                                                            false,
+                                                                        inviteStatus:
+                                                                            '',
+                                                                        isTwoWay:
+                                                                            false,
+                                                                        isOneToOne:
+                                                                            false,
+                                                                      ),
+                                                                    )
+                                                                    .isAdmin) ==
+                                                                true,
                                                             onDelete: (m) async {
-                                                              await ChatHandlers.deleteMessage(ctx, widget.wsService, m);
+                                                              await ChatHandlers.deleteMessage(
+                                                                ctx,
+                                                                widget
+                                                                    .wsService,
+                                                                m,
+                                                              );
                                                             },
                                                           ),
                                                         ),
@@ -747,7 +906,13 @@ class _ChatPageState extends State<ChatPage> {
                                     },
                                     childCount:
                                         _messages.length +
-                                        (ChatUtils.unreadDividerIndex(_messages, _lastReadAt) == null ? 0 : 1),
+                                        (ChatUtils.unreadDividerIndex(
+                                                  _messages,
+                                                  _lastReadAt,
+                                                ) ==
+                                                null
+                                            ? 0
+                                            : 1),
                                   ),
                                 ),
                               ),
@@ -893,7 +1058,10 @@ class _ChatPageState extends State<ChatPage> {
                                 ),
                               ),
                               IconButton(
-                                onPressed: () => ChatHandlers.cancelReply((replyingTo) => setState(() => _replyingTo = replyingTo)),
+                                onPressed: () => ChatHandlers.cancelReply(
+                                  (replyingTo) =>
+                                      setState(() => _replyingTo = replyingTo),
+                                ),
                                 icon: Icon(
                                   Icons.close,
                                   color: scheme.onSurfaceVariant,
@@ -932,16 +1100,20 @@ class _ChatPageState extends State<ChatPage> {
                                   _messageController.text.trim(),
                                   widget.isReadOnly,
                                   _isSending,
-                                  (sending) => setState(() => _isSending = sending),
+                                  (sending) =>
+                                      setState(() => _isSending = sending),
                                   _replyingTo,
-                                  (replyingTo) => setState(() => _replyingTo = replyingTo),
+                                  (replyingTo) =>
+                                      setState(() => _replyingTo = replyingTo),
                                   widget.wsService,
                                   widget.groupId,
                                   _messages,
-                                  (messages) => setState(() => _messages = messages),
+                                  (messages) =>
+                                      setState(() => _messages = messages),
                                   _statusService,
                                   _messageController,
-                                  (lastReadAt) => setState(() => _lastReadAt = lastReadAt),
+                                  (lastReadAt) =>
+                                      setState(() => _lastReadAt = lastReadAt),
                                 ),
                               ),
                             ),
@@ -952,16 +1124,20 @@ class _ChatPageState extends State<ChatPage> {
                                 _messageController.text.trim(),
                                 widget.isReadOnly,
                                 _isSending,
-                                (sending) => setState(() => _isSending = sending),
+                                (sending) =>
+                                    setState(() => _isSending = sending),
                                 _replyingTo,
-                                (replyingTo) => setState(() => _replyingTo = replyingTo),
+                                (replyingTo) =>
+                                    setState(() => _replyingTo = replyingTo),
                                 widget.wsService,
                                 widget.groupId,
                                 _messages,
-                                (messages) => setState(() => _messages = messages),
+                                (messages) =>
+                                    setState(() => _messages = messages),
                                 _statusService,
                                 _messageController,
-                                (lastReadAt) => setState(() => _lastReadAt = lastReadAt),
+                                (lastReadAt) =>
+                                    setState(() => _lastReadAt = lastReadAt),
                               ),
                               child: Icon(
                                 Icons.send_rounded,
@@ -1029,4 +1205,3 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 }
-

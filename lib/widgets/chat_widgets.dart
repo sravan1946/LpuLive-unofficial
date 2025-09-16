@@ -1,16 +1,23 @@
+// Dart imports:
+import 'dart:async';
+import 'dart:io';
+import 'dart:ui';
+
+// Flutter imports:
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
-import 'dart:async';
-import '../models/user_models.dart';
-import '../widgets/network_image.dart';
-import 'package:flutter/gestures.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+// Package imports:
 import 'package:http/http.dart' as http;
-import 'dart:io';
-import 'package:photo_view/photo_view.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+// Project imports:
+import '../models/user_models.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/network_image.dart';
 
 class SwipeToReplyMessage extends StatefulWidget {
   final ChatMessage message;
@@ -36,7 +43,7 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
-  
+
   double _dragOffset = 0.0;
   bool _isDragging = false;
   static const double _swipeThreshold = 100.0;
@@ -49,14 +56,10 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
-    _slideAnimation = Tween<double>(
-      begin: 0.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+
+    _slideAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
   }
 
   @override
@@ -73,17 +76,20 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
 
   void _onPanUpdate(DragUpdateDetails details) {
     if (!_isDragging || widget.isReadOnly) return;
-    
+
     setState(() {
-      _dragOffset = (details.delta.dx + _dragOffset).clamp(0.0, _maxSwipeDistance);
+      _dragOffset = (details.delta.dx + _dragOffset).clamp(
+        0.0,
+        _maxSwipeDistance,
+      );
     });
   }
 
   void _onPanEnd(DragEndDetails details) {
     if (!_isDragging || widget.isReadOnly) return;
-    
+
     _isDragging = false;
-    
+
     if (_dragOffset > _swipeThreshold) {
       // Trigger reply
       HapticFeedback.lightImpact();
@@ -107,7 +113,7 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    
+
     return GestureDetector(
       onLongPressStart: (details) {
         HapticFeedback.mediumImpact();
@@ -131,11 +137,7 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
-                  child: Icon(
-                    Icons.reply,
-                    color: scheme.primary,
-                    size: 20,
-                  ),
+                  child: Icon(Icons.reply, color: scheme.primary, size: 20),
                 ),
               ),
             ),
@@ -398,7 +400,12 @@ class MessageBody extends StatelessWidget {
           ),
         );
       } else {
-        return DocumentTile(url: url, isOwn: isOwn, message: message, onMessageOptions: onMessageOptions);
+        return DocumentTile(
+          url: url,
+          isOwn: isOwn,
+          message: message,
+          onMessageOptions: onMessageOptions,
+        );
       }
     }
 
@@ -438,7 +445,12 @@ class MessageBody extends StatelessWidget {
         );
       }
       if (_isDocUrl(text)) {
-        return DocumentTile(url: text, isOwn: isOwn, message: message, onMessageOptions: onMessageOptions);
+        return DocumentTile(
+          url: text,
+          isOwn: isOwn,
+          message: message,
+          onMessageOptions: onMessageOptions,
+        );
       }
       // Generic link tile
       return InkWell(
@@ -511,7 +523,12 @@ class MediaBubble extends StatelessWidget {
   final ChatMessage message;
   final Function(String)? onImageTap;
   final Function(BuildContext, ChatMessage)? onMessageOptions;
-  const MediaBubble({super.key, required this.message, this.onImageTap, this.onMessageOptions});
+  const MediaBubble({
+    super.key,
+    required this.message,
+    this.onImageTap,
+    this.onMessageOptions,
+  });
 
   bool get _isImage => (message.mediaType ?? '').startsWith('image/');
 
@@ -551,15 +568,17 @@ class MediaBubble extends StatelessWidget {
     }
 
     // Generic document bubble
-    final isPDF = (message.mediaType ?? '').contains('pdf') || 
-                  url.toLowerCase().endsWith('.pdf') ||
-                  name.toLowerCase().endsWith('.pdf');
-    final isPowerPoint = url.toLowerCase().endsWith('.ppt') || 
-                        url.toLowerCase().endsWith('.pptx') ||
-                        name.toLowerCase().endsWith('.ppt') ||
-                        name.toLowerCase().endsWith('.pptx');
+    final isPDF =
+        (message.mediaType ?? '').contains('pdf') ||
+        url.toLowerCase().endsWith('.pdf') ||
+        name.toLowerCase().endsWith('.pdf');
+    final isPowerPoint =
+        url.toLowerCase().endsWith('.ppt') ||
+        url.toLowerCase().endsWith('.pptx') ||
+        name.toLowerCase().endsWith('.ppt') ||
+        name.toLowerCase().endsWith('.pptx');
     final canViewInApp = isPDF || isPowerPoint;
-    
+
     return InkWell(
       onTap: () => onMessageOptions?.call(context, message),
       onLongPress: () {
@@ -573,7 +592,7 @@ class MediaBubble extends StatelessWidget {
           color: scheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: canViewInApp 
+            color: canViewInApp
                 ? scheme.primary.withValues(alpha: 0.5)
                 : scheme.outline,
             width: canViewInApp ? 2 : 1,
@@ -584,11 +603,11 @@ class MediaBubble extends StatelessWidget {
             Stack(
               children: [
                 Icon(
-                  isPDF 
+                  isPDF
                       ? Icons.picture_as_pdf_outlined
                       : isPowerPoint
-                          ? Icons.slideshow_outlined
-                          : Icons.insert_drive_file_outlined,
+                      ? Icons.slideshow_outlined
+                      : Icons.insert_drive_file_outlined,
                   color: scheme.primary,
                 ),
                 if (canViewInApp)
@@ -601,10 +620,7 @@ class MediaBubble extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: scheme.primary,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: scheme.surface,
-                          width: 1,
-                        ),
+                        border: Border.all(color: scheme.surface, width: 1),
                       ),
                       child: Icon(
                         Icons.visibility,
@@ -627,7 +643,9 @@ class MediaBubble extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: scheme.onSurface,
-                      fontWeight: canViewInApp ? FontWeight.w500 : FontWeight.normal,
+                      fontWeight: canViewInApp
+                          ? FontWeight.w500
+                          : FontWeight.normal,
                     ),
                   ),
                   if (canViewInApp)
@@ -664,19 +682,26 @@ class DocumentTile extends StatelessWidget {
   final bool isOwn;
   final ChatMessage message;
   final Function(BuildContext, ChatMessage)? onMessageOptions;
-  const DocumentTile({super.key, required this.url, required this.isOwn, required this.message, this.onMessageOptions});
+  const DocumentTile({
+    super.key,
+    required this.url,
+    required this.isOwn,
+    required this.message,
+    this.onMessageOptions,
+  });
 
   bool _isPDF() {
     final fileName = message.mediaName ?? url.split('/').last;
-    return url.toLowerCase().endsWith('.pdf') || fileName.toLowerCase().endsWith('.pdf');
+    return url.toLowerCase().endsWith('.pdf') ||
+        fileName.toLowerCase().endsWith('.pdf');
   }
 
   bool _isPowerPoint() {
     final fileName = message.mediaName ?? url.split('/').last;
-    return url.toLowerCase().endsWith('.ppt') || 
-           url.toLowerCase().endsWith('.pptx') ||
-           fileName.toLowerCase().endsWith('.ppt') ||
-           fileName.toLowerCase().endsWith('.pptx');
+    return url.toLowerCase().endsWith('.ppt') ||
+        url.toLowerCase().endsWith('.pptx') ||
+        fileName.toLowerCase().endsWith('.ppt') ||
+        fileName.toLowerCase().endsWith('.pptx');
   }
 
   bool _canViewInApp() {
@@ -689,7 +714,7 @@ class DocumentTile extends StatelessWidget {
     final canViewInApp = _canViewInApp();
     final isPDF = _isPDF();
     final isPowerPoint = _isPowerPoint();
-    
+
     return InkWell(
       onTap: () => onMessageOptions?.call(context, message),
       onLongPress: () {
@@ -705,7 +730,7 @@ class DocumentTile extends StatelessWidget {
               : scheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: canViewInApp 
+            color: canViewInApp
                 ? scheme.primary.withValues(alpha: 0.5)
                 : scheme.outline,
             width: canViewInApp ? 2 : 1,
@@ -716,11 +741,11 @@ class DocumentTile extends StatelessWidget {
             Stack(
               children: [
                 Icon(
-                  isPDF 
+                  isPDF
                       ? Icons.picture_as_pdf_outlined
                       : isPowerPoint
-                          ? Icons.slideshow_outlined
-                          : Icons.insert_drive_file_outlined,
+                      ? Icons.slideshow_outlined
+                      : Icons.insert_drive_file_outlined,
                   color: isOwn ? scheme.onPrimary : scheme.primary,
                 ),
                 if (canViewInApp)
@@ -759,14 +784,16 @@ class DocumentTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: isOwn ? scheme.onPrimary : scheme.onSurface,
-                      fontWeight: canViewInApp ? FontWeight.w500 : FontWeight.normal,
+                      fontWeight: canViewInApp
+                          ? FontWeight.w500
+                          : FontWeight.normal,
                     ),
                   ),
                   if (canViewInApp)
                     Text(
                       isPDF ? 'Tap to view' : 'Tap to view presentation',
                       style: TextStyle(
-                        color: isOwn 
+                        color: isOwn
                             ? scheme.onPrimary.withValues(alpha: 0.7)
                             : scheme.primary,
                         fontSize: 11,
@@ -932,7 +959,7 @@ class CustomGlassContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
@@ -980,17 +1007,13 @@ class CustomGlassButton extends StatelessWidget {
   final Widget child;
   final VoidCallback? onPressed;
 
-  const CustomGlassButton({
-    super.key,
-    required this.child,
-    this.onPressed,
-  });
+  const CustomGlassButton({super.key, required this.child, this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: BackdropFilter(

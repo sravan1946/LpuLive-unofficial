@@ -1,18 +1,26 @@
+// Dart imports:
+import 'dart:async';
+import 'dart:convert';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
+import 'package:animations/animations.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:animations/animations.dart';
-import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// Project imports:
+import '../models/current_user_state.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
-import '../utils/timestamp_utils.dart';
-import 'chat_page.dart';
 import '../services/read_tracker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import 'token_input_page.dart';
+import '../utils/timestamp_utils.dart';
 import '../widgets/app_toast.dart';
-import '../models/current_user_state.dart';
+import 'chat_page.dart';
+import 'token_input_page.dart';
+
 // profile/settings actions removed; use drawer instead
 // Drawer lives at parent Scaffold; this page should not define its own drawer
 
@@ -75,7 +83,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     _initializeGroups();
     _setupWebSocketSubscription();
     _loadUnreadCounts();
-    
+
     // Listen for user data changes (e.g., when groups are updated)
     _userListener = () {
       if (!mounted) return;
@@ -365,14 +373,20 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     try {
       // First, refresh user data with authorize endpoint
       try {
-        debugPrint('🔄 [UniversityGroupsPage] Refreshing user data via authorize endpoint...');
-        final updatedUser = await _apiService.authorizeUser(currentUser!.chatToken);
+        debugPrint(
+          '🔄 [UniversityGroupsPage] Refreshing user data via authorize endpoint...',
+        );
+        final updatedUser = await _apiService.authorizeUser(
+          currentUser!.chatToken,
+        );
         setCurrentUser(updatedUser);
         await TokenStorage.saveCurrentUser();
         debugPrint('✅ [UniversityGroupsPage] User data refreshed successfully');
       } catch (e) {
         if (e is UnauthorizedException) {
-          debugPrint('❌ [UniversityGroupsPage] User unauthorized, logging out...');
+          debugPrint(
+            '❌ [UniversityGroupsPage] User unauthorized, logging out...',
+          );
           await TokenStorage.clearToken();
           setCurrentUser(null);
           if (mounted) {
@@ -384,7 +398,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
           }
           return;
         } else if (e is NetworkException) {
-          debugPrint('🌐 [UniversityGroupsPage] Network error during refresh: $e');
+          debugPrint(
+            '🌐 [UniversityGroupsPage] Network error during refresh: $e',
+          );
           if (mounted) {
             showAppToast(
               context,
@@ -398,7 +414,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
         debugPrint('⚠️ [UniversityGroupsPage] Failed to refresh user data: $e');
         // Continue with refresh even if authorize fails for other errors
       }
-      
+
       for (final course in _courseGroups) {
         try {
           final msgs = await _apiService.fetchChatMessages(

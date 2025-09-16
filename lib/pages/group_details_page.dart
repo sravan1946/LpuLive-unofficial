@@ -1,10 +1,13 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
 import '../models/group_user_model.dart';
 import '../models/user_models.dart';
-import '../services/chat_services.dart';
 import '../services/avatar_cache_service.dart';
-import '../widgets/network_image.dart';
+import '../services/chat_services.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/network_image.dart';
 
 class GroupDetailsPage extends StatefulWidget {
   final String groupName;
@@ -35,37 +38,41 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   Future<void> _loadAvatarCache() async {
     await AvatarCacheService.loadCache();
-    
+
     // Debug: Print all cached avatars
     final allCachedAvatars = AvatarCacheService.getAllCachedAvatars();
     print('🔍 [GroupDetailsPage] All cached avatars: $allCachedAvatars');
-    print('🔍 [GroupDetailsPage] Cache size: ${AvatarCacheService.getCacheSize()}');
+    print(
+      '🔍 [GroupDetailsPage] Cache size: ${AvatarCacheService.getCacheSize()}',
+    );
   }
 
   Widget _buildUserAvatar(GroupUser user, ColorScheme scheme) {
     // Try to get cached avatar for this user
     // Try multiple ID formats since the cache might use different formats
     String? cachedAvatar = AvatarCacheService.getCachedAvatar(user.id);
-    
+
     // If not found, try with current user ID prefix (for DM format)
     if (cachedAvatar == null && currentUser != null) {
       final dmFormatId = '${currentUser!.id} : ${user.id}';
       cachedAvatar = AvatarCacheService.getCachedAvatar(dmFormatId);
     }
-    
+
     // If still not found, try reverse format
     if (cachedAvatar == null && currentUser != null) {
       final reverseDmFormatId = '${user.id} : ${currentUser!.id}';
       cachedAvatar = AvatarCacheService.getCachedAvatar(reverseDmFormatId);
     }
-    
+
     // Debug: Print what we're looking for
     print('🔍 [GroupDetailsPage] Looking for avatar for user: ${user.id}');
-    print('🔍 [GroupDetailsPage] Found cached avatar: ${cachedAvatar != null ? "YES" : "NO"}');
+    print(
+      '🔍 [GroupDetailsPage] Found cached avatar: ${cachedAvatar != null ? "YES" : "NO"}',
+    );
     if (cachedAvatar != null) {
       print('🔍 [GroupDetailsPage] Cached avatar URL: $cachedAvatar');
     }
-    
+
     if (cachedAvatar != null && cachedAvatar.isNotEmpty) {
       return CircleAvatar(
         backgroundColor: scheme.primary,
@@ -90,7 +97,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         ),
       );
     }
-    
+
     // Fallback to initials
     return CircleAvatar(
       backgroundColor: scheme.primary,
@@ -131,19 +138,25 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         );
       } catch (e) {
         // If the API call fails, try to find the correct group name from user's groups
-        if (e.toString().contains('404') || e.toString().contains('not found')) {
-          print('🔍 [GroupDetailsPage] Group not found, searching in user groups...');
-          
+        if (e.toString().contains('404') ||
+            e.toString().contains('not found')) {
+          print(
+            '🔍 [GroupDetailsPage] Group not found, searching in user groups...',
+          );
+
           // Try to find a matching group in the user's groups
           String? correctGroupName;
           for (final group in currentUser!.groups) {
-            if (group.name.contains(widget.groupId) || widget.groupId.contains(group.name)) {
+            if (group.name.contains(widget.groupId) ||
+                widget.groupId.contains(group.name)) {
               correctGroupName = group.name;
-              print('🔍 [GroupDetailsPage] Found matching group: "$correctGroupName"');
+              print(
+                '🔍 [GroupDetailsPage] Found matching group: "$correctGroupName"',
+              );
               break;
             }
           }
-          
+
           if (correctGroupName != null) {
             groupDetails = await _apiService.fetchGroupUsers(
               currentUser!.chatToken,
@@ -166,7 +179,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         _error = e.toString();
         _isLoading = false;
       });
-      
+
       if (mounted) {
         showAppToast(
           context,
@@ -180,7 +193,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.groupName),
@@ -228,11 +241,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: scheme.error,
-            ),
+            Icon(Icons.error_outline, size: 64, color: scheme.error),
             const SizedBox(height: 16),
             Text(
               'Error loading group details',
@@ -245,9 +254,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             const SizedBox(height: 8),
             Text(
               _error!,
-              style: TextStyle(
-                color: scheme.onSurfaceVariant,
-              ),
+              style: TextStyle(color: scheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -261,9 +268,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
 
     if (_groupDetails == null) {
-      return const Center(
-        child: Text('No group details available'),
-      );
+      return const Center(child: Text('No group details available'));
     }
 
     return SingleChildScrollView(
@@ -289,11 +294,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.group,
-                  color: scheme.primary,
-                  size: 24,
-                ),
+                Icon(Icons.group, color: scheme.primary, size: 24),
                 const SizedBox(width: 8),
                 Text(
                   'Group Information',
@@ -346,14 +347,15 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, IconData icon, ColorScheme scheme) {
+  Widget _buildInfoRow(
+    String label,
+    String value,
+    IconData icon,
+    ColorScheme scheme,
+  ) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 16,
-          color: scheme.onSurfaceVariant,
-        ),
+        Icon(icon, size: 16, color: scheme.onSurfaceVariant),
         const SizedBox(width: 8),
         Text(
           '$label: ',
@@ -363,12 +365,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ),
         ),
         Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              color: scheme.onSurface,
-            ),
-          ),
+          child: Text(value, style: TextStyle(color: scheme.onSurface)),
         ),
       ],
     );
@@ -377,7 +374,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   bool _isCurrentUserAdminOfGroup() {
     if (currentUser == null) return false;
     try {
-      final g = currentUser!.groups.firstWhere((x) => x.name == widget.groupName);
+      final g = currentUser!.groups.firstWhere(
+        (x) => x.name == widget.groupName,
+      );
       return g.isAdmin == true;
     } catch (_) {
       return false;
@@ -387,7 +386,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   bool _isUniversityGroup() {
     // Prefer flags from current user groups when available
     try {
-      final g = currentUser?.groups.firstWhere((x) => x.name == widget.groupName);
+      final g = currentUser?.groups.firstWhere(
+        (x) => x.name == widget.groupName,
+      );
       if (g != null) return g.isUniversityGroup;
     } catch (_) {}
     // If group not found, default to uni (safer default for destructive UI)
@@ -420,7 +421,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(requiredText, style: const TextStyle(fontWeight: FontWeight.w600)),
+                child: Text(
+                  requiredText,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -443,8 +447,12 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 }
               },
               style: ButtonStyle(
-                foregroundColor: WidgetStatePropertyAll<Color>(scheme.onErrorContainer),
-                backgroundColor: WidgetStatePropertyAll<Color>(scheme.errorContainer),
+                foregroundColor: WidgetStatePropertyAll<Color>(
+                  scheme.onErrorContainer,
+                ),
+                backgroundColor: WidgetStatePropertyAll<Color>(
+                  scheme.errorContainer,
+                ),
               ),
               child: const Text('Delete Group'),
             ),
@@ -474,7 +482,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         }
       } else {
         if (mounted) {
-          showAppToast(context, 'Failed: ${res.message}', type: ToastType.error);
+          showAppToast(
+            context,
+            'Failed: ${res.message}',
+            type: ToastType.error,
+          );
         }
       }
     } catch (e) {
@@ -524,7 +536,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         }
       } else {
         if (mounted) {
-          showAppToast(context, 'Failed: ${res.message}', type: ToastType.error);
+          showAppToast(
+            context,
+            'Failed: ${res.message}',
+            type: ToastType.error,
+          );
         }
       }
     } catch (e) {
@@ -539,9 +555,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     final sortedUsers = List<GroupUser>.from(_groupDetails!.users);
     sortedUsers.sort((a, b) {
       // First, sort by category (staff first)
-      if (a.category.toLowerCase() == 'staff' && b.category.toLowerCase() != 'staff') {
+      if (a.category.toLowerCase() == 'staff' &&
+          b.category.toLowerCase() != 'staff') {
         return -1;
-      } else if (a.category.toLowerCase() != 'staff' && b.category.toLowerCase() == 'staff') {
+      } else if (a.category.toLowerCase() != 'staff' &&
+          b.category.toLowerCase() == 'staff') {
         return 1;
       }
       // Then sort alphabetically by username
@@ -549,19 +567,19 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     });
 
     // Separate staff and non-staff users
-    final staffUsers = sortedUsers.where((user) => user.category.toLowerCase() == 'staff').toList();
-    final otherUsers = sortedUsers.where((user) => user.category.toLowerCase() != 'staff').toList();
+    final staffUsers = sortedUsers
+        .where((user) => user.category.toLowerCase() == 'staff')
+        .toList();
+    final otherUsers = sortedUsers
+        .where((user) => user.category.toLowerCase() != 'staff')
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(
-              Icons.people,
-              color: scheme.primary,
-              size: 24,
-            ),
+            Icon(Icons.people, color: scheme.primary, size: 24),
             const SizedBox(width: 8),
             Text(
               'Members (${_groupDetails!.users.length})',
@@ -574,7 +592,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Staff section
         if (staffUsers.isNotEmpty) ...[
           _buildCategoryHeader('Staff', staffUsers.length, scheme),
@@ -582,10 +600,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ...staffUsers.map((user) => _buildMemberCard(user, scheme)),
           if (otherUsers.isNotEmpty) const SizedBox(height: 16),
         ],
-        
+
         // Other users section
         if (otherUsers.isNotEmpty) ...[
-          if (staffUsers.isNotEmpty) _buildCategoryHeader('Members', otherUsers.length, scheme),
+          if (staffUsers.isNotEmpty)
+            _buildCategoryHeader('Members', otherUsers.length, scheme),
           if (staffUsers.isNotEmpty) const SizedBox(height: 8),
           ...otherUsers.map((user) => _buildMemberCard(user, scheme)),
         ],
@@ -628,8 +647,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           children: [
             Text('ID: ${user.id}'),
             Text('Category: ${user.category}'),
-            if (user.status.isNotEmpty)
-              Text('Status: ${user.status}'),
+            if (user.status.isNotEmpty) Text('Status: ${user.status}'),
           ],
         ),
         trailing: user.isAdmin

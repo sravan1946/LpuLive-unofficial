@@ -1,14 +1,19 @@
+// Dart imports:
+import 'dart:convert';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
-import '../models/user_models.dart';
-import '../services/chat_services.dart';
-import 'webview_login_page.dart';
-import 'chat_home_page.dart';
-import '../theme.dart';
-import '../providers/theme_provider.dart';
-import '../widgets/app_toast.dart';
+
+// Project imports:
 import '../models/current_user_state.dart';
+import '../models/user_models.dart';
+import '../providers/theme_provider.dart';
+import '../services/chat_services.dart';
+import '../theme.dart';
+import '../widgets/app_toast.dart';
+import 'chat_home_page.dart';
+import 'webview_login_page.dart';
 
 class TokenInputApp extends StatelessWidget {
   const TokenInputApp({super.key, this.autoLoggedOut = false});

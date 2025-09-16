@@ -1,6 +1,12 @@
-import 'package:flutter/material.dart';
+// Dart imports:
 import 'dart:ui';
+
+// Flutter imports:
+import 'package:flutter/material.dart';
+
+// Project imports:
 import '../widgets/app_toast.dart';
+
 // user info not needed in this app bar anymore
 // Drawer is provided by parent Scaffold; do not declare here
 

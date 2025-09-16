@@ -1,4 +1,7 @@
+// Dart imports:
 import 'dart:convert';
+
+// Package imports:
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AvatarCacheService {
@@ -9,7 +12,7 @@ class AvatarCacheService {
   /// Load avatar cache from persistent storage
   static Future<void> loadCache() async {
     if (_isLoaded) return;
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_kAvatarCacheKey);
@@ -39,12 +42,12 @@ class AvatarCacheService {
   /// Cache avatar URL for a user
   static Future<void> cacheAvatar(String userId, String? avatarUrl) async {
     if (userId.isEmpty || avatarUrl == null || avatarUrl.isEmpty) return;
-    
+
     final existing = _avatarCache[userId];
     if (existing == avatarUrl) return;
-    
+
     _avatarCache[userId] = avatarUrl;
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kAvatarCacheKey, jsonEncode(_avatarCache));
@@ -55,9 +58,9 @@ class AvatarCacheService {
 
   /// Check if we have a cached avatar for a user
   static bool hasCachedAvatar(String userId) {
-    return _avatarCache.containsKey(userId) && 
-           _avatarCache[userId] != null && 
-           _avatarCache[userId]!.isNotEmpty;
+    return _avatarCache.containsKey(userId) &&
+        _avatarCache[userId] != null &&
+        _avatarCache[userId]!.isNotEmpty;
   }
 
   /// Get all cached avatars (for debugging or bulk operations)
@@ -81,4 +84,3 @@ class AvatarCacheService {
     return _avatarCache.length;
   }
 }
-

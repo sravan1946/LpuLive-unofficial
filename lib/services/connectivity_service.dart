@@ -1,6 +1,11 @@
+// Dart imports:
 import 'dart:io';
-import 'package:connectivity_plus/connectivity_plus.dart';
+
+// Flutter imports:
 import 'package:flutter/foundation.dart';
+
+// Package imports:
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ConnectivityService {
   static final ConnectivityService _instance = ConnectivityService._internal();
@@ -14,9 +19,10 @@ class ConnectivityService {
     try {
       // Check connectivity status
       final connectivityResults = await _connectivity.checkConnectivity();
-      
+
       // If no connectivity at all, return false
-      if (connectivityResults.isEmpty || connectivityResults.first == ConnectivityResult.none) {
+      if (connectivityResults.isEmpty ||
+          connectivityResults.first == ConnectivityResult.none) {
         debugPrint('🌐 [ConnectivityService] No connectivity detected');
         return false;
       }
@@ -33,7 +39,7 @@ class ConnectivityService {
         debugPrint('🌐 [ConnectivityService] Internet lookup failed: $e');
         return false;
       }
-      
+
       return false;
     } catch (e) {
       debugPrint('🌐 [ConnectivityService] Error checking connectivity: $e');
@@ -42,15 +48,19 @@ class ConnectivityService {
   }
 
   /// Stream of connectivity changes
-  Stream<List<ConnectivityResult>> get connectivityStream => _connectivity.onConnectivityChanged;
+  Stream<List<ConnectivityResult>> get connectivityStream =>
+      _connectivity.onConnectivityChanged;
 
   /// Check if we have any form of connectivity (WiFi, mobile, etc.)
   Future<bool> hasConnectivity() async {
     try {
       final connectivityResults = await _connectivity.checkConnectivity();
-      return connectivityResults.isNotEmpty && connectivityResults.first != ConnectivityResult.none;
+      return connectivityResults.isNotEmpty &&
+          connectivityResults.first != ConnectivityResult.none;
     } catch (e) {
-      debugPrint('🌐 [ConnectivityService] Error checking basic connectivity: $e');
+      debugPrint(
+        '🌐 [ConnectivityService] Error checking basic connectivity: $e',
+      );
       return false;
     }
   }

@@ -74,8 +74,10 @@ class GroupDetails {
   /// Parses a [GroupDetails] from JSON.
   factory GroupDetails.fromJson(Map<String, dynamic> json) {
     final usersList = json['users'] as List<dynamic>? ?? [];
-    final users = usersList.map((userJson) => GroupUser.fromJson(userJson)).toList();
-    
+    final users = usersList
+        .map((userJson) => GroupUser.fromJson(userJson))
+        .toList();
+
     return GroupDetails(
       users: users,
       twoWayStatus: json['two_way_status'] == true,
@@ -92,4 +94,3 @@ class GroupDetails {
     };
   }
 }
-

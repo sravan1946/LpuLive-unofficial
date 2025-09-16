@@ -1,20 +1,23 @@
+// Dart imports:
+import 'dart:io';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
-import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+// Project imports:
 import '../widgets/app_toast.dart';
 
 class PDFViewer extends StatefulWidget {
   final String pdfUrl;
   final String? fileName;
 
-  const PDFViewer({
-    super.key,
-    required this.pdfUrl,
-    this.fileName,
-  });
+  const PDFViewer({super.key, required this.pdfUrl, this.fileName});
 
   @override
   State<PDFViewer> createState() => _PDFViewerState();
@@ -46,18 +49,20 @@ class _PDFViewerState extends State<PDFViewer> {
 
       // Download PDF to local storage
       final response = await http.get(Uri.parse(widget.pdfUrl));
-      
+
       if (response.statusCode == 200) {
         final directory = await getApplicationDocumentsDirectory();
-        final fileName = widget.fileName ?? 
-            widget.pdfUrl.split('/').last.split('?').first;
-        
+        final fileName =
+            widget.fileName ?? widget.pdfUrl.split('/').last.split('?').first;
+
         // Ensure filename has .pdf extension
-        final pdfFileName = fileName.endsWith('.pdf') ? fileName : '$fileName.pdf';
+        final pdfFileName = fileName.endsWith('.pdf')
+            ? fileName
+            : '$fileName.pdf';
         final file = File('${directory.path}/$pdfFileName');
-        
+
         await file.writeAsBytes(response.bodyBytes);
-        
+
         setState(() {
           localPath = file.path;
           isLoading = false;
@@ -80,14 +85,16 @@ class _PDFViewerState extends State<PDFViewer> {
 
   Future<void> _downloadPDF() async {
     if (localPath == null) return;
-    
+
     try {
       final sourceFile = File(localPath!);
       if (await sourceFile.exists()) {
-        final fileName = widget.fileName ?? 
-            widget.pdfUrl.split('/').last.split('?').first;
-        final pdfFileName = fileName.endsWith('.pdf') ? fileName : '$fileName.pdf';
-        
+        final fileName =
+            widget.fileName ?? widget.pdfUrl.split('/').last.split('?').first;
+        final pdfFileName = fileName.endsWith('.pdf')
+            ? fileName
+            : '$fileName.pdf';
+
         // Try Downloads folder first (works on most devices without permission)
         List<String> possiblePaths = [
           '/storage/emulated/0/Download',
@@ -95,17 +102,18 @@ class _PDFViewerState extends State<PDFViewer> {
           '/sdcard/Download',
           '/sdcard/Downloads',
         ];
-        
+
         String? successPath;
-        
+
         for (String path in possiblePaths) {
           try {
             final downloadsDir = Directory(path);
-            if (await downloadsDir.exists() || await _canCreateDirectory(downloadsDir)) {
+            if (await downloadsDir.exists() ||
+                await _canCreateDirectory(downloadsDir)) {
               if (!await downloadsDir.exists()) {
                 await downloadsDir.create(recursive: true);
               }
-              
+
               final targetFile = File('${downloadsDir.path}/$pdfFileName');
               await sourceFile.copy(targetFile.path);
               successPath = path;
@@ -116,7 +124,7 @@ class _PDFViewerState extends State<PDFViewer> {
             continue;
           }
         }
-        
+
         // If Downloads folder failed, try with permission
         if (successPath == null) {
           final permission = await _requestStoragePermission();
@@ -125,11 +133,12 @@ class _PDFViewerState extends State<PDFViewer> {
             for (String path in possiblePaths) {
               try {
                 final downloadsDir = Directory(path);
-                if (await downloadsDir.exists() || await _canCreateDirectory(downloadsDir)) {
+                if (await downloadsDir.exists() ||
+                    await _canCreateDirectory(downloadsDir)) {
                   if (!await downloadsDir.exists()) {
                     await downloadsDir.create(recursive: true);
                   }
-                  
+
                   final targetFile = File('${downloadsDir.path}/$pdfFileName');
                   await sourceFile.copy(targetFile.path);
                   successPath = path;
@@ -142,7 +151,7 @@ class _PDFViewerState extends State<PDFViewer> {
             }
           }
         }
-        
+
         // If all download paths failed, use external storage
         if (successPath == null) {
           final externalDir = await getExternalStorageDirectory();
@@ -162,9 +171,11 @@ class _PDFViewerState extends State<PDFViewer> {
             successPath = appDir.path;
           }
         }
-        
+
         if (mounted) {
-          final folderName = successPath.contains('Download') ? 'Downloads folder' : 'Documents folder';
+          final folderName = successPath.contains('Download')
+              ? 'Downloads folder'
+              : 'Documents folder';
           showAppToast(
             context,
             'PDF saved to $folderName\nPath: $successPath',
@@ -173,24 +184,16 @@ class _PDFViewerState extends State<PDFViewer> {
         }
       } else {
         if (mounted) {
-          showAppToast(
-            context,
-            'PDF file not found',
-            type: ToastType.error,
-          );
+          showAppToast(context, 'PDF file not found', type: ToastType.error);
         }
       }
     } catch (e) {
       if (mounted) {
-        showAppToast(
-          context,
-          'Failed to save PDF: $e',
-          type: ToastType.error,
-        );
+        showAppToast(context, 'Failed to save PDF: $e', type: ToastType.error);
       }
     }
   }
-  
+
   Future<bool> _requestStoragePermission() async {
     if (Platform.isAndroid) {
       try {
@@ -198,7 +201,7 @@ class _PDFViewerState extends State<PDFViewer> {
         if (await Permission.storage.isGranted) {
           return true;
         }
-        
+
         // Check if permission is permanently denied
         if (await Permission.storage.isPermanentlyDenied) {
           if (mounted) {
@@ -210,10 +213,10 @@ class _PDFViewerState extends State<PDFViewer> {
           }
           return false;
         }
-        
+
         // Request storage permission
         final status = await Permission.storage.request();
-        
+
         if (status.isGranted) {
           return true;
         } else if (status.isDenied) {
@@ -235,7 +238,7 @@ class _PDFViewerState extends State<PDFViewer> {
           }
           return false;
         }
-        
+
         return false;
       } catch (e) {
         if (mounted) {
@@ -250,7 +253,7 @@ class _PDFViewerState extends State<PDFViewer> {
     }
     return true; // iOS doesn't need this permission
   }
-  
+
   Future<bool> _canCreateDirectory(Directory dir) async {
     try {
       await dir.create(recursive: true);
@@ -263,7 +266,7 @@ class _PDFViewerState extends State<PDFViewer> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -281,7 +284,9 @@ class _PDFViewerState extends State<PDFViewer> {
               decoration: BoxDecoration(
                 color: scheme.primary.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: scheme.primary.withValues(alpha: 0.5)),
+                border: Border.all(
+                  color: scheme.primary.withValues(alpha: 0.5),
+                ),
               ),
               child: Text(
                 '${currentPage + 1} / $totalPages',
@@ -312,10 +317,7 @@ class _PDFViewerState extends State<PDFViewer> {
           children: [
             CircularProgressIndicator(color: Colors.white),
             SizedBox(height: 16),
-            Text(
-              'Loading PDF...',
-              style: TextStyle(color: Colors.white),
-            ),
+            Text('Loading PDF...', style: TextStyle(color: Colors.white)),
           ],
         ),
       );
@@ -326,11 +328,7 @@ class _PDFViewerState extends State<PDFViewer> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              color: scheme.error,
-              size: 64,
-            ),
+            Icon(Icons.error_outline, color: scheme.error, size: 64),
             const SizedBox(height: 16),
             Text(
               'Failed to load PDF',

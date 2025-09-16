@@ -1,9 +1,13 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
+import '../models/current_user_state.dart';
 import '../models/user_models.dart';
+import '../services/chat_services.dart';
 import '../widgets/network_image.dart';
 import 'token_input_page.dart';
-import '../services/chat_services.dart';
-import '../models/current_user_state.dart';
+
 // drawer not used on profile; using back button
 
 class ProfilePage extends StatelessWidget {

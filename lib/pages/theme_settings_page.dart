@@ -1,4 +1,7 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
 import '../providers/theme_provider.dart';
 
 class ThemeSettingsPage extends StatelessWidget {

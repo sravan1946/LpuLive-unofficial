@@ -1,5 +1,10 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
 import 'package:connectivity_plus/connectivity_plus.dart';
+
+// Project imports:
 import '../services/connectivity_service.dart';
 
 class ConnectivityBanner extends StatefulWidget {
@@ -29,7 +34,9 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
   }
 
   void _listenToConnectivityChanges() {
-    _connectivityService.connectivityStream.listen((List<ConnectivityResult> results) {
+    _connectivityService.connectivityStream.listen((
+      List<ConnectivityResult> results,
+    ) {
       if (results.isNotEmpty && results.first != ConnectivityResult.none) {
         // Connectivity is back, check if we actually have internet
         _checkConnectivity();
@@ -47,13 +54,13 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
 
   Future<void> _checkConnectivity() async {
     if (_isChecking) return;
-    
+
     setState(() {
       _isChecking = true;
     });
 
     final hasInternet = await _connectivityService.hasInternetConnection();
-    
+
     if (mounted) {
       setState(() {
         _hasInternetConnection = hasInternet;
@@ -82,7 +89,10 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
               elevation: 8,
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.orange.shade600,
                   borderRadius: BorderRadius.circular(8),
@@ -90,11 +100,7 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.wifi_off,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    Icon(Icons.wifi_off, color: Colors.white, size: 20),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -113,7 +119,9 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                     else

@@ -1,13 +1,20 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+// Dart imports:
 import 'dart:async';
+
+// Flutter imports:
+import 'package:flutter/material.dart';
+
+// Package imports:
+import 'package:flutter_animate/flutter_animate.dart';
+
+// Project imports:
 import '../models/user_models.dart';
+import '../services/avatar_cache_service.dart';
 import '../services/chat_services.dart';
 import '../utils/timestamp_utils.dart';
-import 'token_input_page.dart';
-import '../widgets/network_image.dart';
-import '../services/avatar_cache_service.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/network_image.dart';
+import 'token_input_page.dart';
 
 // Reuse the same caches from direct_messages_page.dart
 final Map<String, Contact> _contactsCacheById = {};
@@ -20,10 +27,7 @@ String _normalizeAvatar(String? url) => (url ?? '').trim();
 class DmRequestsPage extends StatefulWidget {
   final WebSocketChatService wsService;
 
-  const DmRequestsPage({
-    super.key,
-    required this.wsService,
-  });
+  const DmRequestsPage({super.key, required this.wsService});
 
   @override
   State<DmRequestsPage> createState() => _DmRequestsPageState();
@@ -118,10 +122,10 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
 
       for (final group in currentUser!.groups) {
         final dmMatch = RegExp(r'^\d+\s*:\s*\d+$').firstMatch(group.name);
-        if (dmMatch != null && 
-            !seenNames.contains(group.name) && 
-            (group.inviteStatus.trim().toUpperCase() == 'REQD' || 
-             group.inviteStatus.trim().toUpperCase() == 'BLOCK')) {
+        if (dmMatch != null &&
+            !seenNames.contains(group.name) &&
+            (group.inviteStatus.trim().toUpperCase() == 'REQD' ||
+                group.inviteStatus.trim().toUpperCase() == 'BLOCK')) {
           final dm = DirectMessage(
             dmName: group.name,
             participants: group.name,
@@ -146,25 +150,32 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
     if (_contactsLoaded) return;
     try {
       final contacts = await _apiService.fetchContacts(currentUser!.chatToken);
-      
+
       // Cache userimageurl from contacts
       for (final contact in contacts) {
         if (contact.userimageurl != null && contact.userimageurl!.isNotEmpty) {
-          await AvatarCacheService.cacheAvatar(contact.userid, contact.userimageurl);
-          print('💾 [DmRequestsPage] Cached userimageurl for ${contact.userid}: ${contact.userimageurl}');
+          await AvatarCacheService.cacheAvatar(
+            contact.userid,
+            contact.userimageurl,
+          );
+          print(
+            '💾 [DmRequestsPage] Cached userimageurl for ${contact.userid}: ${contact.userimageurl}',
+          );
         }
       }
-      
+
       setState(() {
         for (final c in contacts) {
           _contactsCacheById[c.userid] = c;
         }
         _contactsLoaded = true;
-        
+
         // Debug: Print contacts cache
         print('🔍 [DmRequestsPage] Loaded ${contacts.length} contacts:');
         for (final contact in contacts) {
-          print('🔍 [DmRequestsPage] Contact: userid="${contact.userid}", name="${contact.name}"');
+          print(
+            '🔍 [DmRequestsPage] Contact: userid="${contact.userid}", name="${contact.name}"',
+          );
         }
       });
     } catch (e) {
@@ -214,25 +225,34 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
     final otherId = _otherUserIdForDm(groupId);
     final contact = _contactsCacheById[otherId];
     final cachedAvatar = AvatarCacheService.getCachedAvatar(otherId);
-    
+
     // Check if we already have sufficient data (name and avatar) to avoid API call
     final hasContactName = contact != null && contact.name.isNotEmpty;
     final hasCachedAvatar = cachedAvatar != null && cachedAvatar.isNotEmpty;
-    
+
     // If we have contact name, use it immediately and avoid API call
     if (hasContactName) {
-      final avatarUrl = cachedAvatar ?? (contact.userimageurl ?? contact.avatar);
+      final avatarUrl =
+          cachedAvatar ?? (contact.userimageurl ?? contact.avatar);
       // Extract just the name part (before the " : " separator)
       final displayName = _extractNameFromContact(contact.name);
-      _dmMetaCacheByGroup[groupId] = _DmMeta(name: displayName, avatarUrl: avatarUrl);
+      _dmMetaCacheByGroup[groupId] = _DmMeta(
+        name: displayName,
+        avatarUrl: avatarUrl,
+      );
       _safeRebuild();
-      print('🔍 [DmRequestsPage] Using contact name for $groupId: "$displayName" (from "${contact.name}")');
+      print(
+        '🔍 [DmRequestsPage] Using contact name for $groupId: "$displayName" (from "${contact.name}")',
+      );
       return; // Don't call API if we have contact name
     }
-    
+
     // If we have cached avatar but no contact name, use it but still try API for name
     if (hasCachedAvatar) {
-      _dmMetaCacheByGroup[groupId] = _DmMeta(name: otherId, avatarUrl: cachedAvatar);
+      _dmMetaCacheByGroup[groupId] = _DmMeta(
+        name: otherId,
+        avatarUrl: cachedAvatar,
+      );
       _safeRebuild();
       // Continue to API call to try to get name
     }
@@ -268,65 +288,73 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
   }
 
   String _displayNameForDm(DirectMessage dm) {
-    print('🔍 [DmRequestsPage] _displayNameForDm called for dmName: "${dm.dmName}"');
-    
+    print(
+      '🔍 [DmRequestsPage] _displayNameForDm called for dmName: "${dm.dmName}"',
+    );
+
     final meta = _dmMetaCacheByGroup[dm.dmName];
     if (meta != null && meta.name.isNotEmpty) {
       print('🔍 [DmRequestsPage] Found name in meta cache: "${meta.name}"');
       return meta.name;
     }
-    
+
     final otherId = _otherUserIdForDm(dm.dmName);
     print('🔍 [DmRequestsPage] Extracted otherId: "$otherId"');
-    
+
     final contact = _contactsCacheById[otherId];
     if (contact != null && contact.name.isNotEmpty) {
       final displayName = _extractNameFromContact(contact.name);
-      print('🔍 [DmRequestsPage] Found name in contacts cache for $otherId: "$displayName" (from "${contact.name}")');
+      print(
+        '🔍 [DmRequestsPage] Found name in contacts cache for $otherId: "$displayName" (from "${contact.name}")',
+      );
       return displayName;
     }
-    
+
     // Special case: if dmName is just a single user ID (not in "idA : idB" format)
     // and we couldn't find the other user, try using the dmName itself as the user ID
     if (dm.dmName == otherId && !dm.dmName.contains(':')) {
-      print('🔍 [DmRequestsPage] DM name is single user ID, trying direct lookup for: "${dm.dmName}"');
+      print(
+        '🔍 [DmRequestsPage] DM name is single user ID, trying direct lookup for: "${dm.dmName}"',
+      );
       // dmName is just a single user ID, try to find contact for this ID
       final directContact = _contactsCacheById[dm.dmName];
       if (directContact != null && directContact.name.isNotEmpty) {
         final displayName = _extractNameFromContact(directContact.name);
-        print('🔍 [DmRequestsPage] Found direct contact: "$displayName" (from "${directContact.name}")');
+        print(
+          '🔍 [DmRequestsPage] Found direct contact: "$displayName" (from "${directContact.name}")',
+        );
         return displayName;
       } else {
         print('🔍 [DmRequestsPage] No direct contact found for "${dm.dmName}"');
       }
     }
-    
+
     print('🔍 [DmRequestsPage] Returning otherId as fallback: "$otherId"');
     return otherId;
   }
 
   String? _avatarUrlForDm(DirectMessage dm) {
     final otherId = _otherUserIdForDm(dm.dmName);
-    
+
     // First try the new AvatarCacheService (contains avatars from all sources)
     final cachedAvatar = AvatarCacheService.getCachedAvatar(otherId);
     if (cachedAvatar != null && cachedAvatar.isNotEmpty) {
       return _normalizeAvatar(cachedAvatar);
     }
-    
+
     // Fallback to DM meta cache (from chat messages API)
     final meta = _dmMetaCacheByGroup[dm.dmName];
     if (meta != null && meta.avatarUrl != null && meta.avatarUrl!.isNotEmpty) {
       return _normalizeAvatar(meta.avatarUrl);
     }
-    
+
     // Final fallback to contacts cache
     final contact = _contactsCacheById[otherId];
     final fromContacts = contact?.userimageurl ?? contact?.avatar;
     if (fromContacts != null && fromContacts.isNotEmpty) {
       return _normalizeAvatar(fromContacts);
     }
-    
+
     return null;
   }
 
@@ -404,7 +432,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
 
   Future<void> _acceptRequest(DirectMessage dm) async {
     if (currentUser == null) return;
-    
+
     try {
       // Call API to accept the request
       final result = await _apiService.performGroupAction(
@@ -412,20 +440,22 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
         'Accept',
         dm.dmName,
       );
-      
+
       if (result.isSuccess) {
         // Remove from requests list
         setState(() {
           _requestMessages.removeWhere((d) => d.dmName == dm.dmName);
         });
-        
+
         // Note: currentUser is automatically updated by performGroupAction via authorize endpoint
-        
+
         // Show success message
         if (mounted) {
           showAppToast(
             context,
-            result.message.isNotEmpty ? result.message : 'You can now chat with ${_displayNameForDm(dm)}',
+            result.message.isNotEmpty
+                ? result.message
+                : 'You can now chat with ${_displayNameForDm(dm)}',
             type: ToastType.success,
           );
         }
@@ -451,7 +481,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
 
   Future<void> _rejectRequest(DirectMessage dm) async {
     if (currentUser == null) return;
-    
+
     try {
       // Call API to reject the request
       final result = await _apiService.performGroupAction(
@@ -459,20 +489,22 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
         'Reject',
         dm.dmName,
       );
-      
+
       if (result.isSuccess) {
         // Remove from requests list
         setState(() {
           _requestMessages.removeWhere((d) => d.dmName == dm.dmName);
         });
-        
+
         // Note: currentUser is automatically updated by performGroupAction via authorize endpoint
-        
+
         // Show success message
         if (mounted) {
           showAppToast(
             context,
-            result.message.isNotEmpty ? result.message : 'Request from ${_displayNameForDm(dm)} has been rejected',
+            result.message.isNotEmpty
+                ? result.message
+                : 'Request from ${_displayNameForDm(dm)} has been rejected',
             type: ToastType.success,
           );
         }
@@ -498,7 +530,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
 
   Future<void> _blockRequest(DirectMessage dm) async {
     if (currentUser == null) return;
-    
+
     try {
       // Call API to block the request
       final result = await _apiService.performGroupAction(
@@ -506,20 +538,22 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
         'Block',
         dm.dmName,
       );
-      
+
       if (result.isSuccess) {
         // Remove from requests list
         setState(() {
           _requestMessages.removeWhere((d) => d.dmName == dm.dmName);
         });
-        
+
         // Note: currentUser is automatically updated by performGroupAction via authorize endpoint
-        
+
         // Show success message
         if (mounted) {
           showAppToast(
             context,
-            result.message.isNotEmpty ? result.message : '${_displayNameForDm(dm)} has been blocked',
+            result.message.isNotEmpty
+                ? result.message
+                : '${_displayNameForDm(dm)} has been blocked',
             type: ToastType.success,
           );
         }
@@ -545,7 +579,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
 
   Future<void> _unblockRequest(DirectMessage dm) async {
     if (currentUser == null) return;
-    
+
     try {
       // Call API to unblock the request
       final result = await _apiService.performGroupAction(
@@ -553,20 +587,22 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
         'Unblock',
         dm.dmName,
       );
-      
+
       if (result.isSuccess) {
         // Remove from requests list
         setState(() {
           _requestMessages.removeWhere((d) => d.dmName == dm.dmName);
         });
-        
+
         // Note: currentUser is automatically updated by performGroupAction via authorize endpoint
-        
+
         // Show success message
         if (mounted) {
           showAppToast(
             context,
-            result.message.isNotEmpty ? result.message : '${_displayNameForDm(dm)} has been unblocked',
+            result.message.isNotEmpty
+                ? result.message
+                : '${_displayNameForDm(dm)} has been unblocked',
             type: ToastType.success,
           );
         }
@@ -590,8 +626,11 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
     }
   }
 
-  Widget _buildActionButtons(DirectMessage dm, String? status, ColorScheme scheme) {
-    
+  Widget _buildActionButtons(
+    DirectMessage dm,
+    String? status,
+    ColorScheme scheme,
+  ) {
     // If status is BLOCK, show only unblock button
     if (status == 'BLOCK') {
       return SizedBox(
@@ -610,7 +649,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
         ),
       );
     }
-    
+
     // For REQD status, show accept, reject, and block buttons
     return Column(
       children: [
@@ -677,9 +716,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
         centerTitle: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: BackButton(
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
         title: Text(
           'DM Requests',
           style: TextStyle(
@@ -798,78 +835,90 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
         } catch (_) {}
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                  ? [const Color(0xFF2A2A2A), const Color(0xFF1E1E1E)]
-                  : [Colors.white, const Color(0xFFFAFAFA)],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: isDark
-                    ? Colors.black.withValues(alpha: 0.2)
-                    : Colors.black.withValues(alpha: 0.04),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [const Color(0xFF2A2A2A), const Color(0xFF1E1E1E)]
+                      : [Colors.white, const Color(0xFFFAFAFA)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: scheme.primary.withValues(alpha: 0.03),
+                    blurRadius: 12,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF333333)
+                      : const Color(0xFFE5E5E5),
+                  width: 0.5,
+                ),
               ),
-              BoxShadow(
-                color: scheme.primary.withValues(alpha: 0.03),
-                blurRadius: 12,
-                offset: const Offset(0, 2),
-              ),
-            ],
-            border: Border.all(
-              color: isDark
-                  ? const Color(0xFF333333)
-                  : const Color(0xFFE5E5E5),
-              width: 0.5,
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
+              child: Material(
+                color: Colors.transparent,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
                     children: [
-                      // Avatar
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              scheme.primary,
-                              scheme.primary.withValues(alpha: 0.8),
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: scheme.primary.withValues(alpha: 0.15),
-                              blurRadius: 12,
-                              offset: const Offset(0, 2),
+                      Row(
+                        children: [
+                          // Avatar
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  scheme.primary,
+                                  scheme.primary.withValues(alpha: 0.8),
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: scheme.primary.withValues(alpha: 0.15),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Colors.transparent,
-                          child: avatarUrl != null && avatarUrl.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(24),
-                                  child: SafeNetworkImage(
-                                    imageUrl: avatarUrl,
-                                    width: 48,
-                                    height: 48,
-                                    highQuality: true,
-                                    fit: BoxFit.cover,
-                                    errorWidget: Text(
+                            child: CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Colors.transparent,
+                              child: avatarUrl != null && avatarUrl.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(24),
+                                      child: SafeNetworkImage(
+                                        imageUrl: avatarUrl,
+                                        width: 48,
+                                        height: 48,
+                                        highQuality: true,
+                                        fit: BoxFit.cover,
+                                        errorWidget: Text(
+                                          displayName.isNotEmpty
+                                              ? displayName[0].toUpperCase()
+                                              : '?',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : Text(
                                       displayName.isNotEmpty
                                           ? displayName[0].toUpperCase()
                                           : '?',
@@ -879,80 +928,68 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
                                         fontSize: 18,
                                       ),
                                     ),
-                                  ),
-                                )
-                              : Text(
-                                  displayName.isNotEmpty
-                                      ? displayName[0].toUpperCase()
-                                      : '?',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // User info
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF1B1B1B),
                                   ),
                                 ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // User info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF1B1B1B),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Wants to start a conversation',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: isDark
-                                    ? Colors.white70
-                                    : const Color(0xFF666666),
-                              ),
-                            ),
-                            if (dm.lastMessage.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                dm.lastMessage,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
-                                  color: isDark
-                                      ? Colors.white60
-                                      : const Color(0xFF888888),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Wants to start a conversation',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF666666),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ],
-                        ),
+                                if (dm.lastMessage.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    dm.lastMessage,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w400,
+                                      color: isDark
+                                          ? Colors.white60
+                                          : const Color(0xFF888888),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 16),
+                      // Action buttons
+                      _buildActionButtons(dm, currentStatus, scheme),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  // Action buttons
-                  _buildActionButtons(dm, currentStatus, scheme),
-                ],
+                ),
               ),
-            ),
-          ),
-        )
-        .animate(delay: (40 * index).ms)
-        .fadeIn(duration: 300.ms, curve: Curves.easeOut)
-        .moveY(begin: 8, end: 0, duration: 300.ms, curve: Curves.easeOut);
+            )
+            .animate(delay: (40 * index).ms)
+            .fadeIn(duration: 300.ms, curve: Curves.easeOut)
+            .moveY(begin: 8, end: 0, duration: 300.ms, curve: Curves.easeOut);
       },
     );
   }

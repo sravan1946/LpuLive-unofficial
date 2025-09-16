@@ -1,15 +1,22 @@
-import 'package:flutter/material.dart';
+// Dart imports:
 import 'dart:ui';
-import 'package:package_info_plus/package_info_plus.dart';
+
+// Flutter imports:
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
+// Package imports:
+import 'package:package_info_plus/package_info_plus.dart';
+
+// Project imports:
+import '../models/current_user_state.dart';
 import '../models/user_models.dart';
-import '../widgets/network_image.dart';
-import '../services/chat_services.dart';
-import '../pages/token_input_page.dart';
+import '../pages/notifications_page.dart';
 import '../pages/profile_page.dart';
 import '../pages/theme_settings_page.dart';
-import '../pages/notifications_page.dart';
-import '../models/current_user_state.dart';
+import '../pages/token_input_page.dart';
+import '../services/chat_services.dart';
+import '../widgets/network_image.dart';
 
 class AppNavDrawer extends StatefulWidget {
   const AppNavDrawer({super.key});
@@ -182,7 +189,10 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
                   // Version text
                   if (_appVersion.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       child: Center(
                         child: Text(
                           'Version: ${kDebugMode && _buildNumber.isNotEmpty ? 'v$_appVersion+$_buildNumber' : _appVersion}',

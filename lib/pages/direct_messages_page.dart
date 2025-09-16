@@ -1,23 +1,31 @@
+// Dart imports:
+import 'dart:async';
+import 'dart:convert';
+import 'dart:ui';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
+import 'package:animations/animations.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:animations/animations.dart';
-import 'dart:async';
-import 'dart:ui';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// Project imports:
+import '../models/current_user_state.dart';
 import '../models/user_models.dart';
+import '../services/avatar_cache_service.dart';
 import '../services/chat_services.dart';
+import '../services/read_tracker.dart';
 import '../utils/timestamp_utils.dart';
-import 'token_input_page.dart';
-import 'new_dm_page.dart';
+import '../widgets/app_toast.dart';
+import '../widgets/network_image.dart';
 import 'chat_page.dart';
 import 'dm_requests_page.dart';
-import '../widgets/network_image.dart';
-import '../services/read_tracker.dart';
-import '../services/avatar_cache_service.dart';
-import '../widgets/app_toast.dart';
-import '../models/current_user_state.dart';
+import 'new_dm_page.dart';
+import 'token_input_page.dart';
+
 // removed profile/settings app bar actions in favor of drawer
 // Drawer is provided by parent Scaffold; do not declare here
 
@@ -67,7 +75,8 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     int count = 0;
     for (final group in currentUser!.groups) {
       final dmMatch = RegExp(r'^\d+\s*:\s*\d+$').firstMatch(group.name);
-      if (dmMatch != null && group.inviteStatus.trim().toUpperCase() == 'REQD') {
+      if (dmMatch != null &&
+          group.inviteStatus.trim().toUpperCase() == 'REQD') {
         count++;
       }
     }
@@ -106,14 +115,20 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     try {
       // First, refresh user data with authorize endpoint
       try {
-        debugPrint('🔄 [DirectMessagesPage] Refreshing user data via authorize endpoint...');
-        final updatedUser = await _apiService.authorizeUser(currentUser!.chatToken);
+        debugPrint(
+          '🔄 [DirectMessagesPage] Refreshing user data via authorize endpoint...',
+        );
+        final updatedUser = await _apiService.authorizeUser(
+          currentUser!.chatToken,
+        );
         setCurrentUser(updatedUser);
         await TokenStorage.saveCurrentUser();
         debugPrint('✅ [DirectMessagesPage] User data refreshed successfully');
       } catch (e) {
         if (e is UnauthorizedException) {
-          debugPrint('❌ [DirectMessagesPage] User unauthorized, logging out...');
+          debugPrint(
+            '❌ [DirectMessagesPage] User unauthorized, logging out...',
+          );
           await TokenStorage.clearToken();
           setCurrentUser(null);
           if (mounted) {
@@ -125,7 +140,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           }
           return;
         } else if (e is NetworkException) {
-          debugPrint('🌐 [DirectMessagesPage] Network error during refresh: $e');
+          debugPrint(
+            '🌐 [DirectMessagesPage] Network error during refresh: $e',
+          );
           if (mounted) {
             showAppToast(
               context,
@@ -139,7 +156,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         debugPrint('⚠️ [DirectMessagesPage] Failed to refresh user data: $e');
         // Continue with refresh even if authorize fails for other errors
       }
-      
+
       await _loadContactsIfNeeded();
       for (final dm in _directMessages) {
         try {
@@ -177,7 +194,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     _loadContactsIfNeeded();
     _loadAvatarCacheIfNeeded();
     _loadUnreadCounts();
-    
+
     // Listen for user data changes (e.g., when groups are updated)
     _userListener = () {
       if (!mounted) return;
@@ -286,27 +303,36 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     if (_contactsLoaded) return;
     try {
       final contacts = await _apiService.fetchContacts(currentUser!.chatToken);
-      
+
       // Cache userimageurl from contacts
       for (final contact in contacts) {
         if (contact.userimageurl != null && contact.userimageurl!.isNotEmpty) {
-          await AvatarCacheService.cacheAvatar(contact.userid, contact.userimageurl);
-          print('💾 [DirectMessagesPage] Cached userimageurl for ${contact.userid}: ${contact.userimageurl}');
+          await AvatarCacheService.cacheAvatar(
+            contact.userid,
+            contact.userimageurl,
+          );
+          print(
+            '💾 [DirectMessagesPage] Cached userimageurl for ${contact.userid}: ${contact.userimageurl}',
+          );
         }
       }
-      
+
       setState(() {
         for (final c in contacts) {
           _contactsCacheById[c.userid] = c;
         }
         _contactsLoaded = true;
-        
+
         // Debug: Print contacts cache
         print('🔍 [DirectMessagesPage] Loaded ${contacts.length} contacts:');
         for (final contact in contacts) {
-          print('🔍 [DirectMessagesPage] Contact: userid="${contact.userid}", name="${contact.name}"');
+          print(
+            '🔍 [DirectMessagesPage] Contact: userid="${contact.userid}", name="${contact.name}"',
+          );
         }
-        print('🔍 [DirectMessagesPage] Contacts cache size: ${_contactsCacheById.length}');
+        print(
+          '🔍 [DirectMessagesPage] Contacts cache size: ${_contactsCacheById.length}',
+        );
         print('🔍 [DirectMessagesPage] Contacts loaded: $_contactsLoaded');
       });
     } catch (e) {
@@ -356,33 +382,46 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     final otherId = _otherUserIdForDm(groupId);
     final contact = _contactsCacheById[otherId];
     final cachedAvatar = AvatarCacheService.getCachedAvatar(otherId);
-    
-    print('🔍 [DirectMessagesPage] _ensureDmMetaLoaded for groupId: "$groupId"');
+
+    print(
+      '🔍 [DirectMessagesPage] _ensureDmMetaLoaded for groupId: "$groupId"',
+    );
     print('🔍 [DirectMessagesPage] Extracted otherId: "$otherId"');
     print('🔍 [DirectMessagesPage] Contact found: ${contact != null}');
     if (contact != null) {
       print('🔍 [DirectMessagesPage] Contact name: "${contact.name}"');
     }
-    print('🔍 [DirectMessagesPage] Cached avatar found: ${cachedAvatar != null}');
-    
+    print(
+      '🔍 [DirectMessagesPage] Cached avatar found: ${cachedAvatar != null}',
+    );
+
     // Check if we already have sufficient data (name and avatar) to avoid API call
     final hasContactName = contact != null && contact.name.isNotEmpty;
     final hasCachedAvatar = cachedAvatar != null && cachedAvatar.isNotEmpty;
-    
+
     // If we have contact name, use it immediately and avoid API call
     if (hasContactName) {
-      final avatarUrl = cachedAvatar ?? (contact.userimageurl ?? contact.avatar);
+      final avatarUrl =
+          cachedAvatar ?? (contact.userimageurl ?? contact.avatar);
       // Extract just the name part (before the " : " separator)
       final displayName = _extractNameFromContact(contact.name);
-      _dmMetaCacheByGroup[groupId] = _DmMeta(name: displayName, avatarUrl: avatarUrl);
+      _dmMetaCacheByGroup[groupId] = _DmMeta(
+        name: displayName,
+        avatarUrl: avatarUrl,
+      );
       _safeRebuild();
-      print('🔍 [DirectMessagesPage] Using contact name for $groupId: "$displayName" (from "${contact.name}")');
+      print(
+        '🔍 [DirectMessagesPage] Using contact name for $groupId: "$displayName" (from "${contact.name}")',
+      );
       return; // Don't call API if we have contact name
     }
-    
+
     // If we have cached avatar but no contact name, use it but still try API for name
     if (hasCachedAvatar) {
-      _dmMetaCacheByGroup[groupId] = _DmMeta(name: otherId, avatarUrl: cachedAvatar);
+      _dmMetaCacheByGroup[groupId] = _DmMeta(
+        name: otherId,
+        avatarUrl: cachedAvatar,
+      );
       _safeRebuild();
       // Continue to API call to try to get name
     }
@@ -418,65 +457,75 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   }
 
   String _displayNameForDm(DirectMessage dm) {
-    print('🔍 [DirectMessagesPage] _displayNameForDm called for dmName: "${dm.dmName}"');
-    
+    print(
+      '🔍 [DirectMessagesPage] _displayNameForDm called for dmName: "${dm.dmName}"',
+    );
+
     final meta = _dmMetaCacheByGroup[dm.dmName];
     if (meta != null && meta.name.isNotEmpty) {
       print('🔍 [DirectMessagesPage] Found name in meta cache: "${meta.name}"');
       return meta.name;
     }
-    
+
     final otherId = _otherUserIdForDm(dm.dmName);
     print('🔍 [DirectMessagesPage] Extracted otherId: "$otherId"');
-    
+
     final contact = _contactsCacheById[otherId];
     if (contact != null && contact.name.isNotEmpty) {
       final displayName = _extractNameFromContact(contact.name);
-      print('🔍 [DirectMessagesPage] Found name in contacts cache for $otherId: "$displayName" (from "${contact.name}")');
+      print(
+        '🔍 [DirectMessagesPage] Found name in contacts cache for $otherId: "$displayName" (from "${contact.name}")',
+      );
       return displayName;
     }
-    
+
     // Special case: if dmName is just a single user ID (not in "idA : idB" format)
     // and we couldn't find the other user, try using the dmName itself as the user ID
     if (dm.dmName == otherId && !dm.dmName.contains(':')) {
-      print('🔍 [DirectMessagesPage] DM name is single user ID, trying direct lookup for: "${dm.dmName}"');
+      print(
+        '🔍 [DirectMessagesPage] DM name is single user ID, trying direct lookup for: "${dm.dmName}"',
+      );
       // dmName is just a single user ID, try to find contact for this ID
       final directContact = _contactsCacheById[dm.dmName];
       if (directContact != null && directContact.name.isNotEmpty) {
         final displayName = _extractNameFromContact(directContact.name);
-        print('🔍 [DirectMessagesPage] Found direct contact: "$displayName" (from "${directContact.name}")');
+        print(
+          '🔍 [DirectMessagesPage] Found direct contact: "$displayName" (from "${directContact.name}")',
+        );
         return displayName;
       } else {
-        print('🔍 [DirectMessagesPage] No direct contact found for "${dm.dmName}"');
+        print(
+          '🔍 [DirectMessagesPage] No direct contact found for "${dm.dmName}"',
+        );
       }
     }
-    
+
     print('🔍 [DirectMessagesPage] Returning otherId as fallback: "$otherId"');
     return otherId;
   }
 
   String? _avatarUrlForDm(DirectMessage dm) {
     final otherId = _otherUserIdForDm(dm.dmName);
-    
+
     // First try the new AvatarCacheService (contains avatars from all sources)
     final cachedAvatar = AvatarCacheService.getCachedAvatar(otherId);
     if (cachedAvatar != null && cachedAvatar.isNotEmpty) {
       return _normalizeAvatar(cachedAvatar);
     }
-    
+
     // Fallback to DM meta cache (from chat messages API)
     final meta = _dmMetaCacheByGroup[dm.dmName];
     if (meta != null && meta.avatarUrl != null && meta.avatarUrl!.isNotEmpty) {
       return _normalizeAvatar(meta.avatarUrl);
     }
-    
+
     // Final fallback to contacts cache
     final contact = _contactsCacheById[otherId];
     final fromContacts = contact?.userimageurl ?? contact?.avatar;
     if (fromContacts != null && fromContacts.isNotEmpty) {
       return _normalizeAvatar(fromContacts);
     }
-    
+
     return null;
   }
 
@@ -604,9 +653,8 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => DmRequestsPage(
-                          wsService: widget.wsService,
-                        ),
+                        builder: (context) =>
+                            DmRequestsPage(wsService: widget.wsService),
                       ),
                     );
                   },

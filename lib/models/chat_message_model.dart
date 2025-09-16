@@ -1,4 +1,6 @@
 // Defines the core chat message model, including optional media and reply data.
+
+// Project imports:
 import 'current_user_state.dart';
 
 // Represents a chat message with sender, time, and optional media/reply info.

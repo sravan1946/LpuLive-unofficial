@@ -1,5 +1,9 @@
 // Authenticated user profile and permissions.
+
+// Flutter imports:
 import 'package:flutter/foundation.dart';
+
+// Project imports:
 import 'group_model.dart';
 
 class User {
@@ -79,11 +83,15 @@ class User {
           debugPrint('🔍 [User.fromJson] Parsing group $i as array: $group');
           parsedGroups.add(Group.fromArray(group));
         } else {
-          debugPrint('⚠️ [User.fromJson] Unknown group format: ${group.runtimeType} - $group');
+          debugPrint(
+            '⚠️ [User.fromJson] Unknown group format: ${group.runtimeType} - $group',
+          );
         }
       }
     } else {
-      debugPrint('⚠️ [User.fromJson] Groups is not a List: ${groups.runtimeType}');
+      debugPrint(
+        '⚠️ [User.fromJson] Groups is not a List: ${groups.runtimeType}',
+      );
     }
 
     return User(

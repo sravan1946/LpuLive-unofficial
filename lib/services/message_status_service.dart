@@ -1,5 +1,6 @@
-import '../models/message_status.dart';
+// Project imports:
 import '../models/chat_message_model.dart';
+import '../models/message_status.dart';
 
 class MessageStatusService {
   final Map<String, MessageStatus> _messageStatuses = {};

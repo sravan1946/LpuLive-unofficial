@@ -5,33 +5,41 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-  import 'package:flutter_test/flutter_test.dart';
-  import 'package:lpulive_unofficial/pages/token_input_page.dart';
-  import 'package:lpulive_unofficial/pages/chat_home_page.dart';
+// Package imports:
+import 'package:flutter_test/flutter_test.dart';
 
- void main() {
-   testWidgets('Token input screen loads correctly', (WidgetTester tester) async {
-     // Build the token input app
-     await tester.pumpWidget(const TokenInputApp());
+// Project imports:
+import 'package:lpulive_unofficial/pages/chat_home_page.dart';
+import 'package:lpulive_unofficial/pages/token_input_page.dart';
 
-     // Wait for the app to settle (including async token check)
-     await tester.pumpAndSettle(const Duration(seconds: 2));
+void main() {
+  testWidgets('Token input screen loads correctly', (
+    WidgetTester tester,
+  ) async {
+    // Build the token input app
+    await tester.pumpWidget(const TokenInputApp());
 
-     // Verify that the token input screen appears
-     expect(find.text('Welcome to LPU Live Chat'), findsOneWidget);
-     expect(find.text('Please enter your authentication token to continue'), findsOneWidget);
-     expect(find.text('Continue to Chat'), findsOneWidget);
-   });
+    // Wait for the app to settle (including async token check)
+    await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    testWidgets('Chat app loads correctly', (WidgetTester tester) async {
-      // Build our chat app
-      await tester.pumpWidget(const MyApp());
+    // Verify that the token input screen appears
+    expect(find.text('Welcome to LPU Live Chat'), findsOneWidget);
+    expect(
+      find.text('Please enter your authentication token to continue'),
+      findsOneWidget,
+    );
+    expect(find.text('Continue to Chat'), findsOneWidget);
+  });
 
-      // Wait for the app to settle
-      await tester.pumpAndSettle();
+  testWidgets('Chat app loads correctly', (WidgetTester tester) async {
+    // Build our chat app
+    await tester.pumpWidget(const MyApp());
 
-      // Verify that the chat home page appears
-      expect(find.text('University Groups'), findsOneWidget);
-      expect(find.text('No University Courses'), findsOneWidget);
-    });
- }
+    // Wait for the app to settle
+    await tester.pumpAndSettle();
+
+    // Verify that the chat home page appears
+    expect(find.text('University Groups'), findsOneWidget);
+    expect(find.text('No University Courses'), findsOneWidget);
+  });
+}

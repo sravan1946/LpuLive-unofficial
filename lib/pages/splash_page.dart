@@ -1,12 +1,20 @@
+// Dart imports:
+import 'dart:convert';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
 import 'package:flutter_animate/flutter_animate.dart';
-// removed extra spinner
+
+// Project imports:
+import '../models/current_user_state.dart';
+import '../models/user_models.dart';
+import '../services/chat_services.dart';
 import 'chat_home_page.dart';
 import 'token_input_page.dart';
-import '../services/chat_services.dart';
-import 'dart:convert';
-import '../models/user_models.dart';
-import '../models/current_user_state.dart';
+
+// removed extra spinner
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -63,7 +71,9 @@ class _SplashPageState extends State<SplashPage>
           final Map<String, dynamic> jsonData = jsonDecode(urlDecodedString);
           setCurrentUser(User.fromJson(jsonData));
           decoded = true;
-          debugPrint('✅ [SplashPage] Token decoded successfully (Base64 format)');
+          debugPrint(
+            '✅ [SplashPage] Token decoded successfully (Base64 format)',
+          );
         } catch (e2) {
           debugPrint('❌ [SplashPage] Base64 decode also failed: $e2');
           decoded = false;
@@ -84,18 +94,22 @@ class _SplashPageState extends State<SplashPage>
       }
 
       // Server validation using authorize endpoint
-      debugPrint('🔍 [SplashPage] Attempting to authorize user with token: ${currentUser!.chatToken}');
+      debugPrint(
+        '🔍 [SplashPage] Attempting to authorize user with token: ${currentUser!.chatToken}',
+      );
       try {
         final api = ChatApiService();
         final updatedUser = await api
             .authorizeUser(currentUser!.chatToken)
             .timeout(const Duration(seconds: 6));
-        
-        debugPrint('✅ [SplashPage] Authorization successful, updating user data...');
+
+        debugPrint(
+          '✅ [SplashPage] Authorization successful, updating user data...',
+        );
         // Update currentUser with new token and data from server
         setCurrentUser(updatedUser);
         await TokenStorage.saveCurrentUser();
-        
+
         if (!mounted) return;
         debugPrint('🚀 [SplashPage] Navigating to ChatHomePage...');
         Navigator.of(context).pushReplacement(
@@ -104,7 +118,9 @@ class _SplashPageState extends State<SplashPage>
       } catch (e) {
         // Only clear token for unauthorized access, not for network errors
         if (e is UnauthorizedException) {
-          debugPrint('❌ [SplashPage] User unauthorized, clearing token and logging out...');
+          debugPrint(
+            '❌ [SplashPage] User unauthorized, clearing token and logging out...',
+          );
           await TokenStorage.clearToken();
           setCurrentUser(null);
           if (!mounted) return;
@@ -114,18 +130,26 @@ class _SplashPageState extends State<SplashPage>
             ),
           );
         } else if (e is NetworkException) {
-          debugPrint('🌐 [SplashPage] Network error during authorization, keeping token and going to app...');
+          debugPrint(
+            '🌐 [SplashPage] Network error during authorization, keeping token and going to app...',
+          );
           // For network errors, keep the token and go to app (user can retry later)
           if (!mounted) return;
-          debugPrint('🚀 [SplashPage] Navigating to ChatHomePage (network error)...');
+          debugPrint(
+            '🚀 [SplashPage] Navigating to ChatHomePage (network error)...',
+          );
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const ChatHomePage()),
           );
         } else {
-          debugPrint('⚠️ [SplashPage] Other error during authorization: $e, keeping token and going to app...');
+          debugPrint(
+            '⚠️ [SplashPage] Other error during authorization: $e, keeping token and going to app...',
+          );
           // For other errors, keep the token and go to app (assume token is still valid)
           if (!mounted) return;
-          debugPrint('🚀 [SplashPage] Navigating to ChatHomePage (other error)...');
+          debugPrint(
+            '🚀 [SplashPage] Navigating to ChatHomePage (other error)...',
+          );
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const ChatHomePage()),
           );
@@ -169,7 +193,11 @@ class _SplashPageState extends State<SplashPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.asset('assets/icon-noglow.png', width: 92, height: 92),
+                    Image.asset(
+                      'assets/icon-noglow.png',
+                      width: 92,
+                      height: 92,
+                    ),
                     const SizedBox(height: 20),
                     Text(
                           'LPU Live',

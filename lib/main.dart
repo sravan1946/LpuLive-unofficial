@@ -1,7 +1,10 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
 import 'pages/splash_page.dart';
-import 'theme.dart';
 import 'providers/theme_provider.dart';
+import 'theme.dart';
 
 final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 

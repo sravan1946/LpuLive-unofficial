@@ -1,21 +1,24 @@
-import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:http/http.dart' as http;
+// Dart imports:
 import 'dart:io';
+
+// Flutter imports:
+import 'package:flutter/material.dart';
+
+// Package imports:
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+// Project imports:
 import '../widgets/app_toast.dart';
 
 class PowerPointViewer extends StatefulWidget {
   final String pptUrl;
   final String? fileName;
 
-  const PowerPointViewer({
-    super.key,
-    required this.pptUrl,
-    this.fileName,
-  });
+  const PowerPointViewer({super.key, required this.pptUrl, this.fileName});
 
   @override
   State<PowerPointViewer> createState() => _PowerPointViewerState();
@@ -37,7 +40,9 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
   void _initializeWebView() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent('Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36')
+      ..setUserAgent(
+        'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
@@ -56,17 +61,19 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
           },
           onWebResourceError: (WebResourceError error) {
             // Only show errors for actual failures, not CSP warnings
-            if (error.errorCode != -3) { // -3 is often CSP warnings
+            if (error.errorCode != -3) {
+              // -3 is often CSP warnings
               setState(() {
                 hasError = true;
-                errorMessage = 'Error loading presentation: ${error.description}';
+                errorMessage =
+                    'Error loading presentation: ${error.description}';
                 isLoading = false;
               });
             }
           },
         ),
       );
-    
+
     _loadPresentation();
   }
 
@@ -98,8 +105,9 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
 
   Future<void> _tryOffice365Viewer() async {
     // Method 1: Try Microsoft Office 365 Online Viewer with optimized parameters
-    final office365Url = 'https://view.officeapps.live.com/op/embed.aspx?src=${Uri.encodeComponent(widget.pptUrl)}&wdAr=1.7777777777777777&wdEmbedCode=0&wdPrint=0&wdInConfigurator=true&wdInConfigurator=true&wdEmbedCode=0';
-    
+    final office365Url =
+        'https://view.officeapps.live.com/op/embed.aspx?src=${Uri.encodeComponent(widget.pptUrl)}&wdAr=1.7777777777777777&wdEmbedCode=0&wdPrint=0&wdInConfigurator=true&wdInConfigurator=true&wdEmbedCode=0';
+
     try {
       await _controller.loadRequest(Uri.parse(office365Url));
     } catch (e) {
@@ -110,8 +118,9 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
 
   Future<void> _tryGoogleSlidesViewer() async {
     // Method 2: Try Google Slides viewer (requires file to be accessible via URL)
-    final googleSlidesUrl = 'https://docs.google.com/gview?url=${Uri.encodeComponent(widget.pptUrl)}&embedded=true&chrome=false';
-    
+    final googleSlidesUrl =
+        'https://docs.google.com/gview?url=${Uri.encodeComponent(widget.pptUrl)}&embedded=true&chrome=false';
+
     try {
       await _controller.loadRequest(Uri.parse(googleSlidesUrl));
     } catch (e) {
@@ -122,15 +131,17 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
 
   Future<void> _tryAlternativeOfficeViewer() async {
     // Method 3: Try alternative Office viewer with different parameters
-    final alternativeUrl = 'https://view.officeapps.live.com/op/view.aspx?src=${Uri.encodeComponent(widget.pptUrl)}&wdAr=1.7777777777777777';
-    
+    final alternativeUrl =
+        'https://view.officeapps.live.com/op/view.aspx?src=${Uri.encodeComponent(widget.pptUrl)}&wdAr=1.7777777777777777';
+
     try {
       await _controller.loadRequest(Uri.parse(alternativeUrl));
     } catch (e) {
       // If all methods fail, show simple error message
       setState(() {
         hasError = true;
-        errorMessage = 'Unable to view this presentation. Please try downloading the file.';
+        errorMessage =
+            'Unable to view this presentation. Please try downloading the file.';
         isLoading = false;
       });
     }
@@ -142,38 +153,55 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
       final status = await Permission.storage.request();
       if (!status.isGranted) {
         if (mounted) {
-          showAppToast(context, 'Storage permission is required to download files', type: ToastType.warning);
+          showAppToast(
+            context,
+            'Storage permission is required to download files',
+            type: ToastType.warning,
+          );
         }
         return;
       }
 
       // Download the file
       final response = await http.get(Uri.parse(widget.pptUrl));
-      
+
       if (response.statusCode == 200) {
         final directory = await getApplicationDocumentsDirectory();
-        final fileName = widget.fileName ?? 
-            widget.pptUrl.split('/').last.split('?').first;
-        
+        final fileName =
+            widget.fileName ?? widget.pptUrl.split('/').last.split('?').first;
+
         // Ensure filename has proper extension
-        final pptFileName = fileName.endsWith('.ppt') || fileName.endsWith('.pptx') 
-            ? fileName 
+        final pptFileName =
+            fileName.endsWith('.ppt') || fileName.endsWith('.pptx')
+            ? fileName
             : '$fileName.pptx';
-        
+
         final file = File('${directory.path}/$pptFileName');
         await file.writeAsBytes(response.bodyBytes);
-        
+
         if (mounted) {
-          showAppToast(context, 'Presentation downloaded successfully', type: ToastType.success);
+          showAppToast(
+            context,
+            'Presentation downloaded successfully',
+            type: ToastType.success,
+          );
         }
       } else {
         if (mounted) {
-          showAppToast(context, 'Failed to download presentation', type: ToastType.error);
+          showAppToast(
+            context,
+            'Failed to download presentation',
+            type: ToastType.error,
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        showAppToast(context, 'Error downloading presentation: $e', type: ToastType.error);
+        showAppToast(
+          context,
+          'Error downloading presentation: $e',
+          type: ToastType.error,
+        );
       }
     }
   }
@@ -186,12 +214,20 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
         if (mounted) {
-          showAppToast(context, 'No compatible app found to open this presentation', type: ToastType.warning);
+          showAppToast(
+            context,
+            'No compatible app found to open this presentation',
+            type: ToastType.warning,
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        showAppToast(context, 'Error opening presentation: $e', type: ToastType.error);
+        showAppToast(
+          context,
+          'Error opening presentation: $e',
+          type: ToastType.error,
+        );
       }
     }
   }
@@ -232,7 +268,7 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
               padding: const EdgeInsets.all(8.0),
               child: WebViewWidget(controller: _controller),
             ),
-          
+
           if (isLoading)
             Container(
               color: colorScheme.surface,
@@ -241,7 +277,9 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        colorScheme.primary,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -272,11 +310,7 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: colorScheme.error,
-              ),
+              Icon(Icons.error_outline, size: 64, color: colorScheme.error),
               const SizedBox(height: 16),
               Text(
                 'Error Loading Presentation',
@@ -289,7 +323,8 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
               ),
               const SizedBox(height: 8),
               Text(
-                errorMessage ?? 'Something went wrong. Please try downloading the file.',
+                errorMessage ??
+                    'Something went wrong. Please try downloading the file.',
                 style: TextStyle(
                   fontSize: 16,
                   color: colorScheme.onSurface.withValues(alpha: 0.7),

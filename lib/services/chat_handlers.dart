@@ -1,18 +1,25 @@
+// Dart imports:
+import 'dart:io';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+// Package imports:
 import 'package:http/http.dart' as http;
-import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import '../models/user_models.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+// Project imports:
 import '../models/message_status.dart';
+import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../services/message_status_service.dart';
 import '../services/read_tracker.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/chat_widgets.dart';
 import '../widgets/pdf_viewer.dart';
 import '../widgets/powerpoint_viewer.dart';
-import '../widgets/chat_widgets.dart';
 
 class ChatHandlers {
   static void showFullScreenImage(BuildContext context, String imageUrl) {
@@ -39,38 +46,49 @@ class ChatHandlers {
     setReplyingTo(null);
   }
 
-  static void showPDFViewer(BuildContext context, String pdfUrl, String? fileName) {
+  static void showPDFViewer(
+    BuildContext context,
+    String pdfUrl,
+    String? fileName,
+  ) {
     // Navigate to PDF viewer page
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PDFViewer(
-          pdfUrl: pdfUrl,
-          fileName: fileName,
-        ),
+        builder: (context) => PDFViewer(pdfUrl: pdfUrl, fileName: fileName),
       ),
     );
   }
 
-  static void downloadPDFDirectly(String pdfUrl, String? fileName, Function(String) downloadMedia) {
+  static void downloadPDFDirectly(
+    String pdfUrl,
+    String? fileName,
+    Function(String) downloadMedia,
+  ) {
     // Use the same download logic as downloadMedia
     downloadMedia(pdfUrl);
   }
 
-  static void showPowerPointViewer(BuildContext context, String pptUrl, String? fileName) {
+  static void showPowerPointViewer(
+    BuildContext context,
+    String pptUrl,
+    String? fileName,
+  ) {
     // Navigate to PowerPoint viewer page
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PowerPointViewer(
-          pptUrl: pptUrl,
-          fileName: fileName,
-        ),
+        builder: (context) =>
+            PowerPointViewer(pptUrl: pptUrl, fileName: fileName),
       ),
     );
   }
 
-  static void downloadPowerPointDirectly(String pptUrl, String? fileName, Function(String) downloadMedia) {
+  static void downloadPowerPointDirectly(
+    String pptUrl,
+    String? fileName,
+    Function(String) downloadMedia,
+  ) {
     // Use the same download logic as downloadMedia
     downloadMedia(pptUrl);
   }
@@ -83,21 +101,21 @@ class ChatHandlers {
     Function(String, String?) showPDFViewer,
     Function(String, String?) downloadPDFDirectly,
     Function(String) downloadMedia,
-    Function(ChatMessage) copyMessageText,
-    {
-      bool isAdmin = false,
-      Future<void> Function(ChatMessage)? onDelete,
-    }
-  ) {
+    Function(ChatMessage) copyMessageText, {
+    bool isAdmin = false,
+    Future<void> Function(ChatMessage)? onDelete,
+  }) {
     final url = message.mediaUrl ?? '';
     final fileName = message.mediaName;
-    final isPDF = url.toLowerCase().endsWith('.pdf') || 
-                  (fileName?.toLowerCase().endsWith('.pdf') ?? false);
-    final isPowerPoint = url.toLowerCase().endsWith('.ppt') || 
-                        url.toLowerCase().endsWith('.pptx') ||
-                        (fileName?.toLowerCase().endsWith('.ppt') ?? false) ||
-                        (fileName?.toLowerCase().endsWith('.pptx') ?? false);
-    
+    final isPDF =
+        url.toLowerCase().endsWith('.pdf') ||
+        (fileName?.toLowerCase().endsWith('.pdf') ?? false);
+    final isPowerPoint =
+        url.toLowerCase().endsWith('.ppt') ||
+        url.toLowerCase().endsWith('.pptx') ||
+        (fileName?.toLowerCase().endsWith('.ppt') ?? false) ||
+        (fileName?.toLowerCase().endsWith('.pptx') ?? false);
+
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -323,7 +341,9 @@ class ChatHandlers {
       if (context.mounted) {
         setIsSending(false);
         // Remove the failed message from the UI
-        final updatedMessages = messages.where((msg) => msg.id != localMessageId).toList();
+        final updatedMessages = messages
+            .where((msg) => msg.id != localMessageId)
+            .toList();
         setMessages(updatedMessages);
         statusService.removeStatus(localMessageId);
         showAppToast(

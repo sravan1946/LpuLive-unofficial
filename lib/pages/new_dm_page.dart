@@ -1,9 +1,12 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
 import '../models/user_models.dart';
-import '../services/chat_services.dart';
 import '../services/avatar_cache_service.dart';
-import '../widgets/network_image.dart';
+import '../services/chat_services.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/network_image.dart';
 
 class NewDMPage extends StatefulWidget {
   const NewDMPage({super.key});
@@ -40,14 +43,18 @@ class _NewDMPageState extends State<NewDMPage> {
     if (contactAvatar != null && contactAvatar.isNotEmpty) {
       return contactAvatar;
     }
-    
+
     // Then try cached avatar
     return AvatarCacheService.getCachedAvatar(contact.userid);
   }
 
-  Widget _buildContactAvatar(Contact contact, ColorScheme scheme, {double size = 32}) {
+  Widget _buildContactAvatar(
+    Contact contact,
+    ColorScheme scheme, {
+    double size = 32,
+  }) {
     final avatarUrl = _getAvatarUrlForContact(contact);
-    
+
     if (avatarUrl != null && avatarUrl.isNotEmpty) {
       return CircleAvatar(
         radius: size / 2,
@@ -75,7 +82,7 @@ class _NewDMPageState extends State<NewDMPage> {
         ),
       );
     }
-    
+
     // Fallback to initials
     return CircleAvatar(
       radius: size / 2,
@@ -123,8 +130,13 @@ class _NewDMPageState extends State<NewDMPage> {
       // Cache userimageurl from contacts
       for (final contact in contacts) {
         if (contact.userimageurl != null && contact.userimageurl!.isNotEmpty) {
-          await AvatarCacheService.cacheAvatar(contact.userid, contact.userimageurl);
-          print('💾 [NewDMPage] Cached userimageurl for ${contact.userid}: ${contact.userimageurl}');
+          await AvatarCacheService.cacheAvatar(
+            contact.userid,
+            contact.userimageurl,
+          );
+          print(
+            '💾 [NewDMPage] Cached userimageurl for ${contact.userid}: ${contact.userimageurl}',
+          );
         }
       }
 
@@ -643,7 +655,10 @@ class _NewDMPageState extends State<NewDMPage> {
                                     horizontal: 16,
                                     vertical: 8,
                                   ),
-                                  leading: _buildContactAvatar(contact, Theme.of(context).colorScheme),
+                                  leading: _buildContactAvatar(
+                                    contact,
+                                    Theme.of(context).colorScheme,
+                                  ),
                                   title: Text(
                                     contact.name,
                                     style: TextStyle(

@@ -1,15 +1,20 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
 import 'package:animations/animations.dart';
-import '../theme.dart';
-import 'university_groups_page.dart';
-import 'personal_groups_page.dart';
-import 'direct_messages_page.dart';
-import '../services/chat_services.dart';
+
+// Project imports:
 import '../models/user_models.dart';
 import '../providers/theme_provider.dart';
+import '../services/chat_services.dart';
+import '../theme.dart';
 import '../widgets/app_nav_drawer.dart';
-import '../widgets/glass_bottom_nav_bar.dart';
 import '../widgets/connectivity_banner.dart';
+import '../widgets/glass_bottom_nav_bar.dart';
+import 'direct_messages_page.dart';
+import 'personal_groups_page.dart';
+import 'university_groups_page.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -169,21 +174,21 @@ class _ChatHomePageState extends State<ChatHomePage> {
                   ),
                 ),
               ),
-            // Floating glass bottom navigation
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: SafeArea(
-                top: false,
-                child: GlassBottomNavBar(
-                  selectedIndex: _selectedIndex,
-                  onItemSelected: _onItemTapped,
+              // Floating glass bottom navigation
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  child: GlassBottomNavBar(
+                    selectedIndex: _selectedIndex,
+                    onItemSelected: _onItemTapped,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,4 +1,7 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
 import '../models/message_status.dart';
 
 class MessageStatusIcon extends StatelessWidget {
