@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_models.dart';
 import '../widgets/network_image.dart';
 import '../services/chat_services.dart';
@@ -18,6 +19,7 @@ class AppNavDrawer extends StatefulWidget {
 
 class _AppNavDrawerState extends State<AppNavDrawer> {
   String _appVersion = '';
+  String _buildNumber = '';
 
   @override
   void initState() {
@@ -30,10 +32,12 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
       final packageInfo = await PackageInfo.fromPlatform();
       setState(() {
         _appVersion = packageInfo.version;
+        _buildNumber = packageInfo.buildNumber;
       });
     } catch (e) {
       setState(() {
         _appVersion = 'Unknown'; // fallback version
+        _buildNumber = '';
       });
     }
   }
@@ -180,7 +184,7 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Center(
                         child: Text(
-                          'Version: $_appVersion',
+                          'Version: ${kDebugMode && _buildNumber.isNotEmpty ? 'v$_appVersion+$_buildNumber' : _appVersion}',
                           style: TextStyle(
                             fontSize: 12,
                             color: scheme.onSurface.withValues(alpha: 0.6),
