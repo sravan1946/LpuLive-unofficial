@@ -1,11 +1,24 @@
+/// Metadata for a direct message conversation.
 class DirectMessage {
+  /// Display name for the DM thread.
   final String dmName;
+
+  /// Comma-separated participant identifiers.
   final String participants;
+
+  /// Last message preview text.
   final String lastMessage;
+
+  /// Timestamp of the last message.
   final String lastMessageTime;
+
+  /// Whether the DM is currently active/enabled.
   final bool isActive;
+
+  /// Whether the current user has admin privileges.
   final bool isAdmin;
 
+  /// Creates a [DirectMessage].
   DirectMessage({
     required this.dmName,
     required this.participants,
@@ -15,6 +28,7 @@ class DirectMessage {
     required this.isAdmin,
   });
 
+  /// Returns a copy with provided fields replaced.
   DirectMessage copyWith({
     String? dmName,
     String? participants,

@@ -1,19 +1,42 @@
+/// Authenticated user profile and permissions.
 import 'package:flutter/foundation.dart';
 import 'group_model.dart';
 
 class User {
+  /// Token used to authenticate chat requests.
   final String chatToken;
+
+  /// Raw name string as provided by backend, often "displayName : id".
   final String name;
+
+  /// Extracted display name portion of [name].
   final String displayName;
+
+  /// Extracted user id portion of [name].
   final String id;
+
+  /// Department name.
   final String department;
+
+  /// User category (e.g., Student/Faculty).
   final String category;
+
+  /// Optional URL to user's profile image.
   final String? userImageUrl;
+
+  /// Groups the user is a member of.
   final List<Group> groups;
+
+  /// Whether the user can create groups.
   final bool createGroups;
+
+  /// Whether one-to-one chats are enabled for this user.
   final bool oneToOne;
+
+  /// Whether the user's chat privileges are suspended.
   final bool isChatSuspended;
 
+  /// Creates a [User].
   User({
     required this.chatToken,
     required this.name,
@@ -28,6 +51,7 @@ class User {
     required this.isChatSuspended,
   });
 
+  /// Parses a [User] from JSON, handling group array/object variants.
   factory User.fromJson(Map<String, dynamic> json) {
     final chatToken = json['ChatToken'] ?? '';
     final name = json['Name'] ?? '';
@@ -39,7 +63,7 @@ class User {
     final oneToOne = json['OneToOne'] ?? false;
     final isChatSuspended = json['IsChatSuspended'] ?? false;
 
-    // Handle groups - they can be either objects or arrays depending on the endpoint
+    // Handle groups - can be either objects or arrays depending on the endpoint
     List<Group> parsedGroups = [];
     if (groups is List<dynamic>) {
       debugPrint('🔍 [User.fromJson] Processing ${groups.length} groups');
@@ -77,6 +101,7 @@ class User {
     );
   }
 
+  /// Serializes this [User] to JSON.
   Map<String, dynamic> toJson() {
     return {
       'ChatToken': chatToken,

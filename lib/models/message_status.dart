@@ -1,5 +1,11 @@
+/// Delivery state of an outgoing chat message.
 enum MessageStatus {
-  sending, // Clock icon - message sent locally, waiting for server
-  sent, // Single tick - server received the message
-  delivered, // Double tick - message delivered (for future use)
+  /// Message queued locally, awaiting server acknowledgment.
+  sending,
+
+  /// Server acknowledged the message.
+  sent,
+
+  /// Message delivered to recipient (reserved for future use).
+  delivered,
 }

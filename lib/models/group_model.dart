@@ -1,15 +1,32 @@
+/// Group listing item with last message metadata and flags.
 import 'package:flutter/foundation.dart';
 
 class Group {
+  /// Group name (unique identifier from backend).
   final String name;
+
+  /// Preview of the most recent message in the group.
   final String groupLastMessage;
+
+  /// Timestamp of the most recent message.
   final String lastMessageTime;
+
+  /// Whether the group is active for the current user.
   final bool isActive;
+
+  /// Whether the current user is an admin of the group.
   final bool isAdmin;
+
+  /// Invite state for the current user.
   final String inviteStatus;
+
+  /// True if the group allows two-way communication.
   final bool isTwoWay;
+
+  /// True if the group is a 1:1 conversation.
   final bool isOneToOne;
 
+  /// Creates a [Group].
   Group({
     required this.name,
     required this.groupLastMessage,
@@ -21,6 +38,7 @@ class Group {
     required this.isOneToOne,
   });
 
+  /// Parses a [Group] from JSON.
   factory Group.fromJson(Map<String, dynamic> json) {
     return Group(
       name: json['name'] ?? '',
@@ -34,7 +52,7 @@ class Group {
     );
   }
 
-  /// Create Group from array data (used by authorize endpoint)
+  /// Creates a [Group] from array data (authorize endpoint response).
   /// Array format: [name, lastMessage, lastMessageTime, isActive, isAdmin, inviteStatus, isTwoWay, isOneToOne]
   factory Group.fromArray(List<dynamic> array) {
     debugPrint('🔍 [Group.fromArray] Processing array: $array');
@@ -67,6 +85,7 @@ class Group {
     }
   }
 
+  /// Returns a copy with provided fields replaced.
   Group copyWith({
     String? name,
     String? groupLastMessage,
@@ -89,6 +108,7 @@ class Group {
     );
   }
 
+  /// Serializes this [Group] to JSON.
   Map<String, dynamic> toJson() {
     return {
       'name': name,

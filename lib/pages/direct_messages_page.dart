@@ -215,7 +215,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     if (mounted) {
       showAppToast(
         context,
-        message['message'] ?? 'You have been disconnected from another device.',
+        'You have been disconnected from another device.',
         type: ToastType.error,
         duration: const Duration(seconds: 5),
       );
