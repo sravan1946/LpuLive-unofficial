@@ -576,6 +576,115 @@ class ChatApiService {
     }
   }
 
+  Future<CreateGroupResult> performCriticalGroupAction(
+    String chatToken,
+    String action,
+    String groupName,
+  ) async {
+    try {
+      final url = '$_baseUrl/api/groups/actions_critical';
+      final requestBody = {
+        'ChatToken': chatToken,
+        'Action': action,
+        'Group': groupName,
+      };
+
+      debugPrint('🌐 [ChatApiService] Making HTTP request to: $url');
+      debugPrint(
+        '📤 [ChatApiService] Headers: {"Content-Type": "application/json"}',
+      );
+      debugPrint('📤 [ChatApiService] Body: ${jsonEncode(requestBody)}');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      debugPrint('📥 [ChatApiService] Response Status: ${response.statusCode}');
+      debugPrint('📥 [ChatApiService] Response Headers: ${response.headers}');
+      debugPrint('📥 [ChatApiService] Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        // Handle flexible response format
+        CreateGroupResult result;
+        if (data.containsKey('statusCode') && data.containsKey('message')) {
+          result = CreateGroupResult(
+            statusCode: data['statusCode'] ?? '',
+            message: data['message'] ?? '',
+            name: '',
+            data: data,
+          );
+        } else {
+          result = CreateGroupResult.fromJson(data);
+        }
+
+        debugPrint(
+          '✅ [ChatApiService] Critical action result: ${result.isSuccess ? 'Success' : 'Failed'} - ${result.message}',
+        );
+
+        if (result.isSuccess) {
+          try {
+            debugPrint('🔄 [ChatApiService] Refreshing user data after critical action...');
+            final updatedUser = await authorizeUser(chatToken);
+            currentUser = updatedUser;
+            await TokenStorage.saveCurrentUser();
+            debugPrint('✅ [ChatApiService] User data refreshed successfully');
+          } catch (e) {
+            if (e is NetworkException) {
+              debugPrint('🌐 [ChatApiService] Network error during user refresh after critical action: $e');
+            } else {
+              debugPrint('⚠️ [ChatApiService] Failed to refresh user data after critical action: $e');
+            }
+          }
+        }
+
+        return result;
+      } else {
+        try {
+          final Map<String, dynamic> errorData = jsonDecode(response.body);
+          if (errorData.containsKey('error')) {
+            debugPrint('❌ [ChatApiService] API Error: ${errorData['error']}');
+            return CreateGroupResult(
+              statusCode: response.statusCode.toString(),
+              message: errorData['error'],
+              name: '',
+              data: errorData,
+            );
+          }
+        } on FormatException catch (parseError) {
+          debugPrint(
+            '❌ [ChatApiService] Failed to parse error response: $parseError',
+          );
+          return CreateGroupResult(
+            statusCode: response.statusCode.toString(),
+            message: 'Failed to perform critical action: ${response.statusCode}',
+            name: '',
+            data: null,
+          );
+        }
+
+        return CreateGroupResult(
+          statusCode: response.statusCode.toString(),
+          message: 'Failed to perform critical action: ${response.statusCode}',
+          name: '',
+          data: null,
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ [ChatApiService] Exception in performCriticalGroupAction: $e');
+      if (e.toString().contains('400') ||
+          e.toString().contains('401') ||
+          e.toString().contains('403') ||
+          e.toString().contains('404')) {
+        rethrow;
+      }
+      throw Exception('Error performing critical group action: $e');
+    }
+  }
+
   Future<GroupDetails> fetchGroupUsers(String chatToken, String groupName) async {
     try {
       final url = '$_baseUrl/api/groups/group-users';

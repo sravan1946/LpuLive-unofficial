@@ -190,6 +190,19 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             onPressed: _loadGroupDetails,
             icon: const Icon(Icons.refresh),
           ),
+          if (_isCurrentUserAdminOfGroup())
+            IconButton(
+              tooltip: 'Delete Group',
+              icon: const Icon(Icons.delete_forever_outlined),
+              color: scheme.error,
+              onPressed: _confirmAndDeleteGroup,
+            ),
+          if (!_isCurrentUserAdminOfGroup())
+            IconButton(
+              tooltip: 'Leave Group',
+              icon: const Icon(Icons.exit_to_app),
+              onPressed: _confirmAndLeaveGroup,
+            ),
         ],
       ),
       body: _buildBody(scheme),
@@ -359,6 +372,154 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         ),
       ],
     );
+  }
+
+  bool _isCurrentUserAdminOfGroup() {
+    if (currentUser == null) return false;
+    try {
+      final g = currentUser!.groups.firstWhere((x) => x.name == widget.groupName);
+      return g.isAdmin == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _confirmAndDeleteGroup() async {
+    if (currentUser == null) return;
+    final scheme = Theme.of(context).colorScheme;
+
+    final controller = TextEditingController();
+    final requiredText = 'delete ${widget.groupId}';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Confirm Delete Group'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'This action cannot be undone. To confirm, type the following exactly:',
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(requiredText, style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Type confirmation',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.tonal(
+              onPressed: () {
+                if (controller.text.trim() == requiredText) {
+                  Navigator.of(ctx).pop(true);
+                }
+              },
+              style: ButtonStyle(
+                foregroundColor: WidgetStatePropertyAll<Color>(scheme.onErrorContainer),
+                backgroundColor: WidgetStatePropertyAll<Color>(scheme.errorContainer),
+              ),
+              child: const Text('Delete Group'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      showAppToast(context, 'Deletion cancelled', type: ToastType.info);
+      return;
+    }
+
+    try {
+      final res = await _apiService.performCriticalGroupAction(
+        currentUser!.chatToken,
+        'deletegroup',
+        widget.groupId,
+      );
+
+      if (res.isSuccess) {
+        if (mounted) {
+          showAppToast(context, 'Group deleted', type: ToastType.success);
+          Navigator.of(context).pop(true);
+        }
+      } else {
+        if (mounted) {
+          showAppToast(context, 'Failed: ${res.message}', type: ToastType.error);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        showAppToast(context, 'Error: $e', type: ToastType.error);
+      }
+    }
+  }
+
+  Future<void> _confirmAndLeaveGroup() async {
+    if (currentUser == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Leave Group?'),
+          content: const Text(
+            'You will stop receiving messages from this group. Proceed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Leave'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final res = await _apiService.performGroupAction(
+        currentUser!.chatToken,
+        'Leave',
+        widget.groupId,
+      );
+
+      if (res.isSuccess) {
+        if (mounted) {
+          showAppToast(context, 'Left group', type: ToastType.success);
+          Navigator.of(context).pop(true);
+        }
+      } else {
+        if (mounted) {
+          showAppToast(context, 'Failed: ${res.message}', type: ToastType.error);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        showAppToast(context, 'Error: $e', type: ToastType.error);
+      }
+    }
   }
 
   Widget _buildMembersSection(ColorScheme scheme) {
