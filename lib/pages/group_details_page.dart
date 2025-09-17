@@ -273,14 +273,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildGroupInfoCard(scheme),
-          const SizedBox(height: 24),
-          _buildMembersSection(scheme),
-        ],
-      ),
+      child: _buildMembersSection(scheme),
     );
   }
 
