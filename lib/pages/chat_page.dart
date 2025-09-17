@@ -189,26 +189,80 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Resolve a small avatar for the app bar (prefer last non-own message avatar in DMs)
+    String? _appBarAvatarUrl;
+    for (int i = _messages.length - 1; i >= 0; i--) {
+      final m = _messages[i];
+      if (!m.isOwnMessage && (m.userImage != null && m.userImage!.isNotEmpty)) {
+        _appBarAvatarUrl = m.userImage;
+        break;
+      }
+    }
+    final bool _isDm = RegExp(r'^\d+\s*:\s*\d+$').hasMatch(widget.groupId);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => GroupDetailsPage(
-                    groupName: widget.groupId,
-                    groupId: widget.groupId,
-                  ),
+        leadingWidth: 48,
+        titleSpacing: 0,
+        title: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => GroupDetailsPage(
+                  groupName: widget.groupId,
+                  groupId: widget.groupId,
                 ),
-              );
-            },
-            icon: const Icon(Icons.info_outline),
-            tooltip: 'Group Details',
+              ),
+            );
+          },
+          child: Row(
+            children: [
+              const SizedBox(width: 4),
+              if (_isDm)
+                (_appBarAvatarUrl != null && _appBarAvatarUrl!.isNotEmpty)
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SafeNetworkImage(
+                          imageUrl: _appBarAvatarUrl!,
+                          width: 32,
+                          height: 32,
+                          highQuality: true,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : CircleAvatar(
+                        radius: 16,
+                        backgroundColor: scheme.primary,
+                        child: Text(
+                          widget.title.isNotEmpty
+                              ? widget.title[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            color: scheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      )
+              else
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: scheme.primary,
+                  child: Icon(Icons.group, size: 18, color: scheme.onPrimary),
+                ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       body: Stack(
         children: [
