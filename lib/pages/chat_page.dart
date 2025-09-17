@@ -71,6 +71,67 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  Future<void> _confirmAndLeaveChat() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Leave chat?'),
+        content: const Text('You will stop receiving messages from this chat.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      // TODO: Call backend to leave group when endpoint is available.
+      showAppToast(context, 'Left chat', type: ToastType.success);
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      showAppToast(context, 'Failed to leave chat: $e', type: ToastType.error);
+    }
+  }
+
+  Future<void> _confirmAndBlockUser() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Block user?'),
+        content: const Text(
+          'You will no longer receive messages from this user. You can unblock later in settings.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Block'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      showAppToast(context, 'User blocked', type: ToastType.success);
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      showAppToast(context, 'Failed to block user: $e', type: ToastType.error);
+    }
+  }
+
   late final VoidCallback _userListener;
   // Reply state
   ChatMessage? _replyingTo;
@@ -287,6 +348,47 @@ class _ChatPageState extends State<ChatPage> {
             ],
           ),
         ),
+        actions: [
+          if (_isDm)
+            PopupMenuButton<String>(
+              position: PopupMenuPosition.under,
+              offset: const Offset(0, 8),
+              onSelected: (value) async {
+                switch (value) {
+                  case 'details':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => GroupDetailsPage(
+                          groupName: widget.groupId,
+                          groupId: widget.groupId,
+                        ),
+                      ),
+                    );
+                    break;
+                  case 'leave':
+                    await _confirmAndLeaveChat();
+                    break;
+                  case 'block':
+                    await _confirmAndBlockUser();
+                    break;
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem<String>(
+                  value: 'details',
+                  child: Text('View details'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'leave',
+                  child: Text('Leave chat'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'block',
+                  child: Text('Block user'),
+                ),
+              ],
+            ),
+        ],
       ),
       body: Stack(
         children: [

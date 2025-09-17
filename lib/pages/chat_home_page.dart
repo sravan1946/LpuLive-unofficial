@@ -152,6 +152,7 @@ class _ChatHomePageState extends State<ChatHomePage> {
       },
       child: Scaffold(
         key: _scaffoldKey,
+        resizeToAvoidBottomInset: false,
         drawer: const AppNavDrawer(),
         body: ConnectivityBanner(
           child: Stack(

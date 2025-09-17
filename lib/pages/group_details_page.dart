@@ -218,12 +218,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               color: scheme.error,
               onPressed: _confirmAndDeleteGroup,
             ),
-          if (!_isCurrentUserAdminOfGroup() && !_isUniversityGroup())
-            IconButton(
-              tooltip: 'Leave Group',
-              icon: const Icon(Icons.exit_to_app),
-              onPressed: _confirmAndLeaveGroup,
-            ),
+          // Leave chat now handled from the chat app bar menu
         ],
       ),
       body: _buildBody(scheme),

@@ -25,6 +25,7 @@ class PersonalGroupsPage extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         centerTitle: false,
         backgroundColor: Colors.transparent,

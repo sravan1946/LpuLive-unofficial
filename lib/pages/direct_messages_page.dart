@@ -625,6 +625,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     }).toList();
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         centerTitle: false,
         backgroundColor: Colors.transparent,
