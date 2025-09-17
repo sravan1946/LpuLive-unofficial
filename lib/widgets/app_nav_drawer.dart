@@ -56,6 +56,7 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
     final user = currentUser;
 
     return Drawer(
+      width: MediaQuery.of(context).size.width * 0.60,
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: ClipRect(
