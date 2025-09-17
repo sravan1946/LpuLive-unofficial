@@ -29,6 +29,14 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   bool _isLoading = true;
   String? _error;
 
+  String _cleanDisplayName(String value) {
+    final index = value.indexOf(':');
+    if (index >= 0) {
+      return value.substring(0, index).trim();
+    }
+    return value.trim();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -74,14 +82,15 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
 
     if (cachedAvatar != null && cachedAvatar.isNotEmpty) {
-      return CircleAvatar(
-        backgroundColor: scheme.primary,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+      return SizedBox(
+        width: 40,
+        height: 40,
+        child: ClipOval(
           child: SafeNetworkImage(
             imageUrl: cachedAvatar,
-            width: 32,
-            height: 32,
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
             errorWidget: CircleAvatar(
               backgroundColor: scheme.primary,
               child: Text(
@@ -92,7 +101,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 ),
               ),
             ),
-            fit: BoxFit.cover,
           ),
         ),
       );
@@ -196,7 +204,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.groupName),
+        title: Text(_cleanDisplayName(widget.groupName)),
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
         actions: [
           IconButton(
@@ -632,17 +640,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       child: ListTile(
         leading: _buildUserAvatar(user, scheme),
         title: Text(
-          user.username,
+          (user.username.contains(':')
+                  ? user.username.split(':').first
+                  : user.username)
+              .trim(),
           style: const TextStyle(fontWeight: FontWeight.w500),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('ID: ${user.id}'),
-            Text('Category: ${user.category}'),
-            if (user.status.isNotEmpty) Text('Status: ${user.status}'),
-          ],
-        ),
+        subtitle: Text('ID: ${user.id}'),
         trailing: user.isAdmin
             ? Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
