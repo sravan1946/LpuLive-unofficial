@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import '../models/current_user_state.dart';
 import '../models/message_status.dart';
 import '../models/user_models.dart';
+import '../services/avatar_cache_service.dart';
 import '../services/chat_data.dart';
 import '../services/chat_handlers.dart';
 import '../services/chat_services.dart';
@@ -246,6 +247,11 @@ class _ChatPageState extends State<ChatPage> {
       setState(() {});
     };
     currentUserNotifier.addListener(_userListener);
+
+    // Ensure avatar cache is loaded so cached avatars render in this page
+    AvatarCacheService.loadCache().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -277,7 +283,29 @@ class _ChatPageState extends State<ChatPage> {
         _appBarDisplayName = m.senderName;
       }
     }
-    final bool _isDm = RegExp(r'^\d+\s*:\s*\d+$').hasMatch(widget.groupId);
+    final bool isDm =
+        (currentUser?.groups.any(
+              (g) => g.name == widget.groupId && g.isDirectMessage,
+            ) ??
+            false) ||
+        RegExp(r'^\d+\s*:\s*\d+$').hasMatch(widget.groupId);
+    // Prefer cached avatar for DM other participant if available
+    if (isDm) {
+      final parts = widget.groupId.split(':').map((s) => s.trim()).toList();
+      if (parts.length == 2) {
+        String otherId;
+        if (currentUser != null &&
+            (parts[0] == currentUser!.id || parts[1] == currentUser!.id)) {
+          otherId = parts[0] == currentUser!.id ? parts[1] : parts[0];
+        } else {
+          otherId = parts[0];
+        }
+        final cached = AvatarCacheService.getCachedAvatar(otherId);
+        if (cached != null && cached.isNotEmpty) {
+          _appBarAvatarUrl = cached;
+        }
+      }
+    }
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
@@ -298,12 +326,12 @@ class _ChatPageState extends State<ChatPage> {
           child: Row(
             children: [
               const SizedBox(width: 4),
-              if (_isDm)
-                (_appBarAvatarUrl != null && _appBarAvatarUrl!.isNotEmpty)
+              if (isDm)
+                (_appBarAvatarUrl != null && _appBarAvatarUrl.isNotEmpty)
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: SafeNetworkImage(
-                          imageUrl: _appBarAvatarUrl!,
+                          imageUrl: _appBarAvatarUrl,
                           width: 32,
                           height: 32,
                           highQuality: true,
@@ -333,7 +361,7 @@ class _ChatPageState extends State<ChatPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  _isDm
+                  isDm
                       ? SenderNameUtils.parseSenderName(
                           (_appBarDisplayName?.trim().isNotEmpty == true
                               ? _appBarDisplayName!.trim()
@@ -349,7 +377,7 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
         actions: [
-          if (_isDm)
+          if (isDm)
             PopupMenuButton<String>(
               position: PopupMenuPosition.under,
               offset: const Offset(0, 8),
@@ -574,7 +602,11 @@ class _ChatPageState extends State<ChatPage> {
                                                       ),
                                                   child: SafeNetworkImage(
                                                     imageUrl:
-                                                        message.userImage ?? '',
+                                                        AvatarCacheService.getCachedAvatar(
+                                                          message.sender,
+                                                        ) ??
+                                                        (message.userImage ??
+                                                            ''),
                                                     width: avatarSize,
                                                     height: avatarSize,
                                                     errorWidget: CircleAvatar(
@@ -1041,8 +1073,14 @@ class _ChatPageState extends State<ChatPage> {
                                                       ),
                                                   child: SafeNetworkImage(
                                                     imageUrl:
-                                                        currentUser
-                                                            ?.userImageUrl ??
+                                                        (currentUser != null
+                                                            ? (AvatarCacheService.getCachedAvatar(
+                                                                    currentUser!
+                                                                        .id,
+                                                                  ) ??
+                                                                  currentUser!
+                                                                      .userImageUrl)
+                                                            : '') ??
                                                         '',
                                                     width: avatarSize,
                                                     height: avatarSize,
