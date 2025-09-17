@@ -56,6 +56,21 @@ class _ChatPageState extends State<ChatPage> {
   bool _isLoading = false;
   bool _isSending = false;
   late final StreamSubscription<ChatMessage> _messageSubscription;
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _isDifferentCalendarDay(String prevIso, String curIso) {
+    try {
+      final p = DateTime.parse(prevIso).toLocal();
+      final c = DateTime.parse(curIso).toLocal();
+      return !_isSameDay(p, c);
+    } catch (_) {
+      return false;
+    }
+  }
+
   late final VoidCallback _userListener;
   // Reply state
   ChatMessage? _replyingTo;
@@ -191,11 +206,14 @@ class _ChatPageState extends State<ChatPage> {
     final scheme = Theme.of(context).colorScheme;
     // Resolve a small avatar for the app bar (prefer last non-own message avatar in DMs)
     String? _appBarAvatarUrl;
+    String? _appBarDisplayName;
     for (int i = _messages.length - 1; i >= 0; i--) {
       final m = _messages[i];
       if (!m.isOwnMessage && (m.userImage != null && m.userImage!.isNotEmpty)) {
         _appBarAvatarUrl = m.userImage;
-        break;
+      }
+      if (!m.isOwnMessage && (m.senderName.isNotEmpty)) {
+        _appBarDisplayName = m.senderName;
       }
     }
     final bool _isDm = RegExp(r'^\d+\s*:\s*\d+$').hasMatch(widget.groupId);
@@ -254,7 +272,13 @@ class _ChatPageState extends State<ChatPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  widget.title,
+                  _isDm
+                      ? SenderNameUtils.parseSenderName(
+                          (_appBarDisplayName?.trim().isNotEmpty == true
+                              ? _appBarDisplayName!.trim()
+                              : widget.title),
+                        )
+                      : widget.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600),
@@ -403,9 +427,19 @@ class _ChatPageState extends State<ChatPage> {
                                           realIndex > 0
                                           ? _messages[realIndex - 1].sender
                                           : null;
+                                      // Start a new visual block when sender changes or calendar day changes
+                                      final bool dateChangedFromPrev =
+                                          realIndex > 0
+                                          ? _isDifferentCalendarDay(
+                                              _messages[realIndex - 1]
+                                                  .timestamp,
+                                              message.timestamp,
+                                            )
+                                          : true;
                                       final bool isNewBlock =
                                           previousSender == null ||
-                                          previousSender != currentSender;
+                                          previousSender != currentSender ||
+                                          dateChangedFromPrev;
                                       final bool showLeftAvatar =
                                           !message.isOwnMessage && isNewBlock;
                                       final bool showRightAvatar =
@@ -628,7 +662,9 @@ class _ChatPageState extends State<ChatPage> {
                                                               .isOwnMessage &&
                                                           isNewBlock)
                                                         Text(
-                                                          message.senderName,
+                                                          SenderNameUtils.parseSenderName(
+                                                            message.senderName,
+                                                          ),
                                                           style: TextStyle(
                                                             fontWeight:
                                                                 FontWeight.w700,

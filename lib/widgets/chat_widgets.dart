@@ -46,14 +46,15 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
 
   double _dragOffset = 0.0;
   bool _isDragging = false;
-  static const double _swipeThreshold = 100.0;
-  static const double _maxSwipeDistance = 150.0;
+  static const double _swipeThreshold = 48.0; // shorter swipe to trigger
+  static const double _maxSwipeDistance =
+      96.0; // cap distance for snappier feel
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 140),
       vsync: this,
     );
 
@@ -78,7 +79,7 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
     if (!_isDragging || widget.isReadOnly) return;
 
     setState(() {
-      _dragOffset = (details.delta.dx + _dragOffset).clamp(
+      _dragOffset = (details.delta.dx * 1.15 + _dragOffset).clamp(
         0.0,
         _maxSwipeDistance,
       );
@@ -90,9 +91,9 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
 
     _isDragging = false;
 
-    if (_dragOffset > _swipeThreshold) {
+    if (_dragOffset >= _swipeThreshold) {
       // Trigger reply
-      HapticFeedback.lightImpact();
+      HapticFeedback.selectionClick();
       widget.onReply();
       _resetAnimation();
     } else {
@@ -125,7 +126,7 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
       child: Stack(
         children: [
           // Reply indicator background
-          if (_dragOffset > 20)
+          if (_dragOffset > 12)
             Positioned(
               right: 0,
               top: 0,
@@ -133,11 +134,11 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
               width: _dragOffset,
               child: Container(
                 decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.1),
+                  color: scheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
-                  child: Icon(Icons.reply, color: scheme.primary, size: 20),
+                  child: Icon(Icons.reply, color: scheme.primary, size: 18),
                 ),
               ),
             ),
