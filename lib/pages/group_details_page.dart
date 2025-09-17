@@ -605,7 +605,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         // Other users section
         if (otherUsers.isNotEmpty) ...[
           if (staffUsers.isNotEmpty)
-            _buildCategoryHeader('Members', otherUsers.length, scheme),
+            _buildCategoryHeader('Students', otherUsers.length, scheme),
           if (staffUsers.isNotEmpty) const SizedBox(height: 8),
           ...otherUsers.map((user) => _buildMemberCard(user, scheme)),
         ],
@@ -646,7 +646,15 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               .trim(),
           style: const TextStyle(fontWeight: FontWeight.w500),
         ),
-        subtitle: Text('ID: ${user.id}'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('ID: ${user.id}'),
+            if (user.status.trim().isNotEmpty)
+              Text('Status: ${user.status.trim()}'),
+          ],
+        ),
         trailing: user.isAdmin
             ? Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
