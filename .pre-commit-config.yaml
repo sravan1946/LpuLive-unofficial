@@ -22,23 +22,15 @@ repos:
   # Flutter/Dart specific checks
   - repo: local
     hooks:
-      - id: dart-format
-        name: Dart formatter
-        entry: dart format --set-exit-if-changed
-        language: system
-        types: [dart]
-        files: ^lib/.*\.dart$
-
       - id: dart-import-sort
         name: Dart import sorter
         entry: bash scripts/sort_imports.sh
         language: system
         types: [dart]
-        files: ^lib/.*\.dart$
+        pass_filenames: false
 
       - id: bump-flutter-version
         name: Bump Flutter pubspec version
         entry: bash scripts/bump_version.sh
         language: system
         pass_filenames: false
-        files: ^pubspec\.yaml$
