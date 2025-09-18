@@ -820,50 +820,58 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (data.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    scheme.primary.withValues(alpha: 0.1),
-                    scheme.primary.withValues(alpha: 0.05),
-                  ],
-                ),
-              ),
-              child: Icon(
-                Icons.message_outlined,
-                size: 64,
-                color: scheme.primary.withValues(alpha: 0.6),
+      return CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          scheme.primary.withValues(alpha: 0.1),
+                          scheme.primary.withValues(alpha: 0.05),
+                        ],
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.message_outlined,
+                      size: 64,
+                      color: scheme.primary.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SpinKitPulse(color: scheme.primary, size: 32),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Direct Messages',
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : const Color(0xFF5A5A5A),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Direct messages will appear here',
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : const Color(0xFF8A8A8A),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-            SpinKitPulse(color: scheme.primary, size: 32),
-            const SizedBox(height: 16),
-            Text(
-              'No Direct Messages',
-              style: TextStyle(
-                color: isDark ? Colors.white70 : const Color(0xFF5A5A5A),
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Direct messages will appear here',
-              style: TextStyle(
-                color: isDark ? Colors.white54 : const Color(0xFF8A8A8A),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
