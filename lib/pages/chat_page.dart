@@ -1399,10 +1399,16 @@ class _ChatPageState extends State<ChatPage> {
                             onNotification: (n) {
                               if (n.metrics.pixels >=
                                   n.metrics.maxScrollExtent - 24) {
-                                ConversationReadTracker.setLastReadToNow(
-                                  widget.groupId,
+                                final dividerAt = ChatUtils.unreadDividerIndex(
+                                  _messages,
+                                  _lastReadAt,
                                 );
-                                _lastReadAt = DateTime.now();
+                                if (dividerAt == null) {
+                                  ConversationReadTracker.setLastReadToNow(
+                                    widget.groupId,
+                                  );
+                                  _lastReadAt = DateTime.now();
+                                }
                               }
                               return false;
                             },

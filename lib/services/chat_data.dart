@@ -60,13 +60,7 @@ class ChatData {
       // Initialize status for loaded messages
       statusService.initializeStatuses(loaded);
 
-      // If there are messages and no last-read marker, set it to the last message
-      if (loaded.isNotEmpty) {
-        try {
-          final lastReadAt = DateTime.parse(loaded.last.timestamp);
-          setLastReadAt(lastReadAt);
-        } catch (_) {}
-      }
+      // Do not override last-read here; rely on persisted value from ConversationReadTracker
 
       if (loaded.isNotEmpty) {
         final lastMsg = loaded.last;

@@ -909,11 +909,9 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                 borderRadius: BorderRadius.circular(16),
               ),
               openBuilder: (context, _) {
-                // Clear unread when opening
+                // Clear unread counter when opening (UI badge)
                 _unreadByGroup[dm.dmName] = 0;
                 _saveUnreadCounts();
-                // Also mark last-read now for immediate divider clearing
-                ConversationReadTracker.setLastReadToNow(dm.dmName);
                 return ChatPage(
                   groupId: dm.dmName,
                   title: _displayNameForDm(dm),

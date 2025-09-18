@@ -59,13 +59,24 @@ class ChatUtils {
     List<ChatMessage> messages,
     DateTime? lastReadAt,
   ) {
-    if (lastReadAt == null || messages.isEmpty) return null;
-    // Find first message strictly newer than lastRead
+    if (messages.isEmpty) return null;
+
+    // If we don't have a last-read marker (first open), treat all messages from others as unread
+    // and place the divider before the first non-own message, if any.
+    if (lastReadAt == null) {
+      for (int i = 0; i < messages.length; i++) {
+        if (!messages[i].isOwnMessage) return i;
+      }
+      return null; // only own messages exist
+    }
+
+    // Find first message at-or-newer than lastRead (handle equal timestamps)
     for (int i = 0; i < messages.length; i++) {
       try {
         final ts = DateTime.parse(messages[i].timestamp);
         // Only consider messages from others as unread
-        if (ts.isAfter(lastReadAt) && !messages[i].isOwnMessage) {
+        if ((ts.isAfter(lastReadAt) || ts.isAtSameMomentAs(lastReadAt)) &&
+            !messages[i].isOwnMessage) {
           // Place divider before this message
           return i;
         }

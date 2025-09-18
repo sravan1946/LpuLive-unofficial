@@ -532,10 +532,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 borderRadius: BorderRadius.circular(16),
               ),
               openBuilder: (context, _) {
-                // Clear unread when opening
+                // Clear unread counter when opening (UI badge)
                 _unreadByGroup[course.courseName] = 0;
                 _saveUnreadCounts();
-                ConversationReadTracker.setLastReadToNow(course.courseName);
                 final isWritable = _isGroupWritable(course);
                 return ChatPage(
                   groupId: course.courseName,
