@@ -73,6 +73,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _confirmAndLeaveChat() async {
+    if (currentUser == null) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -94,11 +95,122 @@ class _ChatPageState extends State<ChatPage> {
     if (confirmed != true) return;
 
     try {
-      // TODO: Call backend to leave group when endpoint is available.
-      showAppToast(context, 'Left chat', type: ToastType.success);
-      Navigator.of(context).maybePop();
+      final res = await _apiService.performGroupAction(
+        currentUser!.chatToken,
+        'Leave',
+        widget.groupId,
+      );
+
+      if (res.isSuccess) {
+        if (mounted) {
+          showAppToast(context, 'Left chat', type: ToastType.success);
+          Navigator.of(context).maybePop();
+        }
+      } else {
+        if (mounted) {
+          showAppToast(
+            context,
+            'Failed: ${res.message}',
+            type: ToastType.error,
+          );
+        }
+      }
     } catch (e) {
       showAppToast(context, 'Failed to leave chat: $e', type: ToastType.error);
+    }
+  }
+
+  Future<void> _confirmAndDeleteChat() async {
+    if (currentUser == null) return;
+    final scheme = Theme.of(context).colorScheme;
+    final controller = TextEditingController();
+    final requiredText = widget.groupId;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Delete chat?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'This action is permanent and will delete the chat for all members.',
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Type the group id to confirm:',
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  hintText: requiredText,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.tonal(
+              onPressed: () {
+                if (controller.text.trim() == requiredText) {
+                  Navigator.of(ctx).pop(true);
+                }
+              },
+              style: ButtonStyle(
+                foregroundColor: WidgetStatePropertyAll<Color>(
+                  scheme.onErrorContainer,
+                ),
+                backgroundColor: WidgetStatePropertyAll<Color>(
+                  scheme.errorContainer,
+                ),
+              ),
+              child: const Text('Delete Chat'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      if (mounted) {
+        showAppToast(context, 'Deletion cancelled', type: ToastType.info);
+      }
+      return;
+    }
+
+    try {
+      final res = await _apiService.performCriticalGroupAction(
+        currentUser!.chatToken,
+        'deletegroup',
+        widget.groupId,
+      );
+
+      if (res.isSuccess) {
+        if (mounted) {
+          showAppToast(context, 'Chat deleted', type: ToastType.success);
+          Navigator.of(context).maybePop();
+        }
+      } else {
+        if (mounted) {
+          showAppToast(
+            context,
+            'Failed: ${res.message}',
+            type: ToastType.error,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        showAppToast(context, 'Error: $e', type: ToastType.error);
+      }
     }
   }
 
@@ -306,6 +418,16 @@ class _ChatPageState extends State<ChatPage> {
         }
       }
     }
+    // Determine user role in this chat
+    final userGroup = (currentUser?.groups
+            .where((g) => g.name == widget.groupId)
+            .toList()
+            .cast<Group>() ??
+        []);
+    final bool isParticipant = userGroup.isNotEmpty && userGroup.first.isActive;
+    final bool isAdminOfGroup =
+        userGroup.isNotEmpty && (userGroup.first.isAdmin == true);
+
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
@@ -377,45 +499,65 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
         actions: [
-          if (isDm)
-            PopupMenuButton<String>(
-              position: PopupMenuPosition.under,
-              offset: const Offset(0, 8),
-              onSelected: (value) async {
-                switch (value) {
-                  case 'details':
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => GroupDetailsPage(
-                          groupName: widget.groupId,
-                          groupId: widget.groupId,
-                        ),
+          PopupMenuButton<String>(
+            position: PopupMenuPosition.under,
+            offset: const Offset(0, 8),
+            onSelected: (value) async {
+              switch (value) {
+                case 'details':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => GroupDetailsPage(
+                        groupName: widget.groupId,
+                        groupId: widget.groupId,
                       ),
-                    );
-                    break;
-                  case 'leave':
-                    await _confirmAndLeaveChat();
-                    break;
-                  case 'block':
-                    await _confirmAndBlockUser();
-                    break;
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem<String>(
+                    ),
+                  );
+                  break;
+                case 'leave':
+                  await _confirmAndLeaveChat();
+                  break;
+                case 'delete':
+                  await _confirmAndDeleteChat();
+                  break;
+                case 'block':
+                  await _confirmAndBlockUser();
+                  break;
+              }
+            },
+            itemBuilder: (context) {
+              final items = <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
                   value: 'details',
                   child: Text('View details'),
                 ),
-                PopupMenuItem<String>(
-                  value: 'leave',
-                  child: Text('Leave chat'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'block',
-                  child: Text('Block user'),
-                ),
-              ],
-            ),
+              ];
+              if (isAdminOfGroup) {
+                items.add(
+                  const PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Text('Delete chat'),
+                  ),
+                );
+              } else if (isParticipant) {
+                items.add(
+                  const PopupMenuItem<String>(
+                    value: 'leave',
+                    child: Text('Leave chat'),
+                  ),
+                );
+              }
+              if (isDm) {
+                items.add(
+                  const PopupMenuItem<String>(
+                    value: 'block',
+                    child: Text('Block user'),
+                  ),
+                );
+              }
+              return items;
+            },
+          ),
         ],
       ),
       body: Stack(
