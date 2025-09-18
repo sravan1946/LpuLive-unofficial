@@ -214,13 +214,17 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  Future<void> _confirmAndBlockUser() async {
+  Future<void> _confirmAndBlockUser({required bool isCurrentlyBlocked}) async {
+    if (currentUser == null) return;
+    final action = isCurrentlyBlocked ? 'Unblock' : 'Block';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Block user?'),
-        content: const Text(
-          'You will no longer receive messages from this user. You can unblock later in settings.',
+        title: Text(isCurrentlyBlocked ? 'Unblock user?' : 'Block user?'),
+        content: Text(
+          isCurrentlyBlocked
+              ? 'You will be able to receive messages from this user again.'
+              : 'You will no longer receive messages from this user. You can unblock later.',
         ),
         actions: [
           TextButton(
@@ -229,8 +233,10 @@ class _ChatPageState extends State<ChatPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Block'),
+            style: TextButton.styleFrom(
+              foregroundColor: isCurrentlyBlocked ? Colors.green : Colors.red,
+            ),
+            child: Text(action),
           ),
         ],
       ),
@@ -238,10 +244,37 @@ class _ChatPageState extends State<ChatPage> {
     if (confirmed != true) return;
 
     try {
-      showAppToast(context, 'User blocked', type: ToastType.success);
-      Navigator.of(context).maybePop();
+      final result = await _apiService.performGroupAction(
+        currentUser!.chatToken,
+        action,
+        widget.groupId,
+      );
+      if (result.isSuccess) {
+        if (mounted) {
+          showAppToast(
+            context,
+            isCurrentlyBlocked ? 'User unblocked' : 'User blocked',
+            type: ToastType.success,
+          );
+          Navigator.of(context).maybePop();
+        }
+      } else {
+        if (mounted) {
+          showAppToast(
+            context,
+            'Failed: ${result.message}',
+            type: ToastType.error,
+          );
+        }
+      }
     } catch (e) {
-      showAppToast(context, 'Failed to block user: $e', type: ToastType.error);
+      if (mounted) {
+        showAppToast(
+          context,
+          'Failed to ${action.toLowerCase()} user: $e',
+          type: ToastType.error,
+        );
+      }
     }
   }
 
@@ -521,7 +554,14 @@ class _ChatPageState extends State<ChatPage> {
                   await _confirmAndDeleteChat();
                   break;
                 case 'block':
-                  await _confirmAndBlockUser();
+                  await _confirmAndBlockUser(
+                    isCurrentlyBlocked:
+                        (userGroup.isNotEmpty &&
+                                userGroup.first.inviteStatus
+                                        .trim()
+                                        .toUpperCase() ==
+                                    'BLOCK'),
+                  );
                   break;
               }
             },
@@ -548,12 +588,13 @@ class _ChatPageState extends State<ChatPage> {
                 );
               }
               if (isDm) {
-                items.add(
-                  const PopupMenuItem<String>(
-                    value: 'block',
-                    child: Text('Block user'),
-                  ),
-                );
+                final isBlocked = userGroup.isNotEmpty &&
+                    userGroup.first.inviteStatus.trim().toUpperCase() ==
+                        'BLOCK';
+                items.add(PopupMenuItem<String>(
+                  value: 'block',
+                  child: Text(isBlocked ? 'Unblock user' : 'Block user'),
+                ));
               }
               return items;
             },
