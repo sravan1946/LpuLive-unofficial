@@ -41,7 +41,39 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Using default PageScrollPhysics for built-in snapping and edge clamping
+// Custom physics that hard-locks edges: no movement when at first/last page
+class EdgeLockedPagePhysics extends PageScrollPhysics {
+  const EdgeLockedPagePhysics({super.parent});
+
+  @override
+  EdgeLockedPagePhysics applyTo(ScrollPhysics? ancestor) {
+    return EdgeLockedPagePhysics(parent: buildParent(ancestor));
+  }
+
+  // Prevent any pixel movement beyond min/max extents to avoid jitter
+  @override
+  double applyBoundaryConditions(ScrollMetrics position, double value) {
+    // If we're at the min extent (first page) and user drags left (decreasing pixels)
+    if (value < position.pixels && position.pixels <= position.minScrollExtent) {
+      return value - position.pixels;
+    }
+    // If we're at the max extent (last page) and user drags right (increasing pixels)
+    if (position.maxScrollExtent <= position.pixels && position.pixels < value) {
+      return value - position.pixels;
+    }
+    return super.applyBoundaryConditions(position, value);
+  }
+}
+
+// Remove overscroll glow/indicator to avoid visual jitter at edges
+class _NoGlowScrollBehavior extends ScrollBehavior {
+  const _NoGlowScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) {
+    return child;
+  }
+}
 
 class ChatHomePage extends StatefulWidget {
   const ChatHomePage({super.key});
@@ -166,16 +198,19 @@ class _ChatHomePageState extends State<ChatHomePage> {
             children: [
               // Content with native page scrolling for 1:1 swipe tracking
               Positioned.fill(
-                child: PageView(
-                  controller: _pageController,
-                  pageSnapping: true,
-                  physics: const PageScrollPhysics(),
-                  onPageChanged: (index) {
-                    setState(() {
-                      _selectedIndex = index;
-                    });
-                  },
-                  children: _pages,
+                child: ScrollConfiguration(
+                  behavior: const _NoGlowScrollBehavior(),
+                  child: PageView(
+                    controller: _pageController,
+                    pageSnapping: true,
+                    physics: const EdgeLockedPagePhysics(parent: ClampingScrollPhysics()),
+                    onPageChanged: (index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                    },
+                    children: _pages,
+                  ),
                 ),
               ),
               // Floating glass bottom navigation
