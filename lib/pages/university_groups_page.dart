@@ -295,7 +295,16 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
           ),
           actions: const [],
         ),
-        body: Container(
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragEnd: (details) {
+            final v = details.primaryVelocity ?? 0;
+            if (v > 600) {
+              // Right swipe with sufficient velocity opens drawer
+              widget.onOpenDrawer?.call();
+            }
+          },
+          child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -362,6 +371,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),
