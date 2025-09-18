@@ -1,9 +1,6 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
-// Package imports:
-import 'package:animations/animations.dart';
-
 // Project imports:
 import '../models/user_models.dart';
 import '../providers/theme_provider.dart';
@@ -15,6 +12,9 @@ import '../widgets/glass_bottom_nav_bar.dart';
 import 'direct_messages_page.dart';
 import 'personal_groups_page.dart';
 import 'university_groups_page.dart';
+
+// Package imports:
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -96,21 +96,18 @@ class _ChatHomePageState extends State<ChatHomePage> {
     super.initState();
     _connectWebSocket();
     void openDrawer() {
-      // Prefer using the ScaffoldState directly for reliability
       final scaffoldState = _scaffoldKey.currentState;
       if (scaffoldState != null) {
         debugPrint('📖 Opening drawer via ScaffoldState');
         scaffoldState.openDrawer();
         return;
       }
-      // Fallback to context-based lookup if state isn't yet available
       final ctx = _scaffoldKey.currentContext;
       if (ctx != null) {
         debugPrint('📖 Opening drawer via context');
         Scaffold.of(ctx).openDrawer();
         return;
       }
-      // Schedule after the current frame as a last resort
       WidgetsBinding.instance.addPostFrameCallback((_) {
         debugPrint('📖 Opening drawer via post-frame callback');
         _scaffoldKey.currentState?.openDrawer();
@@ -196,6 +193,8 @@ class _ChatHomePageState extends State<ChatHomePage> {
         resizeToAvoidBottomInset: false,
         drawer: const AppNavDrawer(),
         drawerEnableOpenDragGesture: false,
+        endDrawerEnableOpenDragGesture: false,
+        drawerEdgeDragWidth: 0.0,
         body: ConnectivityBanner(
           child: Stack(
             children: [
