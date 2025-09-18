@@ -40,76 +40,44 @@ class SwipeToReplyMessage extends StatefulWidget {
 }
 
 class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _slideAnimation;
+    with TickerProviderStateMixin {
+  late AnimationController _dismissController;
+  late AnimationController _scaleController;
+  late Animation<double> _dismissAnimation;
+  late Animation<double> _scaleAnimation;
 
-  double _dragOffset = 0.0;
-  bool _isDragging = false;
-  static const double _swipeThreshold = 48.0; // shorter swipe to trigger
-  static const double _maxSwipeDistance =
-      96.0; // cap distance for snappier feel
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 140),
+
+    _dismissController = AnimationController(
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
 
-    _slideAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+
+    _dismissAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _dismissController, curve: Curves.easeInOut),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
     );
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _dismissController.dispose();
+    _scaleController.dispose();
     super.dispose();
   }
 
-  void _onPanStart(DragStartDetails details) {
-    if (widget.isReadOnly) return;
-    _isDragging = true;
-    _animationController.stop();
-  }
-
-  void _onPanUpdate(DragUpdateDetails details) {
-    if (!_isDragging || widget.isReadOnly) return;
-
-    setState(() {
-      _dragOffset = (details.delta.dx * 1.15 + _dragOffset).clamp(
-        0.0,
-        _maxSwipeDistance,
-      );
-    });
-  }
-
-  void _onPanEnd(DragEndDetails details) {
-    if (!_isDragging || widget.isReadOnly) return;
-
-    _isDragging = false;
-
-    if (_dragOffset >= _swipeThreshold) {
-      // Trigger reply
-      HapticFeedback.selectionClick();
-      widget.onReply();
-      _resetAnimation();
-    } else {
-      // Snap back
-      _resetAnimation();
-    }
-  }
-
-  void _resetAnimation() {
-    _animationController.forward().then((_) {
-      setState(() {
-        _dragOffset = 0.0;
-      });
-      _animationController.reset();
-    });
-  }
+  // _handleDismiss was replaced by confirmDismiss to avoid removing the widget
 
   @override
   Widget build(BuildContext context) {
@@ -120,42 +88,92 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
         HapticFeedback.mediumImpact();
         widget.onLongPress();
       },
-      onPanStart: _onPanStart,
-      onPanUpdate: _onPanUpdate,
-      onPanEnd: _onPanEnd,
-      child: Stack(
-        children: [
-          // Reply indicator background
-          if (_dragOffset > 12)
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: _dragOffset,
-              child: Container(
+      child: Dismissible(
+        key: Key('swipe_reply_${widget.message.id}'),
+        direction: DismissDirection.startToEnd,
+        dismissThresholds: const {
+          DismissDirection.startToEnd: 0.3,
+        },
+        movementDuration: const Duration(milliseconds: 250),
+        resizeDuration: const Duration(milliseconds: 200),
+        // Prevent removal from the tree; trigger reply instead
+        confirmDismiss: (direction) async {
+          if (direction == DismissDirection.startToEnd && !widget.isReadOnly) {
+            HapticFeedback.selectionClick();
+            // brief scale feedback
+            await _scaleController.forward();
+            _scaleController.reverse();
+            widget.onReply();
+          }
+          return false; // never actually dismiss
+        },
+        background: Container(
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(14),
+              topRight: const Radius.circular(14),
+              bottomLeft: widget.message.isOwnMessage
+                  ? const Radius.circular(14)
+                  : const Radius.circular(4),
+              bottomRight: widget.message.isOwnMessage
+                  ? const Radius.circular(4)
+                  : const Radius.circular(14),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(left: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  color: scheme.primary,
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Center(
-                  child: Icon(Icons.reply, color: scheme.primary, size: 18),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.reply,
+                      color: scheme.onPrimary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Reply',
+                      style: TextStyle(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          // Main content
-          AnimatedBuilder(
-            animation: _slideAnimation,
+            ],
+          ),
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          child: AnimatedBuilder(
+            animation: Listenable.merge([_dismissAnimation, _scaleAnimation]),
             builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(_dragOffset, 0),
-                child: Transform.scale(
-                  scale: _isDragging ? 0.98 : 1.0,
-                  child: widget.child,
+              return Transform.scale(
+                scale: _scaleAnimation.value,
+                child: Opacity(
+                  opacity: 1.0 - _dismissAnimation.value * 0.3,
+                  child: Align(
+                    alignment: widget.message.isOwnMessage
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: widget.child,
+                  ),
                 ),
               );
             },
           ),
-        ],
+        ),
       ),
     );
   }
