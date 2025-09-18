@@ -41,40 +41,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Custom physics to disable swiping past edges in a specific direction
-class EdgeLockedPageScrollPhysics extends PageScrollPhysics {
-  final int currentPage;
-  final int pageCount;
-
-  const EdgeLockedPageScrollPhysics({
-    required this.currentPage,
-    required this.pageCount,
-    ScrollPhysics? parent,
-  }) : super(parent: parent);
-
-  @override
-  EdgeLockedPageScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return EdgeLockedPageScrollPhysics(
-      currentPage: currentPage,
-      pageCount: pageCount,
-      parent: buildParent(ancestor),
-    );
-  }
-
-  @override
-  double applyBoundaryConditions(ScrollMetrics position, double value) {
-    final double current = position.pixels;
-    // Disallow swiping right from first tab (attempting to go to -1)
-    if (currentPage == 0 && value < current) {
-      return current - value; // block movement
-    }
-    // Disallow swiping left from last tab (attempting to go beyond last)
-    if (currentPage == pageCount - 1 && value > current) {
-      return value - current; // block movement
-    }
-    return super.applyBoundaryConditions(position, value);
-  }
-}
+// Using default PageScrollPhysics for built-in snapping and edge clamping
 
 class ChatHomePage extends StatefulWidget {
   const ChatHomePage({super.key});
@@ -89,7 +56,6 @@ class _ChatHomePageState extends State<ChatHomePage> {
   final WebSocketChatService _wsService = WebSocketChatService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final PageController _pageController = PageController(initialPage: 0);
-  double _panDx = 0;
 
   @override
   void initState() {
@@ -198,57 +164,18 @@ class _ChatHomePageState extends State<ChatHomePage> {
         body: ConnectivityBanner(
           child: Stack(
             children: [
-              // Content with transitions
+              // Content with native page scrolling for 1:1 swipe tracking
               Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onHorizontalDragStart: (_) {
-                    _panDx = 0;
+                child: PageView(
+                  controller: _pageController,
+                  pageSnapping: true,
+                  physics: const PageScrollPhysics(),
+                  onPageChanged: (index) {
+                    setState(() {
+                      _selectedIndex = index;
+                    });
                   },
-                  onHorizontalDragUpdate: (details) {
-                    _panDx += details.delta.dx;
-                  },
-                  onHorizontalDragEnd: (details) {
-                    final vx = details.primaryVelocity ?? 0;
-                    const double vxThreshold = 200; // small fling ok
-                    const double dxThreshold = 12;  // small swipe ok
-                    final bool isLeft = _panDx < 0;
-                    final bool isRight = _panDx > 0;
-
-                    if ((vx.abs() > vxThreshold) || (_panDx.abs() > dxThreshold)) {
-                      if (isLeft) {
-                        // Move to next tab unless at last (DMs)
-                        final last = _pages.length - 1;
-                        if (_selectedIndex < last) {
-                          _pageController.animateToPage(
-                            _selectedIndex + 1,
-                            duration: const Duration(milliseconds: 260),
-                            curve: Curves.easeOutCubic,
-                          );
-                        }
-                      } else if (isRight) {
-                        // Move to previous tab unless at first (University)
-                        if (_selectedIndex > 0) {
-                          _pageController.animateToPage(
-                            _selectedIndex - 1,
-                            duration: const Duration(milliseconds: 260),
-                            curve: Curves.easeOutCubic,
-                          );
-                        }
-                      }
-                    }
-                    _panDx = 0;
-                  },
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    onPageChanged: (index) {
-                      setState(() {
-                        _selectedIndex = index;
-                      });
-                    },
-                    children: _pages,
-                  ),
+                  children: _pages,
                 ),
               ),
               // Floating glass bottom navigation
