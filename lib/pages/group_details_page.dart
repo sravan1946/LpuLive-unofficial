@@ -8,6 +8,7 @@ import '../services/avatar_cache_service.dart';
 import '../services/chat_services.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/network_image.dart';
+import 'group_media_page.dart';
 
 class GroupDetailsPage extends StatefulWidget {
   final String groupName;
@@ -207,6 +208,20 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         title: Text(_cleanDisplayName(widget.groupName)),
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
         actions: [
+          IconButton(
+            tooltip: 'View Media',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => GroupMediaPage(
+                    groupName: widget.groupName,
+                    groupId: widget.groupId,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.perm_media_outlined),
+          ),
           IconButton(
             onPressed: _loadGroupDetails,
             icon: const Icon(Icons.refresh),

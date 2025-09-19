@@ -23,6 +23,7 @@ import '../widgets/message_status_icon.dart';
 import '../widgets/network_image.dart';
 import '../widgets/reply_preview.dart';
 import 'group_details_page.dart';
+import 'group_media_page.dart';
 
 class ChatPage extends StatefulWidget {
   final String groupId;
@@ -547,6 +548,16 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   );
                   break;
+                case 'media':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => GroupMediaPage(
+                        groupName: widget.groupId,
+                        groupId: widget.groupId,
+                      ),
+                    ),
+                  );
+                  break;
                 case 'leave':
                   await _confirmAndLeaveChat();
                   break;
@@ -570,6 +581,10 @@ class _ChatPageState extends State<ChatPage> {
                 const PopupMenuItem<String>(
                   value: 'details',
                   child: Text('View details'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'media',
+                  child: Text('View media'),
                 ),
               ];
               if (isAdminOfGroup) {

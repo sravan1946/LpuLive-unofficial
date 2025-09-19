@@ -803,6 +803,77 @@ class ChatApiService {
       throw Exception('Error fetching group users: $e');
     }
   }
+
+  Future<List<GroupMediaItem>> fetchGroupMedia(
+    String chatToken,
+    String groupName,
+  ) async {
+    try {
+      final url = '$_baseUrl/api/groups/media';
+      final requestBody = {
+        'ChatToken': chatToken,
+        'group_name': groupName,
+      };
+
+      debugPrint('🌐 [ChatApiService] Making HTTP request to: $url');
+      debugPrint(
+        '📤 [ChatApiService] Headers: {"Content-Type": "application/json"}',
+      );
+      debugPrint('📤 [ChatApiService] Body: ${jsonEncode(requestBody)}');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      debugPrint('📥 [ChatApiService] Response Status: ${response.statusCode}');
+      debugPrint('📥 [ChatApiService] Response Headers: ${response.headers}');
+      debugPrint('📥 [ChatApiService] Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data.containsKey('media') && data['media'] is List) {
+          final List<dynamic> media = data['media'];
+          final mediaList = media
+              .map((json) => GroupMediaItem.fromJson(json))
+              .toList();
+          debugPrint(
+            '✅ [ChatApiService] Successfully parsed ${mediaList.length} media items',
+          );
+          return mediaList;
+        } else {
+          debugPrint('⚠️ [ChatApiService] No media found in response');
+          return [];
+        }
+      } else {
+        // Try to extract error message from response body
+        try {
+          final Map<String, dynamic> errorData = jsonDecode(response.body);
+          if (errorData.containsKey('error')) {
+            debugPrint('❌ [ChatApiService] API Error: ${errorData['error']}');
+            throw Exception('${errorData['error']} (${response.statusCode})');
+          } else {
+            throw Exception('Failed to fetch group media: ${response.statusCode}');
+          }
+        } on FormatException catch (parseError) {
+          debugPrint(
+            '❌ [ChatApiService] Failed to parse error response: $parseError',
+          );
+          throw Exception('Failed to fetch group media: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [ChatApiService] Exception in fetchGroupMedia: $e');
+      if (e.toString().contains('400') ||
+          e.toString().contains('401') ||
+          e.toString().contains('403') ||
+          e.toString().contains('404')) {
+        rethrow; // Re-throw the original API error
+      }
+      throw Exception('Error fetching group media: $e');
+    }
+  }
 }
 
 enum ConnectionStatus { connecting, connected, disconnected, reconnecting }

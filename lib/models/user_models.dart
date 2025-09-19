@@ -8,3 +8,4 @@ export 'contact_model.dart';
 export 'search_result_model.dart';
 export 'create_group_result_model.dart';
 export 'current_user_state.dart';
+export 'group_media_item.dart';
