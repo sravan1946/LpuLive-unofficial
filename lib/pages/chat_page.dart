@@ -1,12 +1,15 @@
 // Dart imports:
 import 'dart:async';
+import 'dart:io';
 
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// Package imports:
+import 'package:file_picker/file_picker.dart';
+
 // Project imports:
-import '../models/current_user_state.dart';
 import '../models/message_status.dart';
 import '../models/user_models.dart';
 import '../services/avatar_cache_service.dart';
@@ -102,21 +105,19 @@ class _ChatPageState extends State<ChatPage> {
         widget.groupId,
       );
 
+      if (!mounted) return;
       if (res.isSuccess) {
-        if (mounted) {
-          showAppToast(context, 'Left chat', type: ToastType.success);
-          Navigator.of(context).maybePop();
-        }
+        showAppToast(context, 'Left chat', type: ToastType.success);
+        Navigator.of(context).maybePop();
       } else {
-        if (mounted) {
-          showAppToast(
-            context,
-            'Failed: ${res.message}',
-            type: ToastType.error,
-          );
-        }
+        showAppToast(
+          context,
+          'Failed: ${res.message}',
+          type: ToastType.error,
+        );
       }
     } catch (e) {
+      if (!mounted) return;
       showAppToast(context, 'Failed to leave chat: $e', type: ToastType.error);
     }
   }
@@ -181,9 +182,8 @@ class _ChatPageState extends State<ChatPage> {
     );
 
     if (confirmed != true) {
-      if (mounted) {
-        showAppToast(context, 'Deletion cancelled', type: ToastType.info);
-      }
+      if (!mounted) return;
+      showAppToast(context, 'Deletion cancelled', type: ToastType.info);
       return;
     }
 
@@ -194,24 +194,20 @@ class _ChatPageState extends State<ChatPage> {
         widget.groupId,
       );
 
+      if (!mounted) return;
       if (res.isSuccess) {
-        if (mounted) {
-          showAppToast(context, 'Chat deleted', type: ToastType.success);
-          Navigator.of(context).maybePop();
-        }
+        showAppToast(context, 'Chat deleted', type: ToastType.success);
+        Navigator.of(context).maybePop();
       } else {
-        if (mounted) {
-          showAppToast(
-            context,
-            'Failed: ${res.message}',
-            type: ToastType.error,
-          );
-        }
+        showAppToast(
+          context,
+          'Failed: ${res.message}',
+          type: ToastType.error,
+        );
       }
     } catch (e) {
-      if (mounted) {
-        showAppToast(context, 'Error: $e', type: ToastType.error);
-      }
+      if (!mounted) return;
+      showAppToast(context, 'Error: $e', type: ToastType.error);
     }
   }
 
@@ -250,32 +246,28 @@ class _ChatPageState extends State<ChatPage> {
         action,
         widget.groupId,
       );
+      if (!mounted) return;
       if (result.isSuccess) {
-        if (mounted) {
-          showAppToast(
-            context,
-            isCurrentlyBlocked ? 'User unblocked' : 'User blocked',
-            type: ToastType.success,
-          );
-          Navigator.of(context).maybePop();
-        }
-      } else {
-        if (mounted) {
-          showAppToast(
-            context,
-            'Failed: ${result.message}',
-            type: ToastType.error,
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
         showAppToast(
           context,
-          'Failed to ${action.toLowerCase()} user: $e',
+          isCurrentlyBlocked ? 'User unblocked' : 'User blocked',
+          type: ToastType.success,
+        );
+        Navigator.of(context).maybePop();
+      } else {
+        showAppToast(
+          context,
+          'Failed: ${result.message}',
           type: ToastType.error,
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+      showAppToast(
+        context,
+        'Failed to ${action.toLowerCase()} user: $e',
+        type: ToastType.error,
+      );
     }
   }
 
@@ -418,15 +410,15 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     // Resolve a small avatar for the app bar (prefer last non-own message avatar in DMs)
-    String? _appBarAvatarUrl;
-    String? _appBarDisplayName;
+    String? appBarAvatarUrl;
+    String? appBarDisplayName;
     for (int i = _messages.length - 1; i >= 0; i--) {
       final m = _messages[i];
       if (!m.isOwnMessage && (m.userImage != null && m.userImage!.isNotEmpty)) {
-        _appBarAvatarUrl = m.userImage;
+        appBarAvatarUrl = m.userImage;
       }
       if (!m.isOwnMessage && (m.senderName.isNotEmpty)) {
-        _appBarDisplayName = m.senderName;
+        appBarDisplayName = m.senderName;
       }
     }
     final bool isDm =
@@ -448,7 +440,7 @@ class _ChatPageState extends State<ChatPage> {
         }
         final cached = AvatarCacheService.getCachedAvatar(otherId);
         if (cached != null && cached.isNotEmpty) {
-          _appBarAvatarUrl = cached;
+          appBarAvatarUrl = cached;
         }
       }
     }
@@ -483,11 +475,11 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               const SizedBox(width: 4),
               if (isDm)
-                (_appBarAvatarUrl != null && _appBarAvatarUrl.isNotEmpty)
+                (appBarAvatarUrl != null && appBarAvatarUrl.isNotEmpty)
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: SafeNetworkImage(
-                          imageUrl: _appBarAvatarUrl,
+                          imageUrl: appBarAvatarUrl,
                           width: 32,
                           height: 32,
                           highQuality: true,
@@ -519,8 +511,8 @@ class _ChatPageState extends State<ChatPage> {
                 child: Text(
                   isDm
                       ? SenderNameUtils.parseSenderName(
-                          (_appBarDisplayName?.trim().isNotEmpty == true
-                              ? _appBarDisplayName!.trim()
+                          (appBarDisplayName?.trim().isNotEmpty == true
+                              ? appBarDisplayName!.trim()
                               : widget.title),
                         )
                       : widget.title,
@@ -1553,6 +1545,15 @@ class _ChatPageState extends State<ChatPage> {
                             ),
                             const SizedBox(width: 8),
                             CustomGlassButton(
+                              onPressed: _pickAndUploadFile,
+                              child: Icon(
+                                Icons.attach_file,
+                                color: scheme.primary,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            CustomGlassButton(
                               onPressed: () => ChatHandlers.sendMessage(
                                 context,
                                 _messageController.text.trim(),
@@ -1637,5 +1638,238 @@ class _ChatPageState extends State<ChatPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _pickAndUploadFile() async {
+    if (currentUser == null) {
+      if (mounted) {
+        showAppToast(context, 'Not authenticated', type: ToastType.error);
+      }
+      return;
+    }
+    try {
+      final result = await FilePicker.platform.pickFiles(withReadStream: false);
+      if (!mounted) return;
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      final path = file.path;
+      if (path == null) {
+        showAppToast(context, 'Unable to access selected file', type: ToastType.error);
+        return;
+      }
+      // Enforce 5MB max size
+      final int pickedSize = file.size > 0 ? file.size : File(path).lengthSync();
+      const int maxBytes = 5 * 1024 * 1024; // 5MB
+      if (pickedSize > maxBytes) {
+        showAppToast(
+          context,
+          'File too large. Maximum allowed size is 5 MB.',
+          type: ToastType.error,
+        );
+        return;
+      }
+
+      await _showUploadSheet(
+        filePath: path,
+        fileName: file.name,
+        fileSize: file.size,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showAppToast(context, 'Upload failed: $e', type: ToastType.error);
+    }
+  }
+
+
+
+  Future<void> _showUploadSheet({
+    required String filePath,
+    required String fileName,
+    required int? fileSize,
+  }) async {
+    final TextEditingController localMessageController = TextEditingController(
+      text: _messageController.text.trim(),
+    );
+    bool isUploading = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        Widget leading;
+        final lower = fileName.toLowerCase();
+        final isImage = _isImageExtension(lower);
+        if (isImage) {
+          leading = ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              File(filePath),
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Icon(Icons.image, size: 40, color: scheme.primary),
+            ),
+          );
+        } else {
+          leading = Icon(_iconForFileName(lower), size: 40, color: scheme.primary);
+        }
+
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+                left: 16,
+                right: 16,
+                top: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      leading,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              fileName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatBytes(fileSize ?? File(filePath).lengthSync()),
+                              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Max 5 MB',
+                              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: localMessageController,
+                    minLines: 1,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      labelText: 'Add a message (optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: isUploading ? null : () => Navigator.of(sheetContext).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: isUploading
+                            ? null
+                            : () async {
+                                setSheetState(() => isUploading = true);
+                                try {
+                                  final message = localMessageController.text.trim();
+                                  // Double-check size limit inside sheet
+                                  final int actualSize = fileSize ?? File(filePath).lengthSync();
+                                  const int maxBytes = 5 * 1024 * 1024;
+                                  if (actualSize > maxBytes) {
+                                    if (!sheetContext.mounted) return;
+                                    showAppToast(sheetContext, 'File too large. Maximum allowed size is 5 MB.', type: ToastType.error);
+                                    setSheetState(() => isUploading = false);
+                                    return;
+                                  }
+                                  await _apiService.uploadGroupFile(
+                                    chatToken: currentUser!.chatToken,
+                                    groupName: widget.groupId,
+                                    message: message,
+                                    filePath: filePath,
+                                    filename: fileName,
+                                  );
+                                  if (!sheetContext.mounted) return;
+                                  showAppToast(sheetContext, 'File uploaded successfully', type: ToastType.success);
+                                  if (_messageController.text.trim() == message && message.isNotEmpty) {
+                                    _messageController.clear();
+                                  }
+                                  Navigator.of(sheetContext).pop();
+                                } catch (e) {
+                                  if (!sheetContext.mounted) return;
+                                  showAppToast(sheetContext, 'Upload failed: $e', type: ToastType.error);
+                                  setSheetState(() => isUploading = false);
+                                }
+                              },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isUploading) ...[
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Theme.of(sheetContext).colorScheme.onPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            const Text('Upload'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  bool _isImageExtension(String lowerName) {
+    return lowerName.endsWith('.png') ||
+        lowerName.endsWith('.jpg') ||
+        lowerName.endsWith('.jpeg') ||
+        lowerName.endsWith('.gif') ||
+        lowerName.endsWith('.webp');
+  }
+
+  IconData _iconForFileName(String lowerName) {
+    if (lowerName.endsWith('.pdf')) return Icons.picture_as_pdf;
+    if (lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx')) return Icons.slideshow;
+    if (lowerName.endsWith('.mp4') || lowerName.endsWith('.mov') || lowerName.endsWith('.mkv')) return Icons.videocam;
+    if (lowerName.endsWith('.mp3') || lowerName.endsWith('.wav') || lowerName.endsWith('.m4a')) return Icons.audiotrack;
+    if (lowerName.endsWith('.doc') || lowerName.endsWith('.docx')) return Icons.description;
+    if (lowerName.endsWith('.xls') || lowerName.endsWith('.xlsx')) return Icons.table_chart;
+    return Icons.insert_drive_file;
+  }
+
+  String _formatBytes(int bytes) {
+    const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    double size = bytes.toDouble();
+    int i = 0;
+    while (size >= 1024 && i < suffixes.length - 1) {
+      size /= 1024;
+      i++;
+    }
+    return '${size.toStringAsFixed(size < 10 && i > 0 ? 1 : 0)} ${suffixes[i]}';
   }
 }

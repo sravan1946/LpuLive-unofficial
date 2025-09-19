@@ -874,6 +874,54 @@ class ChatApiService {
       throw Exception('Error fetching group media: $e');
     }
   }
+
+  /// Upload a file to a group.
+  /// Sends a multipart/form-data POST to /backend/upload/ with fields:
+  /// - chat_token
+  /// - group_name
+  /// - message
+  /// - file (binary)
+  Future<void> uploadGroupFile({
+    required String chatToken,
+    required String groupName,
+    required String message,
+    required String filePath,
+    String? filename,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/backend/upload/');
+    try {
+      final request = http.MultipartRequest('POST', uri);
+      request.fields['chat_token'] = chatToken;
+      request.fields['group_name'] = groupName;
+      request.fields['message'] = message;
+
+      final multipartFile = await http.MultipartFile.fromPath(
+        'file',
+        filePath,
+        filename: filename,
+      );
+      request.files.add(multipartFile);
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode != 200) {
+        throw Exception('Upload failed: ${response.statusCode}');
+      }
+
+      // Try to parse JSON and check status
+      try {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if ((data['status'] ?? '') != 'success') {
+          throw Exception(data['message'] ?? 'Upload failed');
+        }
+      } catch (_) {
+        // If not JSON or different format, assume success on 200
+      }
+    } catch (e) {
+      throw Exception('Error uploading file: $e');
+    }
+  }
 }
 
 enum ConnectionStatus { connecting, connected, disconnected, reconnecting }

@@ -295,92 +295,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  Widget _buildGroupInfoCard(ColorScheme scheme) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.group, color: scheme.primary, size: 24),
-                const SizedBox(width: 8),
-                Text(
-                  'Group Information',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildInfoRow(
-              'Group Name',
-              widget.groupName,
-              Icons.label_outline,
-              scheme,
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              'Group ID',
-              widget.groupId,
-              Icons.fingerprint,
-              scheme,
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              'Type',
-              _groupDetails!.isOneToOne ? 'One-to-One Chat' : 'Group Chat',
-              Icons.chat_bubble_outline,
-              scheme,
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              'Two-Way Status',
-              _groupDetails!.twoWayStatus ? 'Enabled' : 'Disabled',
-              Icons.swap_horiz,
-              scheme,
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              'Total Members',
-              '${_groupDetails!.users.length}',
-              Icons.people_outline,
-              scheme,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(
-    String label,
-    String value,
-    IconData icon,
-    ColorScheme scheme,
-  ) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: scheme.onSurfaceVariant),
-        const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-        Expanded(
-          child: Text(value, style: TextStyle(color: scheme.onSurface)),
-        ),
-      ],
-    );
-  }
 
   bool _isCurrentUserAdminOfGroup() {
     if (currentUser == null) return false;
@@ -394,17 +308,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
   }
 
-  bool _isUniversityGroup() {
-    // Prefer flags from current user groups when available
-    try {
-      final g = currentUser?.groups.firstWhere(
-        (x) => x.name == widget.groupName,
-      );
-      if (g != null) return g.isUniversityGroup;
-    } catch (_) {}
-    // If group not found, default to uni (safer default for destructive UI)
-    return true;
-  }
 
   Future<void> _confirmAndDeleteGroup() async {
     if (currentUser == null) return;
@@ -507,59 +410,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
   }
 
-  Future<void> _confirmAndLeaveGroup() async {
-    if (currentUser == null) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Leave Group?'),
-          content: const Text(
-            'You will stop receiving messages from this group. Proceed?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Leave'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      final res = await _apiService.performGroupAction(
-        currentUser!.chatToken,
-        'Leave',
-        widget.groupId,
-      );
-
-      if (res.isSuccess) {
-        if (mounted) {
-          showAppToast(context, 'Left group', type: ToastType.success);
-          Navigator.of(context).pop(true);
-        }
-      } else {
-        if (mounted) {
-          showAppToast(
-            context,
-            'Failed: ${res.message}',
-            type: ToastType.error,
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        showAppToast(context, 'Error: $e', type: ToastType.error);
-      }
-    }
-  }
 
   Widget _buildMembersSection(ColorScheme scheme) {
     // Sort users: staff first, then others, all sorted alphabetically by name
