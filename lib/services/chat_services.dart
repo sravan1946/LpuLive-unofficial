@@ -9,6 +9,8 @@ import 'package:flutter/foundation.dart';
 
 // Package imports:
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
+import 'package:mime/mime.dart' as mime;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/status.dart' as status;
@@ -895,12 +897,30 @@ class ChatApiService {
       request.fields['group_name'] = groupName;
       request.fields['message'] = message;
 
-      final multipartFile = await http.MultipartFile.fromPath(
-        'file',
-        filePath,
-        filename: filename,
-      );
+      // Detect MIME type from file extension
+      final contentTypeString = mime.lookupMimeType(filePath);
+      http.MultipartFile multipartFile;
+      if (contentTypeString != null && contentTypeString.contains('/')) {
+        final parts = contentTypeString.split('/');
+        final mediaType = MediaType(parts[0], parts.length > 1 ? parts[1] : 'octet-stream');
+        multipartFile = await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+          filename: filename,
+          contentType: mediaType,
+        );
+      } else {
+        multipartFile = await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+          filename: filename,
+        );
+      }
       request.files.add(multipartFile);
+
+      // Debug: log outgoing fields (without binary)
+      debugPrint('📤 [Upload] POST $uri');
+      debugPrint('📤 [Upload] Fields: chat_token=${chatToken.isNotEmpty}, group_name="$groupName", message="${request.fields['message']}"');
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -912,6 +932,7 @@ class ChatApiService {
       // Try to parse JSON and check status
       try {
         final Map<String, dynamic> data = jsonDecode(response.body);
+        debugPrint('📥 [Upload] Response: ${response.body}');
         if ((data['status'] ?? '') != 'success') {
           throw Exception(data['message'] ?? 'Upload failed');
         }
