@@ -1,20 +1,22 @@
 // Dart imports:
-import 'dart:convert';
+import 'dart:async';
 
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// Package imports:
+import 'package:cloudflare_turnstile/cloudflare_turnstile.dart';
+
 // Project imports:
 import '../models/current_user_state.dart';
-import '../models/user_models.dart';
 import '../providers/theme_provider.dart';
 import '../services/chat_services.dart';
 import '../theme.dart';
 import '../widgets/app_toast.dart';
 import 'chat_home_page.dart';
-import 'webview_login_page.dart';
 
+/// Root app wrapper for the login experience
 class TokenInputApp extends StatelessWidget {
   const TokenInputApp({super.key, this.autoLoggedOut = false});
 
@@ -22,7 +24,6 @@ class TokenInputApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('🔐 TokenInputApp built - login screen shown');
     return ThemeProvider(
       themeService: globalThemeService,
       child: AnimatedBuilder(
@@ -42,6 +43,7 @@ class TokenInputApp extends StatelessWidget {
   }
 }
 
+/// Unified, responsive login screen with password + Turnstile
 class UnifiedLoginScreen extends StatefulWidget {
   const UnifiedLoginScreen({super.key, this.autoLoggedOut = false});
 
@@ -52,11 +54,24 @@ class UnifiedLoginScreen extends StatefulWidget {
 }
 
 class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
-  final TextEditingController _tokenController = TextEditingController();
-  bool _isProcessing = false;
+  // Form state
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final FocusNode _usernameFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
+  bool _obscurePassword = true;
+  bool _usernameHasError = false;
+  bool _passwordHasError = false;
+  bool _isSubmitting = false;
+  String? _formError;
+
+  // Turnstile
+  final TurnstileController _turnstileController = TurnstileController();
+  String? _turnstileToken;
+  Timer? _captchaValidityTimer;
+
+  // Misc
   bool _hasShownLogoutMessage = false;
-  String? _errorMessage;
-  bool _showTokenInput = false;
 
   @override
   void initState() {
@@ -70,6 +85,26 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
         }
       });
     }
+
+    // Periodically verify Turnstile token validity (every 15s)
+    _captchaValidityTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
+      if (!mounted) return;
+      if (_turnstileToken == null) return; // nothing to check
+      if (_isSubmitting) return; // avoid checks during submission
+      try {
+        final expired = await _turnstileController.isExpired();
+        if (expired) {
+          if (!mounted) return;
+          setState(() {
+            _formError = 'Verification expired. Please verify again.';
+            _turnstileToken = null;
+          });
+          try {
+            await _turnstileController.refreshToken();
+          } catch (_) {}
+        }
+      } catch (_) {}
+    });
   }
 
   void _showLogoutNotification() {
@@ -83,327 +118,423 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
 
   @override
   void dispose() {
-    _tokenController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _usernameFocus.dispose();
+    _passwordFocus.dispose();
+    _turnstileController.dispose();
+    _captchaValidityTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _pasteFromClipboard() async {
-    try {
-      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-      if (clipboardData?.text != null && clipboardData!.text!.isNotEmpty) {
-        setState(() {
-          _tokenController.text = clipboardData.text!;
-          _errorMessage = null;
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Clipboard is empty';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to paste from clipboard: $e';
-      });
-    }
-  }
+  Future<void> _submit() async {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-  Future<void> _submitToken() async {
-    final token = _tokenController.text.trim();
-    if (token.isEmpty) {
+    setState(() {
+      _usernameHasError = false;
+      _passwordHasError = false;
+    });
+
+    if (username.isEmpty || password.isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter a token';
+        _formError = 'Please enter both username and password';
+        _usernameHasError = username.isEmpty;
+        _passwordHasError = password.isEmpty;
+      });
+      if (username.isEmpty) {
+        _usernameFocus.requestFocus();
+      } else {
+        _passwordFocus.requestFocus();
+      }
+      return;
+    }
+    if (_turnstileToken == null || _turnstileToken!.isEmpty) {
+      setState(() {
+        _formError = 'Please complete the verification';
       });
       return;
     }
 
+    // Ensure token not expired
+    try {
+      final expired = await _turnstileController.isExpired();
+      if (expired) {
+        setState(() {
+          _formError = 'Verification expired. Please verify again.';
+          _turnstileToken = null;
+        });
+        await _turnstileController.refreshToken();
+        return;
+      }
+    } catch (_) {}
+
+    FocusScope.of(context).unfocus();
+
     setState(() {
-      _isProcessing = true;
-      _errorMessage = null;
+      _isSubmitting = true;
+      _formError = null;
     });
 
-    await _processToken(token);
-
-    if (currentUser != null) {
-      await TokenStorage.saveToken(token);
+    try {
+      final api = ChatApiService();
+      final user = await api.authenticateWithCredentials(
+        username: username,
+        password: password,
+        turnstileToken: _turnstileToken!,
+      );
+      setCurrentUser(user);
+      await TokenStorage.saveCurrentUser();
+      TextInput.finishAutofillContext();
 
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const MyApp()),
+          MaterialPageRoute(
+            builder: (context) => const MyApp(),
+          ),
         );
       }
-    } else {
-      setState(() {
-        _isProcessing = false;
-        _errorMessage = 'Invalid token. Please check and try again.';
-      });
-    }
-  }
-
-  Future<void> _processToken(String token) async {
-    try {
-      // Decode base64 token
-      final decodedBytes = base64Decode(token);
-      final decodedString = utf8.decode(decodedBytes);
-
-      // URL decode the string first
-      final urlDecodedString = Uri.decodeFull(decodedString);
-
-      // Parse JSON
-      final jsonData = jsonDecode(urlDecodedString);
-
-      // Create User object
-      setCurrentUser(User.fromJson(jsonData));
     } catch (e) {
-      setCurrentUser(null);
+      final msg = e.toString();
+      if (msg.contains('Invalid CAPTCHA')) {
+        setState(() {
+          _formError = 'Invalid verification. Please try again.';
+          _turnstileToken = null;
+        });
+        try {
+          await _turnstileController.refreshToken();
+        } catch (_) {}
+      } else if (msg.contains('Invalid User')) {
+        setState(() {
+          _formError = 'No account found for that user ID.';
+          _usernameHasError = true;
+        });
+        _usernameFocus.requestFocus();
+      } else if (msg.contains('Invalid Password')) {
+        setState(() {
+          _formError = 'Incorrect password. Please try again.';
+          _passwordHasError = true;
+        });
+        _passwordController.clear();
+        _passwordFocus.requestFocus();
+      } else {
+        setState(() {
+          _formError = msg.replaceFirst('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('LPU Live - Login')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: scheme.onSurface,
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/icon-noglow.png',
+              height: 28,
+              width: 28,
+            ),
+            const SizedBox(width: 10),
+            const Text('LPU Live'),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Toggle theme',
+            onPressed: () {
+              final next = globalThemeService.themeMode == ThemeMode.dark
+                  ? ThemeMode.light
+                  : ThemeMode.dark;
+              globalThemeService.setThemeMode(next);
+            },
+            icon: Icon(
+              globalThemeService.themeMode == ThemeMode.dark
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+            ),
+          ),
+        ],
+      ),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Stack(
+          children: [
+            // Background gradient + subtle pattern overlay
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      scheme.primary.withValues(alpha: 0.08),
+                      scheme.surfaceContainerHighest,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+            ),
+
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 900;
+                  final card = _buildLoginCard(context, scheme);
+
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1100),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: isWide
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Left: Hero/branding panel
+                                  Expanded(
+                                    child: _HeroPanel(scheme: scheme),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  // Right: Login card
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 520),
+                                    child: card,
+                                  ),
+                                ],
+                              )
+                            : SingleChildScrollView(
+                                child: Column(
+                                  children: [
+                                    _HeroPanel(scheme: scheme),
+                                    const SizedBox(height: 16),
+                                    card,
+                                  ],
+                                ),
+                              ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _LoginFooter(),
+    );
+  }
+
+  Widget _buildLoginCard(BuildContext context, ColorScheme scheme) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 32),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.lock_outline, color: scheme.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Sign in to your account',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AutofillGroup(
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _usernameController,
+                    focusNode: _usernameFocus,
+                    textInputAction: TextInputAction.next,
+                    keyboardType: TextInputType.text,
+                    autofillHints: const [AutofillHints.username],
+                    onSubmitted: (_) => _passwordFocus.requestFocus(),
+                    decoration: InputDecoration(
+                      labelText: 'User ID',
+                      hintText: 'e.g. 12345678',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      filled: true,
+                      fillColor: scheme.surfaceContainerHighest,
+                      border: const OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: scheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: scheme.primary),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: scheme.error),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      errorText: _usernameHasError ? 'Check your user ID' : null,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _passwordController,
+                    focusNode: _passwordFocus,
+                    obscureText: _obscurePassword,
+                    textInputAction: TextInputAction.done,
+                    autofillHints: const [AutofillHints.password],
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    onSubmitted: (_) async {
+                      await _submit();
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      hintText: 'Enter your password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                        tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                      ),
+                      filled: true,
+                      fillColor: scheme.surfaceContainerHighest,
+                      border: const OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: scheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: scheme.primary),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: scheme.error),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      errorText: _passwordHasError ? 'Incorrect password' : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             Container(
-              height: 72,
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    scheme.primary,
-                    scheme.primary.withValues(alpha: 0.6),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: scheme.outlineVariant),
               ),
-              child: const Center(
-                child: Icon(Icons.forum, color: Colors.white, size: 36),
+              child: CloudflareTurnstile(
+                siteKey: '0x4AAAAAABOGKSR1eAY3Gibs',
+                baseUrl: 'https://lpulive.lpu.in',
+                controller: _turnstileController,
+                onTokenReceived: (token) {
+                  setState(() {
+                    _turnstileToken = token;
+                    _formError = null;
+                  });
+                },
+                onTokenExpired: () {
+                  setState(() {
+                    _turnstileToken = null;
+                    _formError = 'Verification expired. Please verify again.';
+                  });
+                },
+                onError: (err) {
+                  setState(() {
+                    _formError = 'Verification failed: $err';
+                  });
+                },
               ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Welcome to LPU Live Chat',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Choose your preferred login method',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 28),
-
-            // Primary Option: Website Login
-            Card(
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.star_rounded, color: scheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Recommended: Login via Website',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: scheme.primary,
-                                ),
-                            softWrap: true,
+            const SizedBox(height: 12),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: _formError == null
+                  ? const SizedBox.shrink()
+                  : Container(
+                      key: const ValueKey('error'),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: scheme.errorContainer,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: scheme.error.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.error_outline, color: scheme.error, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _formError!,
+                              style: TextStyle(color: scheme.onErrorContainer),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Note: This will log you out from other devices.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFFF58220),
-                        fontWeight: FontWeight.w600,
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'How to use: Click the button below and login with your university account.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        print('🌐 Starting webview login process...');
-                        // Clear local storage before opening webview
-                        final navigator = Navigator.of(context);
-                        await TokenStorage.clearToken();
-                        print('🗑️ Local storage cleared');
-                        print('🚀 Navigating to WebViewLoginScreen');
-                        navigator.pushReplacement(
-                          MaterialPageRoute(
-                            builder: (context) => const WebViewLoginScreen(),
-                          ),
-                        );
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isSubmitting
+                    ? null
+                    : () async {
+                        await _submit();
                       },
-                      icon: const Icon(Icons.web),
-                      label: const Text('Login via Website'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 50),
-                      ),
-                    ),
-                  ],
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.login),
+                label: Text(_isSubmitting ? 'Signing in…' : 'Sign in'),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // Secondary Option: Token Input
-            Card(
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.vpn_key_outlined,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Alternative: Use Auth Token',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                            softWrap: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Alternative method: Takes more time but won\'t log you out from other devices.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (!_showTokenInput) ...[
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _showTokenInput = true;
-                          });
-                        },
-                        icon: const Icon(Icons.expand_more),
-                        label: const Text('Show Token Input'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
-                        ),
-                      ),
-                    ] else ...[
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: scheme.primaryContainer.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: scheme.primaryContainer),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'How to get your token:',
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    color: scheme.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '1. Login to LPU Live website in your browser\n2. Install a browser extension to access localStorage\n3. Open the extension and go to lpulive.lpu.in storage\n4. Find the "AuthData" key and copy its value\n5. Paste the token below',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: scheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _tokenController,
-                        maxLines: 5,
-                        decoration: InputDecoration(
-                          labelText: 'Authentication Token',
-                          hintText: 'Paste your token here...',
-                          errorText: _errorMessage,
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.paste),
-                            onPressed: _pasteFromClipboard,
-                            tooltip: 'Paste from clipboard',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _isProcessing ? null : _submitToken,
-                        icon: _isProcessing
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.arrow_forward_rounded),
-                        label: Text(
-                          _isProcessing ? 'Processing…' : 'Continue to Chat',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 50),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _showTokenInput = false;
-                            _tokenController.clear();
-                            _errorMessage = null;
-                          });
-                        },
-                        icon: const Icon(Icons.expand_less),
-                        label: const Text('Hide Token Input'),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -411,24 +542,108 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
   }
 }
 
-class BulletPoint extends StatelessWidget {
-  final String text;
+class _HeroPanel extends StatelessWidget {
+  const _HeroPanel({required this.scheme});
 
-  const BulletPoint({super.key, required this.text});
+  final ColorScheme scheme;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 40, 20, 32),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            scheme.primary.withValues(alpha: 0.18),
+            scheme.primary.withValues(alpha: 0.06),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text(
-            '• ',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/icon-noglow.png',
+                    height: 48,
+                    width: 48,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'LPU Live',
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
+          const SizedBox(height: 24),
+          Text(
+            'Welcome back',
+            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Sign in with your university credentials',
+            style: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _LoginFooter extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '© ${DateTime.now().year} LPU Live',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('Privacy'),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('Terms'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

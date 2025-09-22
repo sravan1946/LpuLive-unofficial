@@ -125,6 +125,86 @@ class CustomHttpClient {
 class ChatApiService {
   static const String _baseUrl = 'https://lpulive.lpu.in';
 
+  /// Authenticate a user using username, password and Cloudflare Turnstile token
+  Future<User> authenticateWithCredentials({
+    required String username,
+    required String password,
+    required String turnstileToken,
+  }) async {
+    try {
+      // Check internet connectivity first
+      final connectivityService = ConnectivityService();
+      final hasInternet = await connectivityService.hasInternetConnection();
+      if (!hasInternet) {
+        throw NetworkException(
+          'No internet connection. Please check your network and try again.',
+        );
+      }
+
+      final url = '$_baseUrl/api/auth';
+      final requestBody = {
+        'username': username,
+        'password': password,
+        'cf-turnstile-response': turnstileToken,
+      };
+
+      debugPrint('🌐 [ChatApiService] Authenticating with credentials at: $url');
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      debugPrint('📥 [ChatApiService] Auth Response: ${response.statusCode}');
+      debugPrint('📥 [ChatApiService] Auth Response Body: ${response.body}');
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final user = User.fromJson(data);
+        return user;
+      }
+
+      // Map common HTTP errors to UI-recognized messages
+      // so that the login screen can display specific guidance
+      String normalizedError = '';
+      try {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        normalizedError = (errorData['error'] ?? '').toString();
+      } catch (_) {
+        // ignore parse errors; we'll fall back to status code mapping
+      }
+
+      // Prefer explicit status codes observed from backend
+      // 410 -> Invalid User, 400 -> Invalid CAPTCHA, 413 -> Invalid Password
+      if (response.statusCode == 410) {
+        throw Exception('Invalid User');
+      }
+      if (response.statusCode == 400) {
+        throw Exception('Invalid CAPTCHA');
+      }
+      if (response.statusCode == 413) {
+        throw Exception('Invalid Password');
+      }
+
+      // Heuristics based on response body (fallback)
+      final bodyLower = normalizedError.toLowerCase();
+      if (bodyLower.contains('captcha')) {
+        throw Exception('Invalid CAPTCHA');
+      }
+      if (bodyLower.contains('password')) {
+        throw Exception('Invalid Password');
+      }
+      if (bodyLower.contains('user')) {
+        throw Exception('Invalid User');
+      }
+
+      // Fallback
+      throw Exception('Authentication failed: ${response.statusCode}');
+    } catch (e) {
+      if (e is NetworkException) rethrow;
+      throw Exception('Error during authentication: $e');
+    }
+  }
+
   /// Authorize user with existing chat token
   /// Returns updated User object with new token if successful
   /// Throws exception if token is invalid (401 Unauthorized)
