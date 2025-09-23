@@ -11,10 +11,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 // Project imports:
 import '../models/current_user_state.dart';
 import '../models/user_models.dart';
+import '../pages/login_page.dart';
 import '../pages/notifications_page.dart';
 import '../pages/profile_page.dart';
 import '../pages/theme_settings_page.dart';
-import '../pages/token_input_page.dart';
 import '../services/chat_services.dart';
 import '../widgets/network_image.dart';
 
@@ -218,7 +218,7 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
                       setCurrentUser(null);
                       navigator.pushAndRemoveUntil(
                         MaterialPageRoute(
-                          builder: (_) => const TokenInputApp(),
+                          builder: (_) => const LoginApp(),
                         ),
                         (route) => false,
                       );

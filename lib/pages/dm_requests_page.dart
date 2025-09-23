@@ -14,7 +14,7 @@ import '../services/chat_services.dart';
 import '../utils/timestamp_utils.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/network_image.dart';
-import 'token_input_page.dart';
+import 'login_page.dart';
 
 // Reuse the same caches from direct_messages_page.dart
 final Map<String, Contact> _contactsCacheById = {};
@@ -99,7 +99,7 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (context) => const TokenInputApp(autoLoggedOut: true),
+              builder: (context) => const LoginApp(autoLoggedOut: true),
             ),
             (route) => false,
           );

@@ -19,7 +19,7 @@ import '../services/read_tracker.dart';
 import '../utils/timestamp_utils.dart';
 import '../widgets/app_toast.dart';
 import 'chat_page.dart';
-import 'token_input_page.dart';
+import 'login_page.dart';
 
 // profile/settings actions removed; use drawer instead
 // Drawer lives at parent Scaffold; this page should not define its own drawer
@@ -392,7 +392,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
           if (mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+                builder: (_) => const LoginScreen(autoLoggedOut: true),
               ),
             );
           }

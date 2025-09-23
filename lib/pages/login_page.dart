@@ -17,8 +17,8 @@ import '../widgets/app_toast.dart';
 import 'chat_home_page.dart';
 
 /// Root app wrapper for the login experience
-class TokenInputApp extends StatelessWidget {
-  const TokenInputApp({super.key, this.autoLoggedOut = false});
+class LoginApp extends StatelessWidget {
+  const LoginApp({super.key, this.autoLoggedOut = false});
 
   final bool autoLoggedOut;
 
@@ -34,7 +34,7 @@ class TokenInputApp extends StatelessWidget {
             theme: lpuTheme,
             darkTheme: lpuDarkTheme,
             themeMode: globalThemeService.themeMode,
-            home: UnifiedLoginScreen(autoLoggedOut: autoLoggedOut),
+            home: LoginScreen(autoLoggedOut: autoLoggedOut),
             debugShowCheckedModeBanner: false,
           );
         },
@@ -44,16 +44,16 @@ class TokenInputApp extends StatelessWidget {
 }
 
 /// Unified, responsive login screen with password + Turnstile
-class UnifiedLoginScreen extends StatefulWidget {
-  const UnifiedLoginScreen({super.key, this.autoLoggedOut = false});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key, this.autoLoggedOut = false});
 
   final bool autoLoggedOut;
 
   @override
-  State<UnifiedLoginScreen> createState() => _UnifiedLoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _UnifiedLoginScreenState extends State<UnifiedLoginScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   // Form state
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();

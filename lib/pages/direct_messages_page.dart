@@ -23,8 +23,8 @@ import '../widgets/app_toast.dart';
 import '../widgets/network_image.dart';
 import 'chat_page.dart';
 import 'dm_requests_page.dart';
+import 'login_page.dart';
 import 'new_dm_page.dart';
-import 'token_input_page.dart';
 
 // removed profile/settings app bar actions in favor of drawer
 // Drawer is provided by parent Scaffold; do not declare here
@@ -134,7 +134,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
           if (mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+                builder: (_) => const LoginScreen(autoLoggedOut: true),
               ),
             );
           }
@@ -252,7 +252,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (context) => const TokenInputApp(autoLoggedOut: true),
+              builder: (context) => const LoginApp(autoLoggedOut: true),
             ),
             (route) => false,
           );

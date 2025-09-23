@@ -12,7 +12,7 @@ import '../models/current_user_state.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import 'chat_home_page.dart';
-import 'token_input_page.dart';
+import 'login_page.dart';
 
 // removed extra spinner
 
@@ -48,7 +48,7 @@ class _SplashPageState extends State<SplashPage>
       if (savedToken == null) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => const UnifiedLoginScreen(autoLoggedOut: false),
+            builder: (_) => const LoginScreen(autoLoggedOut: false),
           ),
         );
         return;
@@ -86,7 +86,7 @@ class _SplashPageState extends State<SplashPage>
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+              builder: (_) => const LoginScreen(autoLoggedOut: true),
             ),
           );
         }
@@ -126,7 +126,7 @@ class _SplashPageState extends State<SplashPage>
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => const UnifiedLoginScreen(autoLoggedOut: true),
+              builder: (_) => const LoginScreen(autoLoggedOut: true),
             ),
           );
         } else if (e is NetworkException) {
