@@ -214,6 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
+        centerTitle: false,
         title: null,
         actions: const [], // remove theme toggle
       ),
@@ -327,18 +328,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Logo + Title inside the glass card
-                  Align(
-                    alignment: Alignment.center,
-                    child: Image.asset(
-                      isDark ? 'assets/icon.png' : 'assets/icon-noglow.png',
-                      height: 44,
-                      width: 44,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        isDark ? 'assets/icon.png' : 'assets/icon-noglow.png',
+                        height: 36,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'LPU LIVE',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6,
+                            ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   Text(
-                    'Welcome back',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    'Welcome Back 👋',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
                     textAlign: TextAlign.center,
@@ -401,19 +411,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? scheme.surfaceContainerHighest.withOpacity(0.6)
                                   : Colors.white.withOpacity(0.7),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderSide: BorderSide(color: scheme.outlineVariant),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderSide: BorderSide(color: scheme.primary, width: 1.8),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               errorBorder: OutlineInputBorder(
                                 borderSide: BorderSide(color: scheme.error),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               labelStyle: TextStyle(color: isDark ? scheme.onSurfaceVariant : const Color(0xFF444444)),
                               floatingLabelStyle: TextStyle(color: scheme.primary),
@@ -462,19 +472,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? scheme.surfaceContainerHighest.withOpacity(0.6)
                                   : Colors.white.withOpacity(0.7),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderSide: BorderSide(color: scheme.outlineVariant),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderSide: BorderSide(color: scheme.primary, width: 1.8),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               errorBorder: OutlineInputBorder(
                                 borderSide: BorderSide(color: scheme.error),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               labelStyle: TextStyle(color: isDark ? scheme.onSurfaceVariant : const Color(0xFF444444)),
                               floatingLabelStyle: TextStyle(color: scheme.primary),
@@ -487,62 +497,39 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 18),
                   // Captcha glass container (responsive)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.white.withOpacity(0.04)
-                            : Colors.white.withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isDark
-                              ? Colors.white.withOpacity(0.12)
-                              : Colors.white.withOpacity(0.3),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: CloudflareTurnstile(
+                        key: ValueKey('turnstile_${Theme.of(context).brightness}'),
+                        siteKey: '0x4AAAAAABOGKSR1eAY3Gibs',
+                        baseUrl: 'https://lpulive.lpu.in',
+                        controller: _turnstileController,
+                        options: TurnstileOptions(
+                          size: TurnstileSize.normal,
+                          theme: Theme.of(context).brightness == Brightness.dark
+                              ? TurnstileTheme.dark
+                              : TurnstileTheme.light,
+                          language: 'en',
                         ),
-                      ),
-                      clipBehavior: Clip.hardEdge,
-                      padding: const EdgeInsets.all(12),
-                      child: LayoutBuilder(
-                        builder: (context, c) {
-                          final double maxW = c.maxWidth;
-                          return FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: SizedBox(
-                              width: maxW,
-                              child: CloudflareTurnstile(
-                                key: ValueKey('turnstile_${Theme.of(context).brightness}'),
-                                siteKey: '0x4AAAAAABOGKSR1eAY3Gibs',
-                                baseUrl: 'https://lpulive.lpu.in',
-                                controller: _turnstileController,
-                                options: TurnstileOptions(
-                                  size: TurnstileSize.flexible,
-                                  theme: Theme.of(context).brightness == Brightness.dark
-                                      ? TurnstileTheme.dark
-                                      : TurnstileTheme.light,
-                                  language: 'en',
-                                ),
-                                onTokenReceived: (token) {
-                                  setState(() {
-                                    _turnstileToken = token;
-                                    _formError = null;
-                                  });
-                                },
-                                onTokenExpired: () {
-                                  setState(() {
-                                    _turnstileToken = null;
-                                    _formError = 'Verification expired. Please verify again.';
-                                  });
-                                },
-                                onError: (err) {
-                                  setState(() {
-                                    _formError = 'Verification failed: $err';
-                                  });
-                                },
-                              ),
-                            ),
-                          );
+                        onTokenReceived: (token) {
+                          setState(() {
+                            _turnstileToken = token;
+                            _formError = null;
+                          });
+                        },
+                        onTokenExpired: () {
+                          setState(() {
+                            _turnstileToken = null;
+                            _formError = 'Verification expired. Please verify again.';
+                          });
+                        },
+                        onError: (err) {
+                          setState(() {
+                            _formError = 'Verification failed: $err';
+                          });
                         },
                       ),
                     ),
@@ -583,38 +570,39 @@ class _LoginScreenState extends State<LoginScreen> {
                         _passwordController.text.trim().isEmpty),
                     child: SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: (_isSubmitting || _turnstileToken == null ||
+                      child: GestureDetector(
+                        onTap: (_isSubmitting || _turnstileToken == null ||
                                 _usernameController.text.trim().isEmpty ||
                                 _passwordController.text.trim().isEmpty)
                             ? null
                             : () async {
                                 await _submit();
                               },
-                        icon: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.login),
-                        label: const Text('Login'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 56),
-                          backgroundColor: scheme.primary,
-                          foregroundColor: scheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFF89B29), Color(0xFFF58220)],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(28),
                           ),
-                        ).merge(
-                          ButtonStyle(
-                            overlayColor: MaterialStateProperty.resolveWith((states) {
-                              if (states.contains(MaterialState.hovered) || states.contains(MaterialState.pressed)) {
-                                return scheme.primary.withOpacity(0.1);
-                              }
-                              return null;
-                            }),
-                          ),
+                          alignment: Alignment.center,
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text(
+                                  'Login',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 18,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
