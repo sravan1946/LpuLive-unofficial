@@ -277,7 +277,10 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
       for (final group in currentUser!.groups) {
         final dmMatch = RegExp(r'^\d+\s*:\s*\d+$').firstMatch(group.name);
-        if (dmMatch != null && !seenNames.contains(group.name)) {
+        // Only include DMs that are accepted; requests/blocked stay in Requests page
+        final invite = group.inviteStatus.trim().toUpperCase();
+        final isAccepted = invite == 'ACPTD' || invite == 'ACCEPTED';
+        if (dmMatch != null && isAccepted && !seenNames.contains(group.name)) {
           final dm = DirectMessage(
             dmName: group.name,
             participants: group.name,
