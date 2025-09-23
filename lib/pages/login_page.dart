@@ -68,7 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
   // Turnstile
   final TurnstileController _turnstileController = TurnstileController();
   String? _turnstileToken;
-  Timer? _captchaValidityTimer;
 
   // Misc
   bool _hasShownLogoutMessage = false;
@@ -76,6 +75,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _usernameController.addListener(_onCredentialsChanged);
+    _passwordController.addListener(_onCredentialsChanged);
     // Show logout notification only if user was automatically logged out
     if (widget.autoLoggedOut) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -86,25 +87,11 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     }
 
-    // Periodically verify Turnstile token validity (every 15s)
-    _captchaValidityTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
-      if (!mounted) return;
-      if (_turnstileToken == null) return; // nothing to check
-      if (_isSubmitting) return; // avoid checks during submission
-      try {
-        final expired = await _turnstileController.isExpired();
-        if (expired) {
-          if (!mounted) return;
-          setState(() {
-            _formError = 'Verification expired. Please verify again.';
-            _turnstileToken = null;
-          });
-          try {
-            await _turnstileController.refreshToken();
-          } catch (_) {}
-        }
-      } catch (_) {}
-    });
+  }
+
+  void _onCredentialsChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _showLogoutNotification() {
@@ -123,7 +110,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _usernameFocus.dispose();
     _passwordFocus.dispose();
     _turnstileController.dispose();
-    _captchaValidityTimer?.cancel();
     super.dispose();
   }
 
@@ -156,18 +142,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Ensure token not expired
-    try {
-      final expired = await _turnstileController.isExpired();
-      if (expired) {
-        setState(() {
-          _formError = 'Verification expired. Please verify again.';
-          _turnstileToken = null;
-        });
-        await _turnstileController.refreshToken();
-        return;
-      }
-    } catch (_) {}
 
     FocusScope.of(context).unfocus();
 
@@ -244,7 +218,9 @@ class _LoginScreenState extends State<LoginScreen> {
         title: Row(
           children: [
             Image.asset(
-              'assets/icon-noglow.png',
+              globalThemeService.themeMode == ThemeMode.dark
+                  ? 'assets/icon.png'
+                  : 'assets/icon-noglow.png',
               height: 28,
               width: 28,
             ),
@@ -321,7 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: Column(
                                   children: [
                                     _HeroPanel(scheme: scheme),
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: 24),
                                     card,
                                   ],
                                 ),
@@ -459,26 +435,39 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: scheme.outlineVariant),
               ),
-              child: CloudflareTurnstile(
-                siteKey: '0x4AAAAAABOGKSR1eAY3Gibs',
-                baseUrl: 'https://lpulive.lpu.in',
-                controller: _turnstileController,
-                onTokenReceived: (token) {
-                  setState(() {
-                    _turnstileToken = token;
-                    _formError = null;
-                  });
-                },
-                onTokenExpired: () {
-                  setState(() {
-                    _turnstileToken = null;
-                    _formError = 'Verification expired. Please verify again.';
-                  });
-                },
-                onError: (err) {
-                  setState(() {
-                    _formError = 'Verification failed: $err';
-                  });
+              child: AnimatedBuilder(
+                animation: globalThemeService,
+                builder: (context, child) {
+                  return CloudflareTurnstile(
+                    key: ValueKey('turnstile_${globalThemeService.themeMode}'),
+                    siteKey: '0x4AAAAAABOGKSR1eAY3Gibs',
+                    baseUrl: 'https://lpulive.lpu.in',
+                    controller: _turnstileController,
+                    options: TurnstileOptions(
+                      size: TurnstileSize.flexible,
+                      theme: globalThemeService.themeMode == ThemeMode.dark
+                          ? TurnstileTheme.dark
+                          : TurnstileTheme.light,
+                      language: 'en',
+                    ),
+                    onTokenReceived: (token) {
+                      setState(() {
+                        _turnstileToken = token;
+                        _formError = null;
+                      });
+                    },
+                    onTokenExpired: () {
+                      setState(() {
+                        _turnstileToken = null;
+                        _formError = 'Verification expired. Please verify again.';
+                      });
+                    },
+                    onError: (err) {
+                      setState(() {
+                        _formError = 'Verification failed: $err';
+                      });
+                    },
+                  );
                 },
               ),
             ),
@@ -514,7 +503,9 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isSubmitting
+                onPressed: (_isSubmitting || _turnstileToken == null ||
+                        _usernameController.text.trim().isEmpty ||
+                        _passwordController.text.trim().isEmpty)
                     ? null
                     : () async {
                         await _submit();
@@ -526,7 +517,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.login),
-                label: Text(_isSubmitting ? 'Signing in…' : 'Sign in'),
+                label: Text(
+                  _isSubmitting
+                      ? 'Signing in…'
+                      : (_usernameController.text.trim().isEmpty ||
+                              _passwordController.text.trim().isEmpty
+                          ? 'Enter credentials'
+                          : (_turnstileToken == null
+                              ? 'Complete verification'
+                              : 'Sign in')),
+                ),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 52),
                   shape: RoundedRectangleBorder(
@@ -551,60 +551,23 @@ class _HeroPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 40, 20, 32),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            scheme.primary.withValues(alpha: 0.18),
-            scheme.primary.withValues(alpha: 0.06),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: scheme.outlineVariant),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    'assets/icon-noglow.png',
-                    height: 48,
-                    width: 48,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'LPU Live',
-                  style: textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
           Text(
             'Welcome back',
-            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            style: textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
           Text(
-            'Sign in with your university credentials',
-            style: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            'Sign in to continue your conversations',
+            style: textTheme.bodyLarge?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
