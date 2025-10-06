@@ -143,7 +143,7 @@ class ChatApiService {
 
       final url = '$_baseUrl/api/auth';
       final requestBody = {
-        'username': username,
+        'user': username,
         'password': password,
         'cf-turnstile-response': turnstileToken,
       };
