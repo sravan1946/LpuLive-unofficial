@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _formError;
 
   // Turnstile
-  final TurnstileController _turnstileController = TurnstileController();
+  TurnstileController? _turnstileController;
   String? _turnstileToken;
 
   // Misc
@@ -75,6 +75,10 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.addListener(_onCredentialsChanged);
     _usernameFocus.addListener(() => mounted ? setState(() {}) : null);
     _passwordFocus.addListener(() => mounted ? setState(() {}) : null);
+
+    // Initialize TurnstileController
+    _turnstileController = TurnstileController();
+
     // Show logout notification only if user was automatically logged out
     if (widget.autoLoggedOut) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -107,7 +111,18 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     _usernameFocus.dispose();
     _passwordFocus.dispose();
-    _turnstileController.dispose();
+
+    // Safely dispose TurnstileController
+    if (_turnstileController != null) {
+      try {
+        _turnstileController!.dispose();
+      } catch (e) {
+        // Ignore disposal errors to prevent crashes
+        debugPrint('TurnstileController disposal error: $e');
+      }
+      _turnstileController = null;
+    }
+
     super.dispose();
   }
 
@@ -174,7 +189,9 @@ class _LoginScreenState extends State<LoginScreen> {
           _turnstileToken = null;
         });
         try {
-          await _turnstileController.refreshToken();
+          if (_turnstileController != null) {
+            await _turnstileController!.refreshToken();
+          }
         } catch (_) {}
       } else if (msg.contains('Invalid User')) {
         setState(() {
@@ -506,7 +523,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         key: ValueKey('turnstile_${Theme.of(context).brightness}'),
                         siteKey: '0x4AAAAAABOGKSR1eAY3Gibs',
                         baseUrl: 'https://lpulive.lpu.in',
-                        controller: _turnstileController,
+                        controller: _turnstileController!,
                         options: TurnstileOptions(
                           size: TurnstileSize.normal,
                           theme: Theme.of(context).brightness == Brightness.dark
@@ -563,50 +580,71 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                   ),
                   const SizedBox(height: 12),
-                  _AnimatedPress(
-                    enabled: !(_isSubmitting ||
-                        _turnstileToken == null ||
-                        _usernameController.text.trim().isEmpty ||
-                        _passwordController.text.trim().isEmpty),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: GestureDetector(
-                        onTap: (_isSubmitting || _turnstileToken == null ||
-                                _usernameController.text.trim().isEmpty ||
-                                _passwordController.text.trim().isEmpty)
-                            ? null
-                            : () async {
-                                await _submit();
-                              },
-                        child: Container(
-                          height: 56,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFF89B29), Color(0xFFF58220)],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                          alignment: Alignment.center,
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text(
-                                  'Login',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
+                   _AnimatedPress(
+                     enabled: !(_isSubmitting ||
+                         _turnstileToken == null ||
+                         _usernameController.text.trim().isEmpty ||
+                         _passwordController.text.trim().isEmpty),
+                     child: SizedBox(
+                       width: double.infinity,
+                       child: GestureDetector(
+                         onTap: (_isSubmitting || _turnstileToken == null ||
+                                 _usernameController.text.trim().isEmpty ||
+                                 _passwordController.text.trim().isEmpty)
+                             ? null
+                             : () async {
+                                 await _submit();
+                               },
+                         child: AnimatedContainer(
+                           duration: const Duration(milliseconds: 200),
+                           height: 56,
+                           decoration: BoxDecoration(
+                             gradient: (_isSubmitting || _turnstileToken == null ||
+                                     _usernameController.text.trim().isEmpty ||
+                                     _passwordController.text.trim().isEmpty)
+                                 ? LinearGradient(
+                                     colors: [
+                                       scheme.onSurfaceVariant.withOpacity(0.3),
+                                       scheme.onSurfaceVariant.withOpacity(0.2),
+                                     ],
+                                     begin: Alignment.centerLeft,
+                                     end: Alignment.centerRight,
+                                   )
+                                 : const LinearGradient(
+                                     colors: [Color(0xFFF89B29), Color(0xFFF58220)],
+                                     begin: Alignment.centerLeft,
+                                     end: Alignment.centerRight,
+                                   ),
+                             borderRadius: BorderRadius.circular(28),
+                           ),
+                           alignment: Alignment.center,
+                           child: _isSubmitting
+                               ? const SizedBox(
+                                   height: 22,
+                                   width: 22,
+                                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                 )
+                               : Text(
+                                   (_usernameController.text.trim().isEmpty ||
+                                           _passwordController.text.trim().isEmpty)
+                                       ? 'Enter credentials'
+                                       : (_turnstileToken == null
+                                           ? 'Complete verification'
+                                           : 'Login'),
+                                   style: TextStyle(
+                                     color: (_isSubmitting || _turnstileToken == null ||
+                                             _usernameController.text.trim().isEmpty ||
+                                             _passwordController.text.trim().isEmpty)
+                                         ? scheme.onSurfaceVariant
+                                         : Colors.white,
+                                     fontWeight: FontWeight.w700,
+                                     fontSize: 18,
+                                   ),
+                                 ),
+                         ),
+                       ),
+                     ),
+                   ),
                   const SizedBox(height: 10),
                   // Footer inside the card
                   Center(
@@ -631,75 +669,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class _HeroPanel extends StatelessWidget {
-  const _HeroPanel({required this.scheme});
-
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            'Welcome back',
-            style: textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Sign in to continue your conversations',
-            style: textTheme.bodyLarge?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoginFooter extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '© ${DateTime.now().year} LPU Live',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-            ),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Privacy'),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Terms'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// Animated glow wrapper for input fields
 class _AnimatedGlowField extends StatelessWidget {
