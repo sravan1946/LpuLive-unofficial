@@ -915,6 +915,8 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                 // Clear unread counter when opening (UI badge)
                 _unreadByGroup[dm.dmName] = 0;
                 _saveUnreadCounts();
+                // Clear notifications for this conversation
+                WebSocketChatService.clearGroupNotifications(dm.dmName);
                 return ChatPage(
                   groupId: dm.dmName,
                   title: _displayNameForDm(dm),

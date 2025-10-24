@@ -8,6 +8,8 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 // Package imports:
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:mime/mime.dart' as mime;
@@ -19,7 +21,9 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 // Project imports:
 import '../models/group_user_model.dart';
 import '../models/user_models.dart';
+import '../utils/sender_name_utils.dart';
 import 'avatar_cache_service.dart';
+import 'background_websocket_service.dart';
 import 'connectivity_service.dart';
 
 // Custom exception for unauthorized access
@@ -1047,6 +1051,16 @@ class WebSocketChatService {
   Timer? _reconnectTimer;
   final Random _random = Random();
 
+  // Notification handling
+  static const String _notificationChannelId = 'lpulive_messages';
+  static const String _notificationChannelName = 'LPU Live Messages';
+  static final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
+
+  // Notification grouping - track messages per group/conversation
+  static final Map<String, List<Map<String, dynamic>>> _groupedMessages = {};
+  static final Map<String, int> _groupMessageCounts = {};
+
   Stream<ChatMessage> get messageStream => _messageController.stream;
   Stream<Map<String, dynamic>> get systemMessageStream =>
       _systemMessageController.stream;
@@ -1070,12 +1084,51 @@ class WebSocketChatService {
       _reconnectTimer?.cancel();
       _setStatus(ConnectionStatus.connecting);
 
+      // Initialize notifications
+      await _initializeNotifications();
+
+      // Store token for background service
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('chat_token', chatToken);
+
+      // Start background service to keep process alive
+      await BackgroundWebSocketService.startBackgroundService(chatToken);
+
+      // Check connectivity before attempting connection
+      try {
+        final connectivity = await Connectivity().checkConnectivity().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => [ConnectivityResult.none],
+        );
+
+        final hasConnectivity = connectivity.any((result) => result != ConnectivityResult.none);
+        if (!hasConnectivity) {
+          debugPrint('📡 [WebSocket] No internet connection available: $connectivity');
+          _handleSocketClosed('no connectivity');
+          return;
+        }
+
+        debugPrint('📡 [WebSocket] Connectivity check passed: $connectivity');
+      } catch (e) {
+        debugPrint('❌ [WebSocket] Connectivity check failed: $e');
+        _handleSocketClosed('connectivity check failed');
+        return;
+      }
+
       final wsUrl = '$_wsBaseUrl/ws/chat/?chat_token=$chatToken';
       debugPrint('🔌 [WebSocket] Connecting to: $wsUrl');
-      _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+
+      // Wrap WebSocket connection in try-catch to prevent unhandled exceptions
+      try {
+        _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+      } catch (e) {
+        debugPrint('❌ [WebSocket] Failed to create WebSocket channel: $e');
+        _handleSocketClosed('WebSocket channel creation failed');
+        return;
+      }
 
       _channel!.stream.listen(
-        (message) {
+        (message) async {
           try {
             final Map<String, dynamic> data = jsonDecode(message);
             debugPrint(
@@ -1108,8 +1161,14 @@ class WebSocketChatService {
                 data.containsKey('message')) {
               final chatMessage = ChatMessage.fromJson(data);
               _messageController.add(chatMessage);
+
+              // Show notification for new messages when app is in background
+              if (data['is_own_message'] != true) {
+                await _showMessageNotification(data);
+              }
+
               if (_currentStatus != ConnectionStatus.connected) {
-                _setStatus(ConnectionStatus.connected);
+_setStatus(ConnectionStatus.connected);
                 _reconnectAttempts = 0; // reset on successful traffic
               }
             }
@@ -1151,10 +1210,19 @@ class WebSocketChatService {
 
   void _scheduleReconnect(String reason) {
     _reconnectTimer?.cancel();
-    final baseDelayMs =
-        1000 * pow(2, min(_reconnectAttempts, 5)).toInt(); // cap at 32s
-    final jitterMs = _random.nextInt(500);
-    final delayMs = min(30000, baseDelayMs) + jitterMs; // cap total at ~30.5s
+
+    // More conservative approach for network issues
+    int delayMs;
+    if (reason.contains('host lookup') || reason.contains('connectivity') || reason.contains('no connectivity')) {
+      // Network issues - use longer delays
+      delayMs = min(60000, 10000 * _reconnectAttempts); // 10s, 20s, 30s, 40s, 50s, 60s
+    } else {
+      // Other issues - standard backoff
+      final baseDelayMs = 1000 * pow(2, min(_reconnectAttempts, 5)).toInt(); // cap at 32s
+      final jitterMs = _random.nextInt(500);
+      delayMs = min(30000, baseDelayMs) + jitterMs; // cap total at ~30.5s
+    }
+
     _reconnectAttempts += 1;
     _setStatus(ConnectionStatus.reconnecting);
     debugPrint(
@@ -1165,6 +1233,28 @@ class WebSocketChatService {
         debugPrint('🔕 [WebSocket] Reconnect cancelled before attempt.');
         return;
       }
+
+      // Check connectivity before attempting reconnection
+      try {
+        final connectivity = await Connectivity().checkConnectivity().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => [ConnectivityResult.none],
+        );
+
+        final hasConnectivity = connectivity.any((result) => result != ConnectivityResult.none);
+        if (!hasConnectivity) {
+          debugPrint('📡 [WebSocket] Still no connectivity, will retry later');
+          _scheduleReconnect('still no connectivity');
+          return;
+        }
+
+        debugPrint('📡 [WebSocket] Connectivity restored, attempting reconnection...');
+      } catch (e) {
+        debugPrint('❌ [WebSocket] Connectivity check failed: $e');
+        _scheduleReconnect('connectivity check failed');
+        return;
+      }
+
       final token = _lastChatToken;
       if (token == null) {
         debugPrint('⚠️ [WebSocket] No token available for reconnect.');
@@ -1227,6 +1317,10 @@ class WebSocketChatService {
     _reconnectTimer?.cancel();
     _channel?.sink.close(status.normalClosure);
     _channel = null;
+
+    // Stop background service
+    BackgroundWebSocketService.stopBackgroundService();
+
     // Keep controllers alive so listeners remain valid if a new instance is not created.
     // They will be closed when the service is disposed by GC/app shutdown.
     _setStatus(ConnectionStatus.disconnected);
@@ -1243,5 +1337,212 @@ class WebSocketChatService {
     _messageController.close();
     _systemMessageController.close();
     _connectionStatusController.close();
+  }
+
+  /// Initialize local notifications
+  static Future<void> _initializeNotifications() async {
+    const androidChannel = AndroidNotificationChannel(
+      _notificationChannelId,
+      _notificationChannelName,
+      description: 'Notifications for new messages',
+      importance: Importance.high,
+    );
+
+    await _notifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(androidChannel);
+  }
+
+  /// Show grouped notification for new message
+  static Future<void> _showMessageNotification(Map<String, dynamic> messageData) async {
+    try {
+      // Don't show notification for own messages
+      if (messageData['is_own_message'] == true) return;
+
+      // Get group identifier (use group field or sender for direct messages)
+      final groupId = messageData['group']?.toString() ??
+                     messageData['sender']?.toString() ??
+                     'unknown';
+
+      // Initialize group if it doesn't exist
+      if (!_groupedMessages.containsKey(groupId)) {
+        _groupedMessages[groupId] = [];
+        _groupMessageCounts[groupId] = 0;
+      }
+
+      // Add message to group
+      _groupedMessages[groupId]!.add(messageData);
+      _groupMessageCounts[groupId] = _groupMessageCounts[groupId]! + 1;
+
+      // Keep only last 5 messages per group to avoid memory issues
+      if (_groupedMessages[groupId]!.length > 5) {
+        _groupedMessages[groupId]!.removeAt(0);
+      }
+
+      // Get the latest message for preview
+      final latestMessage = _groupedMessages[groupId]!.last;
+      final rawSenderName = latestMessage['UserName'] ?? '';
+      final sender = SenderNameUtils.parseSenderName(rawSenderName);
+      final message = latestMessage['message'] ?? '';
+
+      // Create notification title and body based on group
+      String title;
+      String body;
+
+      if (_groupMessageCounts[groupId]! == 1) {
+        // First message in this group
+        title = 'New message from $sender';
+        body = message;
+      } else {
+        // Multiple messages - show count and latest message
+        title = '$sender and ${_groupMessageCounts[groupId]! - 1} others';
+        body = message;
+      }
+
+      // Truncate long messages
+      if (body.length > 100) {
+        body = '${body.substring(0, 97)}...';
+      }
+
+      // Create notification details with grouping
+      final androidDetails = AndroidNotificationDetails(
+        _notificationChannelId,
+        _notificationChannelName,
+        importance: Importance.high,
+        showWhen: true,
+        enableLights: true,
+        playSound: true,
+        enableVibration: true,
+        icon: '@drawable/ic_notification',
+        groupKey: groupId, // Group notifications by conversation
+        setAsGroupSummary: false, // This is not the summary notification
+        styleInformation: const BigTextStyleInformation(''), // Will be set below
+      );
+
+      final iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        threadIdentifier: groupId, // Group notifications on iOS
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      // Use group ID as notification ID to update existing notifications
+      final notificationId = groupId.hashCode;
+
+      await _notifications.show(
+        notificationId,
+        title,
+        body,
+        notificationDetails,
+        payload: jsonEncode({
+          'group_id': groupId,
+          'message_count': _groupMessageCounts[groupId],
+          'latest_message': latestMessage,
+        }),
+      );
+
+      // Create a summary notification for Android (shows total unread count)
+      await _createSummaryNotification();
+
+      debugPrint('📱 [WebSocket] Grouped notification shown for $groupId: $title');
+    } catch (e) {
+      debugPrint('❌ [WebSocket] Error showing notification: $e');
+    }
+  }
+
+  /// Create a summary notification showing total unread messages
+  static Future<void> _createSummaryNotification() async {
+    try {
+      final totalMessages = _groupMessageCounts.values.fold(0, (sum, count) => sum + count);
+      if (totalMessages == 0) return;
+
+      final androidDetails = AndroidNotificationDetails(
+        _notificationChannelId,
+        _notificationChannelName,
+        importance: Importance.high,
+        showWhen: true,
+        enableLights: true,
+        playSound: false, // Don't play sound for summary
+        enableVibration: false, // Don't vibrate for summary
+        groupKey: 'lpulive_summary',
+        setAsGroupSummary: true, // This is the summary notification
+        styleInformation: BigTextStyleInformation(
+          'You have $totalMessages unread message${totalMessages == 1 ? '' : 's'}',
+        ),
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: false, // Don't show alert for summary
+        presentBadge: true,
+        presentSound: false,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.show(
+        999999, // Use a fixed ID for summary notification
+        'LPU Live',
+        'You have $totalMessages unread message${totalMessages == 1 ? '' : 's'}',
+        notificationDetails,
+      );
+
+      debugPrint('📱 [WebSocket] Summary notification created: $totalMessages messages');
+    } catch (e) {
+      debugPrint('❌ [WebSocket] Error creating summary notification: $e');
+    }
+  }
+
+  /// Clear notifications for a specific group (when user opens the conversation)
+  static Future<void> clearGroupNotifications(String groupId) async {
+    try {
+      // Remove from tracking
+      _groupedMessages.remove(groupId);
+      _groupMessageCounts.remove(groupId);
+
+      // Cancel the specific notification
+      await _notifications.cancel(groupId.hashCode);
+
+      // Update summary notification
+      await _createSummaryNotification();
+
+      debugPrint('📱 [WebSocket] Cleared notifications for group: $groupId');
+    } catch (e) {
+      debugPrint('❌ [WebSocket] Error clearing group notifications: $e');
+    }
+  }
+
+  /// Clear all notifications
+  static Future<void> clearAllNotifications() async {
+    try {
+      _groupedMessages.clear();
+      _groupMessageCounts.clear();
+      await _notifications.cancelAll();
+      debugPrint('📱 [WebSocket] Cleared all notifications');
+    } catch (e) {
+      debugPrint('❌ [WebSocket] Error clearing all notifications: $e');
+    }
+  }
+
+  /// Get notification count for a specific group
+  static int getGroupNotificationCount(String groupId) {
+    return _groupMessageCounts[groupId] ?? 0;
+  }
+
+  /// Get total notification count across all groups
+  static int getTotalNotificationCount() {
+    return _groupMessageCounts.values.fold(0, (sum, count) => sum + count);
+  }
+
+  /// Check if a group has unread notifications
+  static bool hasUnreadNotifications(String groupId) {
+    return _groupMessageCounts.containsKey(groupId) && _groupMessageCounts[groupId]! > 0;
   }
 }
