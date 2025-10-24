@@ -46,3 +46,4 @@ class LifecycleHandler : Application.ActivityLifecycleCallbacks {
     }
 }
 
+
