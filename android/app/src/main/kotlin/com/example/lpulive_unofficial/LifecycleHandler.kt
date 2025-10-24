@@ -45,3 +45,4 @@ class LifecycleHandler : Application.ActivityLifecycleCallbacks {
         methodChannel?.invokeMethod("onAppDetached", null)
     }
 }
+

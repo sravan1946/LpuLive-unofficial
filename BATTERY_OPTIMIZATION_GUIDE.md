@@ -136,3 +136,4 @@ If you continue to experience connection issues after following this guide, plea
 - Your device model and Android/iOS version
 - Screenshots of your battery optimization settings
 - Log files from the app (if available)
+
