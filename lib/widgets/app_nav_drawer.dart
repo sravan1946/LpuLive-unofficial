@@ -15,7 +15,6 @@ import '../models/user_models.dart';
 import '../pages/bug_report_page.dart';
 import '../pages/feature_request_page.dart';
 import '../pages/login_page.dart';
-import '../pages/notifications_page.dart';
 import '../pages/profile_page.dart';
 import '../pages/theme_settings_page.dart';
 import '../services/chat_services.dart';
@@ -176,18 +175,6 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const ThemeSettingsPage(),
-                              ),
-                            );
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.notifications_outlined),
-                          title: const Text('Notifications'),
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const NotificationsPage(),
                               ),
                             );
                           },

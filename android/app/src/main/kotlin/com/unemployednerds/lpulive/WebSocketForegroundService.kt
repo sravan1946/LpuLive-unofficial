@@ -15,7 +15,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class WebSocketForegroundService : Service() {
-    private val channelName = "com.lpulive.websocket"
+    private val channelName = "Background Service"
     private val channelId = "websocket_foreground_service"
     private val notificationId = 1001
     
@@ -79,7 +79,7 @@ class WebSocketForegroundService : Service() {
                 channelName,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Maintains WebSocket connection for LPU Live"
+                description = "Keeps LPU Live active in the background to receive messages"
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
@@ -102,7 +102,7 @@ class WebSocketForegroundService : Service() {
 
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("LPU Live")
-            .setContentText("Maintaining WebSocket connection...")
+            .setContentText("Running in background")
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
