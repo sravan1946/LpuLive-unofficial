@@ -1,6 +1,28 @@
-# LPU Live - Unofficial Flutter App
+# LPU Live - Unofficial Community Project
 
-An unofficial Flutter application for LPU Live chat platform.
+> **⚠️ Important Disclaimer**: This is an **unofficial community project** and is **not affiliated with LPU (Lovely Professional University)** in any way. This project is developed and maintained by the community independently.
+
+## About
+
+LPU Live is an unofficial Flutter application for the LPU Live chat platform. This project is open-sourced to demonstrate that the codebase is safe, transparent, and trustworthy for users.
+
+## Downloads & Releases
+
+Pre-built releases are available from the **[lpulive-builds](https://github.com/sravan1946/lpulive-builds)** repository. Please visit that repository to download the latest builds for your platform.
+
+> **Note**: The builds are hosted in a separate repository because the initial plan was to keep the codebase private. However, we've now decided to make the source code public to ensure transparency and build trust with the community.
+
+## License
+
+This project is licensed under the **GNU General Public License (GPL)**. This means:
+
+- ✅ You are free to use, modify, and distribute this software
+- ✅ You can study how the code works
+- ✅ You can redistribute copies
+- ⚠️ **You MUST open-source any derivative works** - If you use this code in your project, you must also release your project under the GPL license
+- ⚠️ **You cannot use this code in proprietary/closed-source applications** without open-sourcing your entire project
+
+For more details about the GPL license, please refer to the [GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.html).
 
 ## Development Setup
 
@@ -11,115 +33,45 @@ An unofficial Flutter application for LPU Live chat platform.
 - Git
 - Python 3.7+ (for pre-commit hooks)
 
-### Pre-commit Setup
+### Installation
 
-This project uses pre-commit hooks to ensure code quality and consistency. Follow these steps to set up pre-commit:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/sravan1946/LpuLive-unofficial.git
+   cd LpuLive-unofficial
+   ```
 
-#### 1. Install pre-commit
-
-```bash
-# Install pre-commit using pip
-pip install pre-commit
-
-# Or using conda
-conda install -c conda-forge pre-commit
-
-# Or using homebrew (macOS)
-brew install pre-commit
-```
-
-#### 2. Install the hooks
-
-Navigate to the project root directory and run:
-
-```bash
-pre-commit install
-```
-
-This will install the pre-commit hooks defined in `.pre-commit-config.yaml` into your git repository.
-
-#### 3. Run hooks manually (optional)
-
-To test the hooks on all files:
-
-```bash
-pre-commit run --all-files
-```
-
-To run hooks on staged files only:
-
-```bash
-pre-commit run
-```
-
-### Pre-commit Hooks Included
-
-The following essential hooks are configured:
-
-- **Dart formatter**: Ensures consistent code formatting using `dart format` (only on `lib/` files)
-- **Dart import sorter**: Automatically sorts imports using `import_sorter` package (only on `lib/` files)
-- **Trailing whitespace removal**: Removes unnecessary whitespace (only on `lib/` files)
-- **End-of-file fixer**: Ensures files end with newline (only on `lib/` files)
-- **YAML syntax check**: Validates YAML files in `lib/` directory
-- **Version bumping**: Automatically bumps version in pubspec.yaml
-
-**Import Sorting**: The `import_sorter` package organizes imports into groups:
-1. Dart imports (dart: imports)
-2. Flutter imports (package:flutter imports)
-3. Project imports (relative imports)
-
-Each group is sorted alphabetically and separated by comments.
-
-**Scope**: All code quality hooks only process files in the `lib/` directory to avoid affecting test files, generated code, or other non-source files. This keeps the build process focused on your actual application code.
-
-### Running the App
-
-1. Ensure Flutter is installed and configured
 2. Install dependencies:
    ```bash
    flutter pub get
    ```
-3. Run the app:
+
+3. Set up pre-commit hooks (optional but recommended):
    ```bash
-   flutter run
+   pip install pre-commit
+   pre-commit install
    ```
 
-### Development Workflow
-
-1. Make your changes
-2. Stage your files: `git add .`
-3. Commit: `git commit -m "Your commit message"`
-   - Pre-commit hooks will run automatically
-   - If hooks fail, fix the issues and commit again
-4. Push your changes: `git push`
-
-### Troubleshooting Pre-commit
-
-If pre-commit hooks fail:
-
-1. **Formatting issues**: Run `flutter format .` to fix Dart formatting
-2. **Import issues**: Run `flutter pub get` to update dependencies
-3. **Manual fix**: Address the specific error messages shown
-4. **Skip hooks temporarily**: Use `git commit --no-verify` (not recommended)
-
-### Updating Pre-commit Hooks
-
-To update to the latest versions of the hooks:
+### Running the App
 
 ```bash
-pre-commit autoupdate
-pre-commit install
+flutter run
 ```
 
 ## Contributing
 
+Contributions are welcome! Please feel free to submit a Pull Request. When contributing:
+
 1. Fork the repository
 2. Create a feature branch
-3. Set up pre-commit hooks as described above
-4. Make your changes
-5. Ensure all pre-commit hooks pass
-6. Submit a pull request
+3. Make your changes
+4. Ensure all pre-commit hooks pass
+5. Submit a pull request
 
-## License
+## Disclaimer
 
-This project is unofficial and not affiliated with LPU.
+This project is **not officially endorsed or affiliated with LPU (Lovely Professional University)**. It is a community-driven, open-source project created to provide an alternative client for the LPU Live platform. Use at your own discretion.
+
+## Support
+
+For issues, feature requests, or questions, please open an issue on the GitHub repository.
