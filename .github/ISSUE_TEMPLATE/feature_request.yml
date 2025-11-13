@@ -9,72 +9,29 @@ body:
         Thanks for suggesting a new feature! Please provide as much detail as possible to help us understand your request.
 
   - type: textarea
-    id: problem
+    id: description
     attributes:
-      label: Is your feature request related to a problem?
-      description: A clear and concise description of what the problem is.
-      placeholder: I'm always frustrated when...
+      label: Feature Description
+      description: Describe the feature you'd like to see in LPU Live.
+      placeholder: I would like to have...
     validations:
       required: true
 
   - type: textarea
-    id: solution
+    id: use-case
     attributes:
-      label: Proposed Solution
-      description: A clear and concise description of what you want to happen.
-      placeholder: Describe the feature you'd like to see...
-    validations:
-      required: true
-
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: Alternatives Considered
-      description: A clear and concise description of any alternative solutions or features you've considered.
-      placeholder: What other solutions have you thought about?
-
-  - type: dropdown
-    id: priority
-    attributes:
-      label: Priority
-      description: How important is this feature to you?
-      options:
-        - Low - Nice to have
-        - Medium - Would improve my experience
-        - High - Critical for my use case
-    validations:
-      required: true
-
-  - type: dropdown
-    id: platform
-    attributes:
-      label: Affected Platform(s)
-      description: Which platform(s) should this feature be available on?
-      multiple: true
-      options:
-        - All Platforms
-        - Android
-        - iOS
-        - Windows
-        - Linux
-        - macOS
-        - Web
+      label: Why do you need this feature?
+      description: Explain how this feature would help you and what problem it solves.
+      placeholder: This would help me...
     validations:
       required: true
 
   - type: textarea
     id: mockups
     attributes:
-      label: Mockups/Examples
+      label: Screenshots/Examples (Optional)
       description: If applicable, add mockups, screenshots, or examples from other apps that demonstrate your idea.
       placeholder: Paste or drag images here
-
-  - type: textarea
-    id: use-case
-    attributes:
-      label: Use Case
-      description: Describe how you would use this feature in your workflow.
-      placeholder: Explain a real-world scenario where this feature would be helpful...
 
   - type: textarea
     id: additional
@@ -91,7 +48,3 @@ body:
       options:
         - label: I have searched existing issues to ensure this feature hasn't been requested before
           required: true
-        - label: This feature aligns with the project's goals and scope
-          required: true
-        - label: I would be willing to contribute to implementing this feature (optional)
-          required: false
