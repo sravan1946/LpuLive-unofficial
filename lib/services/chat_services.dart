@@ -1398,6 +1398,7 @@ _setStatus(ConnectionStatus.connected);
       // Helper function to get a shortened group name
       String getShortGroupName(String? groupName) {
         if (groupName == null || groupName.isEmpty) return 'Direct Message';
+        if (RegExp(r'^\d+\s*:\s*\d+$').hasMatch(groupName)) return 'Direct Message';
         // Remove course code prefix for university groups (e.g., "MECH101 - Dynamics" -> "Dynamics")
         final cleaned = groupName.replaceFirst(RegExp(r'^[A-Z]+\d+\s*-\s*'), '');
         // Truncate if too long
@@ -1407,25 +1408,54 @@ _setStatus(ConnectionStatus.connected);
         return cleaned;
       }
 
-      if (_groupMessageCounts[groupId]! == 1) {
-        // First message in this group - show sender name and message
-        final groupName = getShortGroupName(groupId.startsWith('unknown') ? null : groupId);
-        title = groupName == 'Direct Message' ? sender : '$groupName - $sender';
-        body = message;
-      } else if (allSenders.length == 1) {
-        // Multiple messages from same sender - show sender name and message
-        final groupName = getShortGroupName(groupId.startsWith('unknown') ? null : groupId);
-        title = groupName == 'Direct Message' ? sender : groupName;
-        body = '$message ($_groupMessageCounts[groupId])';
+      final int messageCount = _groupMessageCounts[groupId]!;
+      final bool isDirectMessage = groupId.startsWith('unknown') ||
+          RegExp(r'^\d+\s*:\s*\d+$').hasMatch(groupId);
+
+      String deriveBaseTitle() {
+        if (isDirectMessage) {
+          if (sender.isNotEmpty) return sender;
+          return 'Direct Message';
+        }
+        return getShortGroupName(groupId);
+      }
+
+      final baseTitle = deriveBaseTitle();
+
+      // Format all messages into a list
+      String formatAllMessages() {
+        final messages = _groupedMessages[groupId]!;
+        final formattedMessages = <String>[];
+
+        for (final msg in messages) {
+          final msgText = (msg['message']?.toString() ?? '').trimRight();
+          if (msgText.isEmpty) continue;
+
+          if (allSenders.length == 1) {
+            // Single sender - just show the message
+            formattedMessages.add(msgText);
+          } else {
+            // Multiple senders - show sender name with message
+            final msgSender = SenderNameUtils.parseSenderName(msg['UserName']?.toString() ?? '');
+            final senderName = msgSender.isNotEmpty ? msgSender : 'Unknown';
+            formattedMessages.add('$senderName: $msgText');
+          }
+        }
+
+        return formattedMessages.join('\n');
+      }
+
+      if (messageCount == 1) {
+        title = baseTitle;
+        body = message.trimRight();
       } else {
-        // Multiple messages from different senders - show group name and count
-        title = getShortGroupName(groupId.startsWith('unknown') ? null : groupId);
-        body = '$_groupMessageCounts[groupId] new messages';
+        title = '$baseTitle ($messageCount)';
+        body = formatAllMessages().trimRight();
       }
 
       // Truncate long messages
-      if (body.length > 100) {
-        body = '${body.substring(0, 97)}...';
+      if (body.length > 500) {
+        body = '${body.substring(0, 497)}...';
       }
 
       // Create notification details with grouping
