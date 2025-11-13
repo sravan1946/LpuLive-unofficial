@@ -8,6 +8,15 @@ body:
       value: |
         Thanks for taking the time to fill out this bug report! Please provide as much detail as possible to help us fix the issue.
 
+  - type: input
+    id: version
+    attributes:
+      label: App Version
+      description: What version of LPU Live are you using?
+      placeholder: e.g., 1.0.3
+    validations:
+      required: true
+
   - type: textarea
     id: description
     attributes:
@@ -54,54 +63,6 @@ body:
       label: Screenshots
       description: If applicable, add screenshots to help explain your problem.
       placeholder: Paste or drag images here
-
-  - type: dropdown
-    id: platform
-    attributes:
-      label: Platform
-      description: On which platform(s) did you encounter this bug?
-      multiple: true
-      options:
-        - Android
-        - iOS
-        - Windows
-        - Linux
-        - macOS
-        - Web
-    validations:
-      required: true
-
-  - type: input
-    id: version
-    attributes:
-      label: App Version
-      description: What version of LPU Live are you using?
-      placeholder: e.g., 1.0.3
-    validations:
-      required: true
-
-  - type: input
-    id: flutter-version
-    attributes:
-      label: Flutter Version (if building from source)
-      description: If you're building from source, what Flutter version are you using?
-      placeholder: e.g., 3.8.1
-
-  - type: textarea
-    id: device-info
-    attributes:
-      label: Device Information
-      description: Please provide device details (OS version, device model, etc.)
-      placeholder: |
-        - Device: [e.g., Pixel 6]
-        - OS: [e.g., Android 13]
-
-  - type: textarea
-    id: logs
-    attributes:
-      label: Relevant Logs
-      description: Please copy and paste any relevant log output. This will be automatically formatted into code.
-      render: shell
 
   - type: textarea
     id: additional
