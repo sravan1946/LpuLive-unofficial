@@ -1389,14 +1389,38 @@ _setStatus(ConnectionStatus.connected);
       String title;
       String body;
 
+      // Get sender name for the group (could be from first or latest message)
+      final allSenders = _groupedMessages[groupId]!
+          .map((msg) => SenderNameUtils.parseSenderName(msg['UserName'] ?? ''))
+          .toSet()
+          .toList();
+
+      // Helper function to get a shortened group name
+      String getShortGroupName(String? groupName) {
+        if (groupName == null || groupName.isEmpty) return 'Direct Message';
+        // Remove course code prefix for university groups (e.g., "MECH101 - Dynamics" -> "Dynamics")
+        final cleaned = groupName.replaceFirst(RegExp(r'^[A-Z]+\d+\s*-\s*'), '');
+        // Truncate if too long
+        if (cleaned.length > 30) {
+          return '${cleaned.substring(0, 27)}...';
+        }
+        return cleaned;
+      }
+
       if (_groupMessageCounts[groupId]! == 1) {
-        // First message in this group
-        title = 'New message from $sender';
+        // First message in this group - show sender name and message
+        final groupName = getShortGroupName(groupId.startsWith('unknown') ? null : groupId);
+        title = groupName == 'Direct Message' ? sender : '$groupName - $sender';
         body = message;
+      } else if (allSenders.length == 1) {
+        // Multiple messages from same sender - show sender name and message
+        final groupName = getShortGroupName(groupId.startsWith('unknown') ? null : groupId);
+        title = groupName == 'Direct Message' ? sender : groupName;
+        body = '$message ($_groupMessageCounts[groupId])';
       } else {
-        // Multiple messages - show count and latest message
-        title = '$sender and ${_groupMessageCounts[groupId]! - 1} others';
-        body = message;
+        // Multiple messages from different senders - show group name and count
+        title = getShortGroupName(groupId.startsWith('unknown') ? null : groupId);
+        body = '$_groupMessageCounts[groupId] new messages';
       }
 
       // Truncate long messages
@@ -1446,59 +1470,14 @@ _setStatus(ConnectionStatus.connected);
         }),
       );
 
-      // Create a summary notification for Android (shows total unread count)
-      await _createSummaryNotification();
+      // Don't create summary notification - just keep one notification per chat group
 
-      debugPrint('📱 [WebSocket] Grouped notification shown for $groupId: $title');
+      debugPrint('📱 [WebSocket] Grouped notification shown for $groupId: $title - ${_groupMessageCounts[groupId]} messages');
     } catch (e) {
       debugPrint('❌ [WebSocket] Error showing notification: $e');
     }
   }
 
-  /// Create a summary notification showing total unread messages
-  static Future<void> _createSummaryNotification() async {
-    try {
-      final totalMessages = _groupMessageCounts.values.fold(0, (sum, count) => sum + count);
-      if (totalMessages == 0) return;
-
-      final androidDetails = AndroidNotificationDetails(
-        _notificationChannelId,
-        _notificationChannelName,
-        importance: Importance.high,
-        showWhen: true,
-        enableLights: true,
-        playSound: false, // Don't play sound for summary
-        enableVibration: false, // Don't vibrate for summary
-        groupKey: 'lpulive_summary',
-        setAsGroupSummary: true, // This is the summary notification
-        styleInformation: BigTextStyleInformation(
-          'You have $totalMessages unread message${totalMessages == 1 ? '' : 's'}',
-        ),
-      );
-
-      const iosDetails = DarwinNotificationDetails(
-        presentAlert: false, // Don't show alert for summary
-        presentBadge: true,
-        presentSound: false,
-      );
-
-      final notificationDetails = NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      );
-
-      await _notifications.show(
-        999999, // Use a fixed ID for summary notification
-        'LPU Live',
-        'You have $totalMessages unread message${totalMessages == 1 ? '' : 's'}',
-        notificationDetails,
-      );
-
-      debugPrint('📱 [WebSocket] Summary notification created: $totalMessages messages');
-    } catch (e) {
-      debugPrint('❌ [WebSocket] Error creating summary notification: $e');
-    }
-  }
 
   /// Clear notifications for a specific group (when user opens the conversation)
   static Future<void> clearGroupNotifications(String groupId) async {
@@ -1509,9 +1488,6 @@ _setStatus(ConnectionStatus.connected);
 
       // Cancel the specific notification
       await _notifications.cancel(groupId.hashCode);
-
-      // Update summary notification
-      await _createSummaryNotification();
 
       debugPrint('📱 [WebSocket] Cleared notifications for group: $groupId');
     } catch (e) {
