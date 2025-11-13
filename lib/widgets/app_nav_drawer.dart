@@ -7,10 +7,13 @@ import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // Project imports:
 import '../models/current_user_state.dart';
 import '../models/user_models.dart';
+import '../pages/bug_report_page.dart';
+import '../pages/feature_request_page.dart';
 import '../pages/login_page.dart';
 import '../pages/notifications_page.dart';
 import '../pages/profile_page.dart';
@@ -28,6 +31,11 @@ class AppNavDrawer extends StatefulWidget {
 class _AppNavDrawerState extends State<AppNavDrawer> {
   String _appVersion = '';
   String _buildNumber = '';
+
+  static const _githubBugIssuesUrl =
+      'https://github.com/sravan1946/LpuLive-unofficial/issues/new/choose';
+  static const _githubFeatureIssuesUrl =
+      'https://github.com/sravan1946/LpuLive-unofficial/issues/new?template=feature_request.md';
 
   @override
   void initState() {
@@ -184,6 +192,28 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
                             );
                           },
                         ),
+                        ListTile(
+                          leading: const Icon(Icons.bug_report_outlined),
+                          title: const Text('Report a Bug'),
+                          onTap: () => _handleFeedbackTap(
+                            pageBuilder: (_) => const BugReportPage(),
+                            dialogTitle: 'Try GitHub Issues First?',
+                            dialogMessage:
+                                'GitHub issues make it easier to chat, attach screenshots, and track progress. Would you like to open an issue instead?',
+                            issuesUrl: _githubBugIssuesUrl,
+                          ),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.lightbulb_outline),
+                          title: const Text('Request a Feature'),
+                          onTap: () => _handleFeedbackTap(
+                            pageBuilder: (_) => const FeatureRequestPage(),
+                            dialogTitle: 'Share on GitHub?',
+                            dialogMessage:
+                                'Feature requests get more visibility on GitHub where others can upvote and discuss. Want to open an issue instead?',
+                            issuesUrl: _githubFeatureIssuesUrl,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -217,9 +247,7 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
                       await TokenStorage.clearToken();
                       setCurrentUser(null);
                       navigator.pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (_) => const LoginApp(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const LoginApp()),
                         (route) => false,
                       );
                     },
@@ -231,5 +259,70 @@ class _AppNavDrawerState extends State<AppNavDrawer> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleFeedbackTap({
+    required WidgetBuilder pageBuilder,
+    required String dialogTitle,
+    required String dialogMessage,
+    required String issuesUrl,
+  }) async {
+    if (!mounted) return;
+
+    final navigator = Navigator.of(context);
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(dialogTitle),
+          content: Text(dialogMessage),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+                _openIssuesLink(issuesUrl, scaffoldMessenger);
+              },
+              child: const Text('GitHub Issues'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (proceed != true) {
+      return;
+    }
+
+    navigator.pop(); // close the drawer
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+
+    await rootNavigator.push(MaterialPageRoute(builder: pageBuilder));
+  }
+
+  Future<void> _openIssuesLink(
+    String url,
+    ScaffoldMessengerState scaffoldMessenger,
+  ) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open GitHub issues in your browser.'),
+        ),
+      );
+    }
   }
 }
