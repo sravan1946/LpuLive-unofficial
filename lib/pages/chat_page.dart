@@ -302,6 +302,9 @@ class _ChatPageState extends State<ChatPage> {
       (lastReadAt) => setState(() => _lastReadAt = lastReadAt),
     );
     OpenConversations.open(widget.groupId);
+
+    // Clear notifications for this group when user opens the conversation
+    WebSocketChatService.clearGroupNotifications(widget.groupId);
     // Load last-read timestamp to place unread divider
     ConversationReadTracker.getLastReadAt(widget.groupId).then((ts) {
       if (!mounted) return;

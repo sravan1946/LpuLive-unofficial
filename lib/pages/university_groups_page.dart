@@ -535,6 +535,8 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 // Clear unread counter when opening (UI badge)
                 _unreadByGroup[course.courseName] = 0;
                 _saveUnreadCounts();
+                // Clear notifications for this group
+                WebSocketChatService.clearGroupNotifications(course.courseName);
                 final isWritable = _isGroupWritable(course);
                 return ChatPage(
                   groupId: course.courseName,
