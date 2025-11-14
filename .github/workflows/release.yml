@@ -43,13 +43,13 @@ jobs:
       - name: Add .env
         run: echo "${{ secrets.ENVFILE }}" > .env
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build release APK (split per ABI)
+        run: flutter build apk --release --split-per-abi
 
-      - name: Rename APK with version
+      - name: Rename APK with version (arm64-v8a only)
         run: |
           mkdir -p release
-          cp build/app/outputs/flutter-apk/app-release.apk release/LpuLive-${{ github.ref_name }}.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/LpuLive-${{ github.ref_name }}.apk
 
       - name: Create Release in public repo
         uses: softprops/action-gh-release@v1
@@ -57,7 +57,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: "LpuLive ${{ github.ref_name }}"
           body: "Automated release of LpuLive-unofficial build."
-          files: release/*.apk
+          files: release/LpuLive-${{ github.ref_name }}.apk
           repository: sravan1946/LpuLive-builds
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
