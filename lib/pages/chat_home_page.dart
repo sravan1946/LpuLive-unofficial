@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import '../models/user_models.dart';
 import '../providers/theme_provider.dart';
 import '../services/chat_services.dart';
+import '../services/update_checker_service.dart';
 import '../theme.dart';
 import '../widgets/app_nav_drawer.dart';
 import '../widgets/connectivity_banner.dart';
 import '../widgets/glass_bottom_nav_bar.dart';
+import '../widgets/update_dialog.dart';
 import 'direct_messages_page.dart';
 import 'personal_groups_page.dart';
 import 'university_groups_page.dart';
@@ -117,6 +119,25 @@ class _ChatHomePageState extends State<ChatHomePage> {
       PersonalGroupsPage(wsService: _wsService, onOpenDrawer: openDrawer),
       DirectMessagesPage(wsService: _wsService, onOpenDrawer: openDrawer),
     ];
+
+    // Check for updates after a short delay to not interfere with initial load
+    Future.delayed(const Duration(seconds: 2), () {
+      _checkForUpdates();
+    });
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (!mounted) return;
+
+    try {
+      final updateInfo = await UpdateCheckerService.checkForUpdate();
+      if (updateInfo != null && mounted) {
+        // Show update dialog
+        await UpdateDialog.show(context, updateInfo);
+      }
+    } catch (e) {
+      debugPrint('❌ [ChatHomePage] Error checking for updates: $e');
+    }
   }
 
   @override
