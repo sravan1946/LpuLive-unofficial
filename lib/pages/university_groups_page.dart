@@ -415,29 +415,11 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
         // Continue with refresh even if authorize fails for other errors
       }
 
-      for (final course in _courseGroups) {
-        try {
-          final msgs = await _apiService.fetchChatMessages(
-            course.courseName,
-            currentUser!.chatToken,
-          );
-          if (msgs.isNotEmpty) {
-            final latest = msgs.last;
-            final idx = _courseGroups.indexWhere(
-              (c) => c.courseName == course.courseName,
-            );
-            if (idx != -1) {
-              _courseGroups[idx] = _courseGroups[idx].copyWith(
-                lastMessageTime: latest.timestamp,
-              );
-            }
-            // Note: currentUser groups are already updated by authorize endpoint
-          }
-        } catch (_) {
-          // ignore individual failures
-        }
-      }
-      _sortCourseGroups();
+      // The authorize endpoint already updated currentUser.groups with
+      // groupLastMessage and lastMessageTime for all groups.
+      // Just reinitialize the groups list from the updated currentUser data.
+      _initializeGroups();
+      if (mounted) setState(() {});
       await _saveUnreadCounts();
     } finally {}
   }

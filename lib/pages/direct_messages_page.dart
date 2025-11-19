@@ -158,30 +158,11 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       }
 
       await _loadContactsIfNeeded();
-      for (final dm in _directMessages) {
-        try {
-          final msgs = await _apiService.fetchChatMessages(
-            dm.dmName,
-            currentUser!.chatToken,
-          );
-          if (msgs.isNotEmpty) {
-            final latest = msgs.last;
-            // Note: currentUser groups are already updated by authorize endpoint
-            final idx = _directMessages.indexWhere(
-              (d) => d.dmName == dm.dmName,
-            );
-            if (idx != -1) {
-              _directMessages[idx] = _directMessages[idx].copyWith(
-                lastMessage: latest.message,
-                lastMessageTime: latest.timestamp,
-              );
-            }
-          }
-        } catch (_) {
-          // ignore
-        }
-      }
-      _sortDirectMessages();
+      // The authorize endpoint already updated currentUser.groups with
+      // groupLastMessage and lastMessageTime for all groups (including DMs).
+      // Just reinitialize the DMs list from the updated currentUser data.
+      _initializeDMs();
+      if (mounted) setState(() {});
       await _saveUnreadCounts();
     } finally {}
   }
