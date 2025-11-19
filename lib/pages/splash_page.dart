@@ -11,6 +11,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../models/current_user_state.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
+import '../widgets/notification_permission_dialog.dart';
 import 'chat_home_page.dart';
 import 'login_page.dart';
 
@@ -43,6 +44,9 @@ class _SplashPageState extends State<SplashPage>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     Future.delayed(const Duration(seconds: 4), () async {
+      // Request notification permission first
+      await _requestNotificationPermissionIfNeeded();
+
       final savedToken = await TokenStorage.getToken();
       if (!mounted) return;
       if (savedToken == null) {
@@ -156,6 +160,18 @@ class _SplashPageState extends State<SplashPage>
         }
       }
     });
+  }
+
+  /// Request notification permission if needed
+  Future<void> _requestNotificationPermissionIfNeeded() async {
+    try {
+      if (!mounted) return;
+
+      // Show the permission dialog
+      await NotificationPermissionDialogHelper.showPermissionDialogIfNeeded(context);
+    } catch (e) {
+      debugPrint('❌ [SplashPage] Error requesting notification permission: $e');
+    }
   }
 
   @override
