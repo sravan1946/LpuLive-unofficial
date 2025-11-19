@@ -59,7 +59,6 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
           onWebResourceError: (WebResourceError error) {
             // Only show errors for actual failures, not CSP warnings
             if (error.errorCode != -3) {
-              // -3 is often CSP warnings
               setState(() {
                 hasError = true;
                 errorMessage =
@@ -89,58 +88,18 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
         errorMessage = null;
       });
 
-      // Try multiple approaches for PowerPoint viewing
-      await _tryOffice365Viewer();
+      final viewerUrl =
+          'https://view.officeapps.live.com/op/view.aspx?src=${Uri.encodeComponent(widget.pptUrl)}&wdAr=1.7777777777777777';
+
+      await _controller.loadRequest(Uri.parse(viewerUrl));
     } catch (e) {
-      setState(() {
-        hasError = true;
-        errorMessage = 'Error loading presentation: $e';
-        isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _tryOffice365Viewer() async {
-    // Method 1: Try Microsoft Office 365 Online Viewer with optimized parameters
-    final office365Url =
-        'https://view.officeapps.live.com/op/embed.aspx?src=${Uri.encodeComponent(widget.pptUrl)}&wdAr=1.7777777777777777&wdEmbedCode=0&wdPrint=0&wdInConfigurator=true&wdInConfigurator=true&wdEmbedCode=0';
-
-    try {
-      await _controller.loadRequest(Uri.parse(office365Url));
-    } catch (e) {
-      // If Office 365 fails, try Google Slides viewer
-      await _tryGoogleSlidesViewer();
-    }
-  }
-
-  Future<void> _tryGoogleSlidesViewer() async {
-    // Method 2: Try Google Slides viewer (requires file to be accessible via URL)
-    final googleSlidesUrl =
-        'https://docs.google.com/gview?url=${Uri.encodeComponent(widget.pptUrl)}&embedded=true&chrome=false';
-
-    try {
-      await _controller.loadRequest(Uri.parse(googleSlidesUrl));
-    } catch (e) {
-      // If Google Slides fails, try alternative Office viewer
-      await _tryAlternativeOfficeViewer();
-    }
-  }
-
-  Future<void> _tryAlternativeOfficeViewer() async {
-    // Method 3: Try alternative Office viewer with different parameters
-    final alternativeUrl =
-        'https://view.officeapps.live.com/op/view.aspx?src=${Uri.encodeComponent(widget.pptUrl)}&wdAr=1.7777777777777777';
-
-    try {
-      await _controller.loadRequest(Uri.parse(alternativeUrl));
-    } catch (e) {
-      // If all methods fail, show simple error message
-      setState(() {
-        hasError = true;
-        errorMessage =
-            'Unable to view this presentation. Please try downloading the file.';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error loading presentation: $e';
+          isLoading = false;
+        });
+      }
     }
   }
 
