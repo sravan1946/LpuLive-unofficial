@@ -348,12 +348,36 @@ class ChatApiService {
         } else {
           return [];
         }
+      } else if (response.statusCode == 401) {
+        // Handle unauthorized response - token is invalid
+        try {
+          final Map<String, dynamic> errorData = jsonDecode(response.body);
+          final errorMessage =
+              errorData['error'] ?? 'Unauthorized access. Please login again.';
+          debugPrint(
+            '❌ [ChatApiService] Authorization failed (401): $errorMessage',
+          );
+          throw UnauthorizedException(errorMessage);
+        } catch (parseError) {
+          if (parseError is UnauthorizedException) {
+            rethrow;
+          }
+          debugPrint(
+            '❌ [ChatApiService] Authorization failed: 401 Unauthorized',
+          );
+          throw UnauthorizedException(
+            'Unauthorized access. Please login again.',
+          );
+        }
       } else {
         throw Exception(
           'Failed to fetch chat messages: ${response.statusCode}',
         );
       }
     } catch (e) {
+      if (e is UnauthorizedException) {
+        rethrow;
+      }
       throw Exception('Error fetching chat messages: $e');
     }
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -301,7 +302,13 @@ class _ChatPageState extends State<ChatPage> {
       (page) => setState(() => _currentPage = page),
       _statusService,
       (lastReadAt) => setState(() => _lastReadAt = lastReadAt),
-    );
+    ).catchError((e) {
+      // Handle UnauthorizedException by disconnecting WebSocket
+      if (e is UnauthorizedException) {
+        debugPrint('🚪 [ChatPage] Unauthorized (401) when loading messages, disconnecting WebSocket');
+        widget.wsService.disconnect();
+      }
+    });
     OpenConversations.open(widget.groupId);
 
     // Clear notifications for this group when user opens the conversation
@@ -702,7 +709,13 @@ class _ChatPageState extends State<ChatPage> {
                                 (reached) =>
                                     setState(() => _hasReachedTop = reached),
                                 _statusService,
-                              );
+                              ).catchError((e) {
+                                // Handle UnauthorizedException by disconnecting WebSocket
+                                if (e is UnauthorizedException) {
+                                  debugPrint('🚪 [ChatPage] Unauthorized (401) when loading older messages, disconnecting WebSocket');
+                                  widget.wsService.disconnect();
+                                }
+                              });
                             }
                             return false;
                           },

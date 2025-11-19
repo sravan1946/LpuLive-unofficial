@@ -1,8 +1,11 @@
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Project imports:
+import '../models/current_user_state.dart';
 import '../models/user_models.dart';
+import '../pages/login_page.dart';
 import '../services/chat_services.dart';
 import '../services/message_status_service.dart';
 import '../widgets/app_toast.dart';
@@ -76,6 +79,39 @@ class ChatData {
       }
     } catch (e) {
       setIsLoading(false);
+
+      // Handle 401 Unauthorized - token is invalid
+      if (e is UnauthorizedException) {
+        debugPrint('🚪 [ChatData] Unauthorized (401) when loading messages: ${e.message}');
+
+        // Clear token and user state
+        await TokenStorage.clearToken();
+        setCurrentUser(null);
+
+        if (context.mounted) {
+          // Show notification
+          showAppToast(
+            context,
+            'Session expired. Please login again.',
+            type: ToastType.error,
+            duration: const Duration(seconds: 3),
+          );
+
+          // Navigate to login after a short delay
+          Future.delayed(const Duration(seconds: 1), () {
+            if (context.mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const LoginApp(autoLoggedOut: true),
+                ),
+                (route) => false,
+              );
+            }
+          });
+        }
+        return;
+      }
+
       if (context.mounted) {
         showAppToast(
           context,
@@ -133,6 +169,38 @@ class ChatData {
         setHasReachedTop(true);
       }
     } catch (e) {
+      // Handle 401 Unauthorized - token is invalid
+      if (e is UnauthorizedException) {
+        debugPrint('🚪 [ChatData] Unauthorized (401) when loading older messages: ${e.message}');
+
+        // Clear token and user state
+        await TokenStorage.clearToken();
+        setCurrentUser(null);
+
+        if (context.mounted) {
+          // Show notification
+          showAppToast(
+            context,
+            'Session expired. Please login again.',
+            type: ToastType.error,
+            duration: const Duration(seconds: 3),
+          );
+
+          // Navigate to login after a short delay
+          Future.delayed(const Duration(seconds: 1), () {
+            if (context.mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const LoginApp(autoLoggedOut: true),
+                ),
+                (route) => false,
+              );
+            }
+          });
+        }
+        return;
+      }
+
       // Check if this is the "No data found" response indicating we've reached the top
       if (e.toString().contains('No data found')) {
         // Reached the top - no more messages to load
