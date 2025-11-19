@@ -159,7 +159,11 @@ class _GroupMediaPageState extends State<GroupMediaPage> {
                             tooltip: 'Download',
                             icon: const Icon(Icons.download),
                             onPressed: () {
-                              ChatHandlers.downloadMedia(context, url);
+                              ChatHandlers.downloadMedia(
+                                context,
+                                url,
+                                fileName: item.mediaName,
+                              );
                             },
                           ),
                           onTap: () async {

@@ -1,21 +1,19 @@
-// Dart imports:
-import 'dart:io';
-
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // Project imports:
 import '../models/message_status.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
+import '../services/file_saver_service.dart';
 import '../services/message_status_service.dart';
 import '../services/read_tracker.dart';
+import '../services/storage_permission_service.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/chat_widgets.dart';
 import '../widgets/pdf_viewer.dart';
@@ -63,10 +61,10 @@ class ChatHandlers {
   static void downloadPDFDirectly(
     String pdfUrl,
     String? fileName,
-    Function(String) downloadMedia,
+    Future<void> Function(String url, {String? fileName}) downloadMedia,
   ) {
     // Use the same download logic as downloadMedia
-    downloadMedia(pdfUrl);
+    downloadMedia(pdfUrl, fileName: fileName);
   }
 
   static void showPowerPointViewer(
@@ -87,10 +85,10 @@ class ChatHandlers {
   static void downloadPowerPointDirectly(
     String pptUrl,
     String? fileName,
-    Function(String) downloadMedia,
+    Future<void> Function(String url, {String? fileName}) downloadMedia,
   ) {
     // Use the same download logic as downloadMedia
-    downloadMedia(pptUrl);
+    downloadMedia(pptUrl, fileName: fileName);
   }
 
   static void showMessageOptions(
@@ -100,7 +98,7 @@ class ChatHandlers {
     Function(ChatMessage) replyToMessage,
     Function(String, String?) showPDFViewer,
     Function(String, String?) downloadPDFDirectly,
-    Function(String) downloadMedia,
+    Future<void> Function(String url, {String? fileName}) downloadMedia,
     Function(ChatMessage) copyMessageText, {
     bool isAdmin = false,
     Future<void> Function(ChatMessage)? onDelete,
@@ -180,7 +178,7 @@ class ChatHandlers {
                   subtitle: const Text('Save to Downloads folder'),
                   onTap: () {
                     Navigator.pop(context);
-                    downloadMedia(url);
+                    downloadMedia(url, fileName: fileName);
                   },
                 ),
               ],
@@ -222,18 +220,32 @@ class ChatHandlers {
     );
   }
 
-  static void downloadMedia(BuildContext context, String url) async {
+  static Future<void> downloadMedia(
+    BuildContext context,
+    String url, {
+    String? fileName,
+  }) async {
     try {
       final response = await http.get(Uri.parse(url));
-      final directory = await getApplicationDocumentsDirectory();
-      final filename = url.split('/').last.split('?').first;
-      final file = File('${directory.path}/$filename');
-      await file.writeAsBytes(response.bodyBytes);
+      final filename = (fileName?.trim().isNotEmpty ?? false)
+          ? fileName!.trim()
+          : url.split('/').last.split('?').first;
+      final saveResult = await FileSaverService.saveBytesToBestLocation(
+        bytes: response.bodyBytes,
+        fileName: filename.isEmpty ? 'downloaded_file' : filename,
+        requestPermission: () => StoragePermissionService.ensureStoragePermission(
+          context: context,
+          deniedMessage: 'Storage permission is required to download files.',
+          permanentlyDeniedMessage:
+              'Storage permission permanently denied. Please enable it in app settings.',
+          errorPrefix: 'Storage permission error',
+        ),
+      );
 
       if (context.mounted) {
         showAppToast(
           context,
-          'Downloaded to ${file.path}',
+          'Downloaded to ${saveResult.locationLabel}\nPath: ${saveResult.filePath}',
           type: ToastType.success,
         );
       }

@@ -1,6 +1,5 @@
 // Dart imports:
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui';
 
 // Flutter imports:
@@ -10,12 +9,13 @@ import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // Project imports:
 import '../models/user_models.dart';
+import '../services/file_saver_service.dart';
+import '../services/storage_permission_service.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/network_image.dart';
 
@@ -880,15 +880,23 @@ class FullScreenImageViewer extends StatelessWidget {
   void _downloadImage(BuildContext context) async {
     try {
       final response = await http.get(Uri.parse(imageUrl));
-      final directory = await getApplicationDocumentsDirectory();
       final filename = imageUrl.split('/').last.split('?').first;
-      final file = File('${directory.path}/$filename');
-      await file.writeAsBytes(response.bodyBytes);
+      final saveResult = await FileSaverService.saveBytesToBestLocation(
+        bytes: response.bodyBytes,
+        fileName: filename.isEmpty ? 'image.jpg' : filename,
+        requestPermission: () => StoragePermissionService.ensureStoragePermission(
+          context: context,
+          deniedMessage: 'Storage permission is required to save images.',
+          permanentlyDeniedMessage:
+              'Storage permission permanently denied. Please enable it in app settings.',
+          errorPrefix: 'Storage permission error',
+        ),
+      );
 
       if (context.mounted) {
         showAppToast(
           context,
-          'Image saved to ${file.path}',
+          'Image saved to ${saveResult.locationLabel}\nPath: ${saveResult.filePath}',
           type: ToastType.success,
         );
       }

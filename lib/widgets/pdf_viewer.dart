@@ -8,9 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 // Project imports:
+import '../services/file_saver_service.dart';
+import '../services/storage_permission_service.dart';
 import '../widgets/app_toast.dart';
 
 class PDFViewer extends StatefulWidget {
@@ -96,89 +97,23 @@ class _PDFViewerState extends State<PDFViewer> {
             : '$fileName.pdf';
 
         // Try Downloads folder first (works on most devices without permission)
-        List<String> possiblePaths = [
-          '/storage/emulated/0/Download',
-          '/storage/emulated/0/Downloads',
-          '/sdcard/Download',
-          '/sdcard/Downloads',
-        ];
-
-        String? successPath;
-
-        for (String path in possiblePaths) {
-          try {
-            final downloadsDir = Directory(path);
-            if (await downloadsDir.exists() ||
-                await _canCreateDirectory(downloadsDir)) {
-              if (!await downloadsDir.exists()) {
-                await downloadsDir.create(recursive: true);
-              }
-
-              final targetFile = File('${downloadsDir.path}/$pdfFileName');
-              await sourceFile.copy(targetFile.path);
-              successPath = path;
-              break;
-            }
-          } catch (e) {
-            // Try next path
-            continue;
-          }
-        }
-
-        // If Downloads folder failed, try with permission
-        if (successPath == null) {
-          final permission = await _requestStoragePermission();
-          if (permission) {
-            // Try again with permission
-            for (String path in possiblePaths) {
-              try {
-                final downloadsDir = Directory(path);
-                if (await downloadsDir.exists() ||
-                    await _canCreateDirectory(downloadsDir)) {
-                  if (!await downloadsDir.exists()) {
-                    await downloadsDir.create(recursive: true);
-                  }
-
-                  final targetFile = File('${downloadsDir.path}/$pdfFileName');
-                  await sourceFile.copy(targetFile.path);
-                  successPath = path;
-                  break;
-                }
-              } catch (e) {
-                // Try next path
-                continue;
-              }
-            }
-          }
-        }
-
-        // If all download paths failed, use external storage
-        if (successPath == null) {
-          final externalDir = await getExternalStorageDirectory();
-          if (externalDir != null) {
-            final fallbackDir = Directory('${externalDir.path}/Download');
-            if (!await fallbackDir.exists()) {
-              await fallbackDir.create(recursive: true);
-            }
-            final targetFile = File('${fallbackDir.path}/$pdfFileName');
-            await sourceFile.copy(targetFile.path);
-            successPath = fallbackDir.path;
-          } else {
-            // Final fallback to app documents
-            final appDir = await getApplicationDocumentsDirectory();
-            final targetFile = File('${appDir.path}/$pdfFileName');
-            await sourceFile.copy(targetFile.path);
-            successPath = appDir.path;
-          }
-        }
+        final saveResult = await FileSaverService.copyFileToBestLocation(
+          sourceFile: sourceFile,
+          fileName: pdfFileName,
+          requestPermission: () => StoragePermissionService.ensureStoragePermission(
+            context: context,
+            deniedMessage:
+                'Storage permission denied. Cannot download files.',
+            permanentlyDeniedMessage:
+                'Storage permission permanently denied. Please enable it in app settings.',
+            errorPrefix: 'Error requesting storage permission',
+          ),
+        );
 
         if (mounted) {
-          final folderName = successPath.contains('Download')
-              ? 'Downloads folder'
-              : 'Documents folder';
           showAppToast(
             context,
-            'PDF saved to $folderName\nPath: $successPath',
+            'PDF saved to ${saveResult.locationLabel}\nPath: ${saveResult.filePath}',
             type: ToastType.success,
           );
         }
@@ -191,75 +126,6 @@ class _PDFViewerState extends State<PDFViewer> {
       if (mounted) {
         showAppToast(context, 'Failed to save PDF: $e', type: ToastType.error);
       }
-    }
-  }
-
-  Future<bool> _requestStoragePermission() async {
-    if (Platform.isAndroid) {
-      try {
-        // Check if permission is already granted
-        if (await Permission.storage.isGranted) {
-          return true;
-        }
-
-        // Check if permission is permanently denied
-        if (await Permission.storage.isPermanentlyDenied) {
-          if (mounted) {
-            showAppToast(
-              context,
-              'Storage permission permanently denied. Please enable it in app settings.',
-              type: ToastType.error,
-            );
-          }
-          return false;
-        }
-
-        // Request storage permission
-        final status = await Permission.storage.request();
-
-        if (status.isGranted) {
-          return true;
-        } else if (status.isDenied) {
-          if (mounted) {
-            showAppToast(
-              context,
-              'Storage permission denied. Cannot download files.',
-              type: ToastType.error,
-            );
-          }
-          return false;
-        } else if (status.isPermanentlyDenied) {
-          if (mounted) {
-            showAppToast(
-              context,
-              'Storage permission permanently denied. Please enable it in app settings.',
-              type: ToastType.error,
-            );
-          }
-          return false;
-        }
-
-        return false;
-      } catch (e) {
-        if (mounted) {
-          showAppToast(
-            context,
-            'Error requesting storage permission: $e',
-            type: ToastType.error,
-          );
-        }
-        return false;
-      }
-    }
-    return true; // iOS doesn't need this permission
-  }
-
-  Future<bool> _canCreateDirectory(Directory dir) async {
-    try {
-      await dir.create(recursive: true);
-      return true;
-    } catch (e) {
-      return false;
     }
   }
 

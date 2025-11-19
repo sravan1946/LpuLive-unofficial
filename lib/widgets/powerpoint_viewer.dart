@@ -1,17 +1,14 @@
-// Dart imports:
-import 'dart:io';
-
 // Flutter imports:
 import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 // Project imports:
+import '../services/file_saver_service.dart';
+import '../services/storage_permission_service.dart';
 import '../widgets/app_toast.dart';
 
 class PowerPointViewer extends StatefulWidget {
@@ -149,24 +146,10 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
 
   Future<void> _downloadPresentation() async {
     try {
-      // Request storage permission
-      final status = await Permission.storage.request();
-      if (!status.isGranted) {
-        if (mounted) {
-          showAppToast(
-            context,
-            'Storage permission is required to download files',
-            type: ToastType.warning,
-          );
-        }
-        return;
-      }
-
       // Download the file
       final response = await http.get(Uri.parse(widget.pptUrl));
 
       if (response.statusCode == 200) {
-        final directory = await getApplicationDocumentsDirectory();
         final fileName =
             widget.fileName ?? widget.pptUrl.split('/').last.split('?').first;
 
@@ -176,13 +159,23 @@ class _PowerPointViewerState extends State<PowerPointViewer> {
             ? fileName
             : '$fileName.pptx';
 
-        final file = File('${directory.path}/$pptFileName');
-        await file.writeAsBytes(response.bodyBytes);
+        final saveResult = await FileSaverService.saveBytesToBestLocation(
+          bytes: response.bodyBytes,
+          fileName: pptFileName,
+          requestPermission: () => StoragePermissionService.ensureStoragePermission(
+            context: context,
+            deniedMessage:
+                'Storage permission is required to download files.',
+            permanentlyDeniedMessage:
+                'Storage permission permanently denied. Please enable it in app settings.',
+            errorPrefix: 'Storage permission error',
+          ),
+        );
 
         if (mounted) {
           showAppToast(
             context,
-            'Presentation downloaded successfully',
+            'Presentation saved to ${saveResult.locationLabel}\nPath: ${saveResult.filePath}',
             type: ToastType.success,
           );
         }

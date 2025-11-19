@@ -18,6 +18,7 @@ import '../services/chat_handlers.dart';
 import '../services/chat_services.dart';
 import '../services/message_status_service.dart';
 import '../services/read_tracker.dart';
+import '../services/storage_permission_service.dart';
 import '../utils/chat_utils.dart';
 import '../utils/sender_name_utils.dart';
 import '../widgets/app_toast.dart';
@@ -897,16 +898,18 @@ class _ChatPageState extends State<ChatPage> {
                                                     ) => ChatHandlers.downloadPDFDirectly(
                                                       url,
                                                       fileName,
-                                                      (url) =>
+                                                      (downloadUrl, {fileName}) =>
                                                           ChatHandlers.downloadMedia(
                                                             context,
-                                                            url,
+                                                            downloadUrl,
+                                                            fileName: fileName,
                                                           ),
                                                     ),
-                                                    (url) =>
+                                                    (downloadUrl, {fileName}) =>
                                                         ChatHandlers.downloadMedia(
                                                           context,
-                                                          url,
+                                                          downloadUrl,
+                                                          fileName: fileName ?? message.mediaName,
                                                         ),
                                                     (msg) =>
                                                         ChatHandlers.copyMessageText(
@@ -1057,16 +1060,18 @@ class _ChatPageState extends State<ChatPage> {
                                                             ) => ChatHandlers.downloadPDFDirectly(
                                                               url,
                                                               fileName,
-                                                              (url) =>
+                                                              (downloadUrl, {fileName}) =>
                                                                   ChatHandlers.downloadMedia(
                                                                     ctx,
-                                                                    url,
+                                                                    downloadUrl,
+                                                                    fileName: fileName,
                                                                   ),
                                                             ),
-                                                            (url) =>
+                                                            (downloadUrl, {fileName}) =>
                                                                 ChatHandlers.downloadMedia(
                                                                   ctx,
-                                                                  url,
+                                                                  downloadUrl,
+                                                                  fileName: fileName ?? msg.mediaName,
                                                                 ),
                                                             (msg) =>
                                                                 ChatHandlers.copyMessageText(
@@ -1151,16 +1156,18 @@ class _ChatPageState extends State<ChatPage> {
                                                             ) => ChatHandlers.downloadPDFDirectly(
                                                               url,
                                                               fileName,
-                                                              (url) =>
+                                                              (downloadUrl, {fileName}) =>
                                                                   ChatHandlers.downloadMedia(
                                                                     ctx,
-                                                                    url,
+                                                                    downloadUrl,
+                                                                    fileName: fileName,
                                                                   ),
                                                             ),
-                                                            (url) =>
+                                                            (downloadUrl, {fileName}) =>
                                                                 ChatHandlers.downloadMedia(
                                                                   ctx,
-                                                                  url,
+                                                                  downloadUrl,
+                                                                  fileName: fileName ?? msg.mediaName,
                                                                 ),
                                                             (msg) =>
                                                                 ChatHandlers.copyMessageText(
@@ -1650,6 +1657,11 @@ class _ChatPageState extends State<ChatPage> {
       }
       return;
     }
+
+    if (!await _ensureStoragePermission()) {
+      return;
+    }
+
     try {
       final result = await FilePicker.platform.pickFiles(withReadStream: false);
       if (!mounted) return;
@@ -1681,6 +1693,16 @@ class _ChatPageState extends State<ChatPage> {
       if (!mounted) return;
       showAppToast(context, 'Upload failed: $e', type: ToastType.error);
     }
+  }
+
+  Future<bool> _ensureStoragePermission() {
+    return StoragePermissionService.ensureStoragePermission(
+      context: context,
+      deniedMessage: 'Storage permission is required to pick files.',
+      permanentlyDeniedMessage:
+          'Storage permission permanently denied. Enable it from settings to share files.',
+      errorPrefix: 'Unable to request storage permission',
+    );
   }
 
 
