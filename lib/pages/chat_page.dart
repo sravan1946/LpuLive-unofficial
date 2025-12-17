@@ -417,6 +417,35 @@ class _ChatPageState extends State<ChatPage> {
 
   // Auto-scrolling disabled to avoid jank; the list renders from the bottom using reverse: true
 
+  /// Calculates the bottom padding needed to account for the typing bar
+  /// This ensures messages can scroll above the input field on all screen sizes
+  double _calculateBottomPadding(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final safeAreaBottom = mediaQuery.padding.bottom;
+
+    // Typing bar structure:
+    // - Positioned bottom: 12px
+    // - SafeArea wrapper (adds safe area bottom)
+    // - Reply preview container (if replying): ~68px (12 padding + 40 height + 8 spacing + 8 padding)
+    // - Input field container: ~56px minimum (10 vertical padding * 2 + ~36px for single line text field)
+    // - Extra spacing for visual comfort: 16px
+
+    final bottomPosition = 12.0; // Positioned bottom value
+    final inputFieldMinHeight = 56.0; // Minimum height of input field container
+    final replyPreviewHeight = _replyingTo != null ? 68.0 : 0.0; // Reply preview height
+    final extraSpacing = 16.0; // Visual spacing
+
+    // Total height = bottom position + safe area + reply preview + input field + extra spacing
+    // When keyboard is open, MediaQuery.viewInsets.bottom automatically adjusts the layout
+    final totalHeight = bottomPosition +
+                       safeAreaBottom +
+                       replyPreviewHeight +
+                       inputFieldMinHeight +
+                       extraSpacing;
+
+    return totalHeight;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -730,7 +759,7 @@ class _ChatPageState extends State<ChatPage> {
                                   16,
                                   16,
                                   16,
-                                  _replyingTo != null ? 160 : 80,
+                                  _calculateBottomPadding(context),
                                 ),
                                 sliver: SliverList(
                                   delegate: SliverChildBuilderDelegate(

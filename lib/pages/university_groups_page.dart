@@ -16,6 +16,7 @@ import '../models/current_user_state.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../services/read_tracker.dart';
+import '../utils/layout_utils.dart';
 import '../utils/timestamp_utils.dart';
 import '../widgets/app_toast.dart';
 import 'chat_page.dart';
@@ -476,7 +477,12 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        16 + LayoutUtils.getBottomNavBarPadding(context),
+      ),
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: data.length,
       itemBuilder: (context, index) {
