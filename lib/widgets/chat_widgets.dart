@@ -83,6 +83,19 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
+    final gestureDetector = GestureDetector(
+      onLongPressStart: (details) {
+        HapticFeedback.mediumImpact();
+        widget.onLongPress();
+      },
+      child: widget.child,
+    );
+
+    // Disable swipe-to-reply entirely for read-only chats
+    if (widget.isReadOnly) {
+      return gestureDetector;
+    }
+
     return GestureDetector(
       onLongPressStart: (details) {
         HapticFeedback.mediumImpact();
@@ -98,7 +111,7 @@ class _SwipeToReplyMessageState extends State<SwipeToReplyMessage>
         resizeDuration: const Duration(milliseconds: 200),
         // Prevent removal from the tree; trigger reply instead
         confirmDismiss: (direction) async {
-          if (direction == DismissDirection.startToEnd && !widget.isReadOnly) {
+          if (direction == DismissDirection.startToEnd) {
             HapticFeedback.selectionClick();
             // brief scale feedback
             await _scaleController.forward();

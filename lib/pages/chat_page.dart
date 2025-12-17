@@ -887,6 +887,7 @@ class _ChatPageState extends State<ChatPage> {
                                                             replyingTo,
                                                       ),
                                                       _messageController,
+                                                      widget.isReadOnly,
                                                     ),
                                                 onLongPress: () {
                                                   HapticFeedback.mediumImpact();
@@ -927,6 +928,7 @@ class _ChatPageState extends State<ChatPage> {
                                                                 replyingTo,
                                                           ),
                                                           _messageController,
+                                                          widget.isReadOnly,
                                                         ),
                                                     (url, fileName) =>
                                                         ChatHandlers.showPDFViewer(
@@ -1089,6 +1091,7 @@ class _ChatPageState extends State<ChatPage> {
                                                                     replyingTo,
                                                               ),
                                                               _messageController,
+                                                              widget.isReadOnly,
                                                             ),
                                                             (url, fileName) =>
                                                                 ChatHandlers.showPDFViewer(
@@ -1185,6 +1188,7 @@ class _ChatPageState extends State<ChatPage> {
                                                                     replyingTo,
                                                               ),
                                                               _messageController,
+                                                              widget.isReadOnly,
                                                             ),
                                                             (url, fileName) =>
                                                                 ChatHandlers.showPDFViewer(

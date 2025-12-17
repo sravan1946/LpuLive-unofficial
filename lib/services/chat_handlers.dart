@@ -33,7 +33,11 @@ class ChatHandlers {
     ChatMessage message,
     Function(ChatMessage?) setReplyingTo,
     TextEditingController messageController,
+    bool isReadOnly,
   ) {
+    // Prevent replies in read-only chats
+    if (isReadOnly) return;
+
     setReplyingTo(message);
     messageController.clear();
     // Focus on the text field
