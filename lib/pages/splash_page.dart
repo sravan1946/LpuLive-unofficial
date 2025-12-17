@@ -4,9 +4,6 @@ import 'dart:convert';
 // Flutter imports:
 import 'package:flutter/material.dart';
 
-// Package imports:
-import 'package:flutter_animate/flutter_animate.dart';
-
 // Project imports:
 import '../models/current_user_state.dart';
 import '../models/user_models.dart';
@@ -24,26 +21,11 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _fadeIn;
-  late final Animation<double> _scaleIn;
-
+class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-    _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-    _scaleIn = Tween<double>(
-      begin: 0.98,
-      end: 1.02,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-
-    Future.delayed(const Duration(seconds: 4), () async {
+    Future.delayed(const Duration(seconds: 3), () async {
       // Request notification permission first
       await _requestNotificationPermissionIfNeeded();
 
@@ -175,65 +157,39 @@ class _SplashPageState extends State<SplashPage>
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: color.surface,
       body: Stack(
         children: [
-          // Soft animated radial background
+          // Static radial background
           Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, _) {
-                final t = _controller.value;
-                return CustomPaint(
-                  painter: _RadialGlowPainter(
-                    color.primary.withValues(alpha: 0.12 + 0.06 * t),
-                  ),
-                );
-              },
+            child: CustomPaint(
+              painter: _RadialGlowPainter(
+                color.primary.withValues(alpha: 0.18),
+              ),
             ),
           ),
           Center(
-            child: FadeTransition(
-              opacity: _fadeIn,
-              child: ScaleTransition(
-                scale: _scaleIn,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      'assets/icon-noglow.png',
-                      width: 92,
-                      height: 92,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                          'LPU Live',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: color.onSurface,
-                          ),
-                        )
-                        .animate()
-                        .fadeIn(duration: 400.ms, curve: Curves.easeOut)
-                        .moveY(
-                          begin: 8,
-                          end: 0,
-                          duration: 400.ms,
-                          curve: Curves.easeOut,
-                        ),
-                  ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/icon-noglow.png',
+                  width: 92,
+                  height: 92,
                 ),
-              ),
+                const SizedBox(height: 20),
+                Text(
+                  'LPU Live',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: color.onSurface,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -71,11 +71,7 @@
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
             android:name="flutterEmbedding"
-            android:value="2" />
-        <meta-data
-            android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="true" />
-            
+            android:value="2" />            
         <!-- Foreground service for WebSocket maintenance -->
         <service
             android:name="com.unemployednerds.lpulive.WebSocketForegroundService"
