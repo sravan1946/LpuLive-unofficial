@@ -17,6 +17,7 @@ import '../services/avatar_cache_service.dart';
 import '../services/chat_data.dart';
 import '../services/chat_handlers.dart';
 import '../services/chat_services.dart';
+import '../services/haptic_feedback_service.dart';
 import '../services/message_status_service.dart';
 import '../services/read_tracker.dart';
 import '../services/storage_permission_service.dart';
@@ -24,9 +25,11 @@ import '../utils/chat_utils.dart';
 import '../utils/sender_name_utils.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/chat_widgets.dart';
+import '../widgets/empty_states.dart';
 import '../widgets/message_status_icon.dart';
 import '../widgets/network_image.dart';
 import '../widgets/reply_preview.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'group_details_page.dart';
 import 'group_media_page.dart';
 
@@ -648,61 +651,30 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ],
       ),
+      backgroundColor: scheme.surface,
       body: Stack(
         children: [
+          // Immediate background to prevent white flash
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    scheme.surface,
+                    scheme.surfaceContainerHighest,
+                  ],
+                ),
+              ),
+            ),
+          ),
           Positioned.fill(
             child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Loading messages...'),
-                      ],
-                    ),
-                  )
+                ? const SkeletonMessageList(messageCount: 8)
                 : _messages.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat,
-                          size: 64,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No messages yet',
-                          style: TextStyle(
-                            color: scheme.onSurfaceVariant,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Be the first to start the conversation!',
-                          style: TextStyle(
-                            color: scheme.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          scheme.surface,
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                        ],
-                      ),
-                    ),
-                    child: Stack(
+                ? const EmptyChatState()
+                : Stack(
                       children: [
                         Positioned.fill(
                           child: CustomPaint(
@@ -890,7 +862,7 @@ class _ChatPageState extends State<ChatPage> {
                                                       widget.isReadOnly,
                                                     ),
                                                 onLongPress: () {
-                                                  HapticFeedback.mediumImpact();
+                                                  HapticFeedbackService.longPress();
                                                   final isAdmin =
                                                       (currentUser?.groups
                                                           .firstWhere(
@@ -1480,7 +1452,6 @@ class _ChatPageState extends State<ChatPage> {
                         ),
                       ],
                     ),
-                  ),
           ),
           if (!widget.isReadOnly)
             Positioned(
@@ -1577,7 +1548,45 @@ class _ChatPageState extends State<ChatPage> {
                                   border: InputBorder.none,
                                   contentPadding: EdgeInsets.zero,
                                 ),
-                                onSubmitted: (_) => ChatHandlers.sendMessage(
+                                onSubmitted: (_) {
+                                  HapticFeedbackService.buttonPress();
+                                  ChatHandlers.sendMessage(
+                                    context,
+                                    _messageController.text.trim(),
+                                    widget.isReadOnly,
+                                    _isSending,
+                                    (sending) =>
+                                        setState(() => _isSending = sending),
+                                    _replyingTo,
+                                    (replyingTo) =>
+                                        setState(() => _replyingTo = replyingTo),
+                                    widget.wsService,
+                                    widget.groupId,
+                                    _messages,
+                                    (messages) =>
+                                        setState(() => _messages = messages),
+                                    _statusService,
+                                    _messageController,
+                                    (lastReadAt) =>
+                                        setState(() => _lastReadAt = lastReadAt),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            CustomGlassButton(
+                              onPressed: _pickAndUploadFile,
+                              child: Icon(
+                                Icons.attach_file,
+                                color: scheme.primary,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            CustomGlassButton(
+                              onPressed: () {
+                                HapticFeedbackService.buttonPress();
+                                ChatHandlers.sendMessage(
                                   context,
                                   _messageController.text.trim(),
                                   widget.isReadOnly,
@@ -1593,43 +1602,11 @@ class _ChatPageState extends State<ChatPage> {
                                   (messages) =>
                                       setState(() => _messages = messages),
                                   _statusService,
-                                  _messageController,
-                                  (lastReadAt) =>
-                                      setState(() => _lastReadAt = lastReadAt),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            CustomGlassButton(
-                              onPressed: _pickAndUploadFile,
-                              child: Icon(
-                                Icons.attach_file,
-                                color: scheme.primary,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            CustomGlassButton(
-                              onPressed: () => ChatHandlers.sendMessage(
-                                context,
-                                _messageController.text.trim(),
-                                widget.isReadOnly,
-                                _isSending,
-                                (sending) =>
-                                    setState(() => _isSending = sending),
-                                _replyingTo,
-                                (replyingTo) =>
-                                    setState(() => _replyingTo = replyingTo),
-                                widget.wsService,
-                                widget.groupId,
-                                _messages,
-                                (messages) =>
-                                    setState(() => _messages = messages),
-                                _statusService,
                                 _messageController,
                                 (lastReadAt) =>
                                     setState(() => _lastReadAt = lastReadAt),
-                              ),
+                                );
+                              },
                               child: Icon(
                                 Icons.send_rounded,
                                 color: scheme.primary,

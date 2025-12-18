@@ -11,6 +11,7 @@ import '../models/message_status.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../services/file_saver_service.dart';
+import '../services/haptic_feedback_service.dart';
 import '../services/message_status_service.dart';
 import '../services/read_tracker.dart';
 import '../services/storage_permission_service.dart';
@@ -283,6 +284,8 @@ class ChatHandlers {
     Function(DateTime?) setLastReadAt,
   ) async {
     if (message.isEmpty || isReadOnly || isSending) return;
+
+    HapticFeedbackService.messageSent();
 
     if (!wsService.isConnected) {
       if (context.mounted) {

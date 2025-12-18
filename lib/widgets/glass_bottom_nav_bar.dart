@@ -4,6 +4,9 @@ import 'dart:ui';
 // Flutter imports:
 import 'package:flutter/material.dart';
 
+// Project imports:
+import '../services/haptic_feedback_service.dart';
+
 class GlassBottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
@@ -162,7 +165,12 @@ class _NavItem extends StatelessWidget {
 
     return Expanded(
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          if (!isSelected) {
+            HapticFeedbackService.tabSwitch();
+          }
+          onTap();
+        },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

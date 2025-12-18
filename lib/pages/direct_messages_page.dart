@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 // Package imports:
 import 'package:animations/animations.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Project imports:
@@ -17,11 +16,15 @@ import '../models/current_user_state.dart';
 import '../models/user_models.dart';
 import '../services/avatar_cache_service.dart';
 import '../services/chat_services.dart';
+import '../services/haptic_feedback_service.dart';
 import '../services/read_tracker.dart';
+import '../utils/animations.dart';
 import '../utils/layout_utils.dart';
 import '../utils/timestamp_utils.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/empty_states.dart';
 import '../widgets/network_image.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'chat_page.dart';
 import 'dm_requests_page.dart';
 import 'login_page.dart';
@@ -66,6 +69,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
 
   // Track in-flight loads to avoid duplicate fetches
   final Set<String> _dmMetaLoading = {};
+  bool _isInitialLoading = true;
 
   // Unread counters per DM group
   final Map<String, int> _unreadByGroup = {};
@@ -175,7 +179,13 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
     _setupWebSocketSubscriptions();
     _loadContactsIfNeeded();
     _loadAvatarCacheIfNeeded();
-    _loadUnreadCounts();
+    _loadUnreadCounts().then((_) {
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+        });
+      }
+    });
 
     // Listen for user data changes (e.g., when groups are updated)
     _userListener = () {
@@ -618,6 +628,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () {
+            HapticFeedbackService.buttonPress();
             debugPrint('🫓 DirectMessagesPage hamburger tapped');
             widget.onOpenDrawer?.call();
           },
@@ -722,7 +733,12 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                   child: Icon(Icons.search, size: 20, color: scheme.primary),
                 ),
                 hintText: 'Search people',
-                onChanged: (v) => setState(() => _query = v),
+                onChanged: (v) {
+                  if (v.isNotEmpty && _query.isEmpty) {
+                    HapticFeedbackService.selection();
+                  }
+                  setState(() => _query = v);
+                },
                 backgroundColor: WidgetStateProperty.all(Colors.transparent),
                 elevation: WidgetStateProperty.all(0),
                 shape: WidgetStateProperty.all(
@@ -782,9 +798,11 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                     highlightColor: Colors.white.withValues(alpha: 0.06),
                     customBorder: const CircleBorder(),
                     onTap: () {
+                      HapticFeedbackService.buttonPress();
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const NewDMPage(),
+                        SlidePageRoute(
+                          page: const NewDMPage(),
+                          direction: SlideDirection.right,
                         ),
                       );
                     },
@@ -804,59 +822,30 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
   Widget _buildDMList(List<DirectMessage> data, ColorScheme scheme) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Show skeleton loader during initial load
+    if (_isInitialLoading) {
+      return SkeletonList(
+        itemCount: 6,
+        showAvatar: true,
+        showSubtitle: true,
+      );
+    }
+
+    // Show empty state if no DMs
     if (data.isEmpty) {
-      return CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          scheme.primary.withValues(alpha: 0.1),
-                          scheme.primary.withValues(alpha: 0.05),
-                        ],
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.message_outlined,
-                      size: 64,
-                      color: scheme.primary.withValues(alpha: 0.6),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SpinKitPulse(color: scheme.primary, size: 32),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No Direct Messages',
-                    style: TextStyle(
-                      color: isDark ? Colors.white70 : const Color(0xFF5A5A5A),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Direct messages will appear here',
-                    style: TextStyle(
-                      color: isDark ? Colors.white54 : const Color(0xFF8A8A8A),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+      if (_query.isNotEmpty) {
+        return const EmptySearchState(query: '');
+      }
+      return EmptyDMsState(
+        onNewDM: () {
+          HapticFeedbackService.buttonPress();
+          Navigator.of(context).push(
+            SlidePageRoute(
+              page: const NewDMPage(),
+              direction: SlideDirection.right,
             ),
-          ),
-        ],
+          );
+        },
       );
     }
 
@@ -898,6 +887,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
               closedShape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
+              openColor: Theme.of(context).colorScheme.surface,
               openBuilder: (context, _) {
                 // Clear unread counter when opening (UI badge)
                 _unreadByGroup[dm.dmName] = 0;
@@ -965,6 +955,7 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: () {
+                          HapticFeedbackService.buttonPress();
                           setState(() {
                             _unreadByGroup[dm.dmName] = 0;
                           });

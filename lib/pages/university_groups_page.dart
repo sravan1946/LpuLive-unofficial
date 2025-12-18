@@ -8,17 +8,19 @@ import 'package:flutter/material.dart';
 // Package imports:
 import 'package:animations/animations.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Project imports:
 import '../models/current_user_state.dart';
 import '../models/user_models.dart';
 import '../services/chat_services.dart';
+import '../services/haptic_feedback_service.dart';
 import '../services/read_tracker.dart';
 import '../utils/layout_utils.dart';
 import '../utils/timestamp_utils.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/empty_states.dart';
+import '../widgets/skeleton_loaders.dart';
 import 'chat_page.dart';
 import 'login_page.dart';
 
@@ -46,6 +48,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   StreamSubscription<ChatMessage>? _messageSubscription;
   String _query = '';
   late final VoidCallback _userListener;
+  bool _isInitialLoading = true;
 
   // Unread counters per course group
   final Map<String, int> _unreadByGroup = {};
@@ -83,7 +86,13 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
     super.initState();
     _initializeGroups();
     _setupWebSocketSubscription();
-    _loadUnreadCounts();
+    _loadUnreadCounts().then((_) {
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+        });
+      }
+    });
 
     // Listen for user data changes (e.g., when groups are updated)
     _userListener = () {
@@ -276,6 +285,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
               : IconButton(
                   icon: const Icon(Icons.menu),
                   onPressed: () {
+                    HapticFeedbackService.buttonPress();
                     debugPrint('🫓 UniversityGroupsPage hamburger tapped');
                     widget.onOpenDrawer?.call();
                   },
@@ -344,7 +354,12 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                     child: Icon(Icons.search, size: 20, color: scheme.primary),
                   ),
                   hintText: 'Search courses',
-                  onChanged: (v) => setState(() => _query = v),
+                  onChanged: (v) {
+                    if (v.isNotEmpty && _query.isEmpty) {
+                      HapticFeedbackService.selection();
+                    }
+                    setState(() => _query = v);
+                  },
                   backgroundColor: WidgetStateProperty.all(Colors.transparent),
                   elevation: WidgetStateProperty.all(0),
                   shape: WidgetStateProperty.all(
@@ -428,51 +443,23 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   Widget _buildCourseList(List<CourseGroup> data, ColorScheme scheme) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Show skeleton loader during initial load
+    if (_isInitialLoading) {
+      return SkeletonList(
+        itemCount: 6,
+        showAvatar: true,
+        showSubtitle: true,
+      );
+    }
+
+    // Show empty state if no groups
     if (data.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    scheme.primary.withValues(alpha: 0.1),
-                    scheme.primary.withValues(alpha: 0.05),
-                  ],
-                ),
-              ),
-              child: Icon(
-                Icons.school_outlined,
-                size: 64,
-                color: scheme.primary.withValues(alpha: 0.6),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SpinKitPulse(color: scheme.primary, size: 32),
-            const SizedBox(height: 16),
-            Text(
-              'No University Courses',
-              style: TextStyle(
-                color: isDark ? Colors.white70 : const Color(0xFF5A5A5A),
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'University courses will appear here',
-              style: TextStyle(
-                color: isDark ? Colors.white54 : const Color(0xFF8A8A8A),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
+      if (_query.isNotEmpty) {
+        return const EmptySearchState(query: '');
+      }
+      return const EmptyGroupsState(
+        title: 'No University Courses',
+        subtitle: 'University courses will appear here',
       );
     }
 
@@ -519,6 +506,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
               closedShape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
+              openColor: Theme.of(context).colorScheme.surface,
               openBuilder: (context, _) {
                 // Clear unread counter when opening (UI badge)
                 _unreadByGroup[course.courseName] = 0;
@@ -536,6 +524,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                   isReadOnly: !isWritable,
                 );
               },
+              transitionDuration: const Duration(milliseconds: 300),
               closedBuilder: (context, openContainer) {
                 return TweenAnimationBuilder<double>(
                   duration: const Duration(milliseconds: 120),
@@ -590,6 +579,7 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: () {
+                          HapticFeedbackService.buttonPress();
                           setState(() {
                             _unreadByGroup[course.courseName] = 0;
                           });
@@ -793,9 +783,9 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
                 );
               },
             )
-            .animate(delay: (40 * index).ms)
-            .fadeIn(duration: 300.ms, curve: Curves.easeOut)
-            .moveY(begin: 8, end: 0, duration: 300.ms, curve: Curves.easeOut);
+            .animate(delay: (30 * index).ms)
+            .fadeIn(duration: 250.ms, curve: Curves.easeOut)
+            .moveY(begin: 10, end: 0, duration: 300.ms, curve: Curves.easeOutCubic);
       },
     );
   }
