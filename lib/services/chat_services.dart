@@ -21,6 +21,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 // Project imports:
 import '../models/group_user_model.dart';
 import '../models/user_models.dart';
+import '../utils/group_utils.dart';
 import '../utils/sender_name_utils.dart';
 import 'avatar_cache_service.dart';
 import 'background_websocket_service.dart';
@@ -513,16 +514,18 @@ class ChatApiService {
   Future<CreateGroupResult> createGroup(
     String chatToken,
     String groupName,
-    String members,
-  ) async {
+    String members, {
+    bool isTwoWay = false,
+    bool oneToOne = true,
+  }) async {
     try {
       final url = '$_baseUrl/api/groups/create';
       final requestBody = {
         'ChatToken': chatToken,
         'GroupName': groupName,
-        'is_two_way': '',
+        'is_two_way': isTwoWay,
         'Members': members,
-        'one_To_One': true,
+        'one_To_One': oneToOne,
       };
 
       debugPrint('🌐 [ChatApiService] Making HTTP request to: $url');
@@ -609,15 +612,20 @@ class ChatApiService {
   Future<CreateGroupResult> performGroupAction(
     String chatToken,
     String action,
-    String groupName,
-  ) async {
+    String groupName, {
+    String? users,
+  }) async {
     try {
       final url = '$_baseUrl/api/groups/actions';
-      final requestBody = {
+      final requestBody = <String, dynamic>{
         'ChatToken': chatToken,
         'Action': action,
         'Group': groupName,
       };
+
+      if (users != null && users.isNotEmpty) {
+        requestBody['Users'] = users;
+      }
 
       debugPrint('🌐 [ChatApiService] Making HTTP request to: $url');
       debugPrint(
@@ -1434,7 +1442,7 @@ _setStatus(ConnectionStatus.connected);
 
       final int messageCount = _groupMessageCounts[groupId]!;
       final bool isDirectMessage = groupId.startsWith('unknown') ||
-          RegExp(r'^\d+\s*:\s*\d+$').hasMatch(groupId);
+          isDirectMessageByName(groupId);
 
       String deriveBaseTitle() {
         if (isDirectMessage) {

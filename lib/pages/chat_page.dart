@@ -22,6 +22,7 @@ import '../services/message_status_service.dart';
 import '../services/read_tracker.dart';
 import '../services/storage_permission_service.dart';
 import '../utils/chat_utils.dart';
+import '../utils/group_utils.dart';
 import '../utils/sender_name_utils.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/chat_widgets.dart';
@@ -466,10 +467,12 @@ class _ChatPageState extends State<ChatPage> {
     }
     final bool isDm =
         (currentUser?.groups.any(
-              (g) => g.name == widget.groupId && g.isDirectMessage,
+              (g) => g.name == widget.groupId &&
+                  (isDirectMessageByFlags(g) ||
+                      isDirectMessageByName(g.name)),
             ) ??
             false) ||
-        RegExp(r'^\d+\s*:\s*\d+$').hasMatch(widget.groupId);
+        isDirectMessageByName(widget.groupId);
     // Prefer cached avatar for DM other participant if available
     if (isDm) {
       final parts = widget.groupId.split(':').map((s) => s.trim()).toList();

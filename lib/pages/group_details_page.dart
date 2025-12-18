@@ -6,9 +6,11 @@ import '../models/group_user_model.dart';
 import '../models/user_models.dart';
 import '../services/avatar_cache_service.dart';
 import '../services/chat_services.dart';
+import '../utils/group_utils.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/network_image.dart';
 import 'group_media_page.dart';
+import 'invite_members_page.dart';
 
 class GroupDetailsPage extends StatefulWidget {
   final String groupName;
@@ -291,10 +293,16 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: _buildMembersSection(scheme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildActionsSection(scheme),
+          const SizedBox(height: 24),
+          _buildMembersSection(scheme),
+        ],
+      ),
     );
   }
-
 
   bool _isCurrentUserAdminOfGroup() {
     if (currentUser == null) return false;
@@ -308,6 +316,161 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     }
   }
 
+  bool _isCurrentUserParticipantOfGroup() {
+    if (currentUser == null) return false;
+    try {
+      final g = currentUser!.groups.firstWhere(
+        (x) => x.name == widget.groupName,
+      );
+      return g.isActive == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  bool _isPersonalGroup() {
+    if (currentUser == null) return false;
+    try {
+      final g = currentUser!.groups.firstWhere(
+        (x) => x.name == widget.groupName,
+      );
+      return isPersonalGroup(g.name, g);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _confirmAndLeaveGroup() async {
+    if (currentUser == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Leave group?'),
+        content:
+            const Text('You will stop receiving messages from this group.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final res = await _apiService.performGroupAction(
+        currentUser!.chatToken,
+        'Leave',
+        widget.groupId,
+      );
+
+      if (!mounted) return;
+      if (res.isSuccess) {
+        showAppToast(context, 'Left group', type: ToastType.success);
+        Navigator.of(context).maybePop();
+      } else {
+        showAppToast(
+          context,
+          'Failed: ${res.message}',
+          type: ToastType.error,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showAppToast(context, 'Failed to leave group: $e', type: ToastType.error);
+    }
+  }
+
+  Widget _buildActionsSection(ColorScheme scheme) {
+    final isAdmin = _isCurrentUserAdminOfGroup();
+    final isParticipant = _isCurrentUserParticipantOfGroup();
+    final isPersonal = _isPersonalGroup();
+
+    if (!isParticipant && !isAdmin) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.settings, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Group settings',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Settings'),
+              subtitle: const Text('Configure group options (coming soon)'),
+              onTap: () {
+                showAppToast(
+                  context,
+                  'Group settings will be available soon.',
+                  type: ToastType.info,
+                );
+              },
+            ),
+            if (isPersonal) ...[
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.person_add_alt_1),
+                title: const Text('Invite members'),
+                subtitle: const Text('Invite contacts to this personal group'),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => InviteMembersPage(
+                        groupName: widget.groupName,
+                        groupId: widget.groupId,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+            const Divider(),
+            if (isAdmin)
+              ListTile(
+                leading: Icon(Icons.delete_forever_outlined, color: scheme.error),
+                title: Text(
+                  'Delete group',
+                  style: TextStyle(color: scheme.error),
+                ),
+                onTap: _confirmAndDeleteGroup,
+              )
+            else if (isParticipant)
+              ListTile(
+                leading: Icon(Icons.logout, color: scheme.error),
+                title: Text(
+                  'Leave group',
+                  style: TextStyle(color: scheme.error),
+                ),
+                onTap: _confirmAndLeaveGroup,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _confirmAndDeleteGroup() async {
     if (currentUser == null) return;

@@ -11,6 +11,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../models/user_models.dart';
 import '../services/avatar_cache_service.dart';
 import '../services/chat_services.dart';
+import '../utils/group_utils.dart';
 import '../utils/timestamp_utils.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/network_image.dart';
@@ -121,8 +122,9 @@ class _DmRequestsPageState extends State<DmRequestsPage> {
       final seenNames = <String>{};
 
       for (final group in currentUser!.groups) {
-        final dmMatch = RegExp(r'^\d+\s*:\s*\d+$').firstMatch(group.name);
-        if (dmMatch != null &&
+        // Use utility function to check if this is a direct message
+        final isDm = isDirectMessageByFlags(group) || isDirectMessageByName(group.name);
+        if (isDm &&
             !seenNames.contains(group.name) &&
             (group.inviteStatus.trim().toUpperCase() == 'REQD' ||
                 group.inviteStatus.trim().toUpperCase() == 'BLOCK')) {

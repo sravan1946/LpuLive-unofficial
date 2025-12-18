@@ -16,6 +16,7 @@ import '../models/user_models.dart';
 import '../services/chat_services.dart';
 import '../services/haptic_feedback_service.dart';
 import '../services/read_tracker.dart';
+import '../utils/group_utils.dart';
 import '../utils/layout_utils.dart';
 import '../utils/timestamp_utils.dart';
 import '../widgets/app_toast.dart';
@@ -117,11 +118,14 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
       final seenNames = <String>{};
 
       for (final group in currentUser!.groups) {
-        final isUni = !group.isTwoWay && !group.isOneToOne;
+        // Check if this is a university group using naming pattern OR flags as fallback
+        final isUniByName = isUniversityGroupByName(group.name);
+        final isUniByFlags = !group.isTwoWay && !group.isOneToOne;
+        final isUni = isUniByName || (isUniByFlags && !isDirectMessageByName(group.name));
+
         if (isUni && !seenNames.contains(group.name)) {
-          // Try to extract a course code prefix if present for display; fallback to name
-          final codeMatch = RegExp(r'^[A-Z]+\d+').firstMatch(group.name);
-          final courseCode = codeMatch?.group(0) ?? group.name;
+          // Extract the course code for display
+          final courseCode = extractCourseCode(group.name) ?? group.name;
           final courseGroup = CourseGroup(
             courseName: group.name,
             courseCode: courseCode,
@@ -168,7 +172,12 @@ class _UniversityGroupsPageState extends State<UniversityGroupsPage> {
   }
 
   String _stripCourseCodePrefix(String name) {
-    return name.replaceFirst(RegExp(r'^[A-Z]+\d+\s*-\s*'), '').trim();
+    final courseCode = extractCourseCode(name);
+    if (courseCode != null) {
+      // Remove the course code and optional dash/space separator
+      return name.replaceFirst(RegExp(r'^[A-Z]+\d+\s*-\s*'), '').trim();
+    }
+    return name;
   }
 
   int _indexForIncomingMessage(ChatMessage message) {

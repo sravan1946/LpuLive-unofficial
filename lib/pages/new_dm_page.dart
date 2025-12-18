@@ -287,13 +287,15 @@ class _NewDMPageState extends State<NewDMPage> {
       debugPrint('🚀 [NewDMPage] Creating DM...');
       debugPrint('📤 [NewDMPage] Request: POST /api/groups/create');
       debugPrint(
-        '📤 [NewDMPage] Request Body: {"ChatToken": "${currentUser!.chatToken}", "GroupName": "$groupName", "is_two_way": "", "Members": "${_selectedContact!.userid}", "one_To_One": true}',
+        '📤 [NewDMPage] Request Body: {"ChatToken": "${currentUser!.chatToken}", "GroupName": "$groupName", "is_two_way": true, "Members": "${_selectedContact!.userid}", "one_To_One": true}',
       );
 
       final result = await _apiService.createGroup(
         currentUser!.chatToken,
         groupName,
         _selectedContact!.userid,
+        isTwoWay: true,
+        oneToOne: true,
       );
 
       debugPrint('📥 [NewDMPage] Create DM Response: ${result.toString()}');

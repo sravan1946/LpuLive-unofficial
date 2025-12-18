@@ -19,6 +19,7 @@ import '../services/chat_services.dart';
 import '../services/haptic_feedback_service.dart';
 import '../services/read_tracker.dart';
 import '../utils/animations.dart';
+import '../utils/group_utils.dart';
 import '../utils/layout_utils.dart';
 import '../utils/timestamp_utils.dart';
 import '../widgets/app_toast.dart';
@@ -268,11 +269,12 @@ class _DirectMessagesPageState extends State<DirectMessagesPage> {
       final seenNames = <String>{};
 
       for (final group in currentUser!.groups) {
-        final dmMatch = RegExp(r'^\d+\s*:\s*\d+$').firstMatch(group.name);
+        // Use utility function to check if this is a direct message
+        final isDm = isDirectMessageByFlags(group) || isDirectMessageByName(group.name);
         // Only include DMs that are accepted; requests/blocked stay in Requests page
         final invite = group.inviteStatus.trim().toUpperCase();
         final isAccepted = invite == 'ACPTD' || invite == 'ACCEPTED';
-        if (dmMatch != null && isAccepted && !seenNames.contains(group.name)) {
+        if (isDm && isAccepted && !seenNames.contains(group.name)) {
           final dm = DirectMessage(
             dmName: group.name,
             participants: group.name,
