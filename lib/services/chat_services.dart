@@ -1186,8 +1186,8 @@ class WebSocketChatService {
               final chatMessage = ChatMessage.fromJson(data);
               _messageController.add(chatMessage);
 
-              // Show notification for new messages when app is in background
-              if (data['is_own_message'] != true) {
+              // Show notification only for messages that are NOT sent by the current user
+              if (!chatMessage.isOwnMessage) {
                 await _showMessageNotification(data);
               }
 
