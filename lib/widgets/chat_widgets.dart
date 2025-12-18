@@ -525,7 +525,7 @@ class MessageBody extends StatelessWidget {
     }
 
     // Rich text linkify inside normal text
-    return DefaultTextStyle.merge(
+    final base = DefaultTextStyle.merge(
       style: TextStyle(
         height: 1.35,
         fontSize: 14,
@@ -547,6 +547,47 @@ class MessageBody extends StatelessWidget {
           children: _linkify(context, text),
         ),
       ),
+    );
+
+    if (!message.isSuspicious) return base;
+
+    final remark = (message.suspiciousRemark ?? '').trim();
+    return Column(
+      crossAxisAlignment:
+          isOwn ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        base,
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: scheme.errorContainer.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.shield_outlined,
+                size: 12,
+                color: scheme.error,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                remark.isNotEmpty
+                    ? remark
+                    : 'Marked as potentially suspicious',
+                style: TextStyle(
+                  color: scheme.error,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

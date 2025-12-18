@@ -3,7 +3,7 @@
 // Project imports:
 import 'current_user_state.dart';
 
-// Represents a chat message with sender, time, and optional media/reply info.
+// Represents a chat message with sender, time, and optional media/reply/safety info.
 class ChatMessage {
   /// Unique message identifier.
   final String id;
@@ -23,7 +23,7 @@ class ChatMessage {
   /// True if the message was sent by the current user.
   final bool isOwnMessage;
 
-  /// Optional URL or path of sender avatar image.
+  /// Optional URL or path of sender avatar image (from backend `UserImage`).
   final String? userImage;
 
   /// Optional sender category (e.g. student/faculty).
@@ -31,6 +31,12 @@ class ChatMessage {
 
   /// Optional group identifier the message belongs to.
   final String? group;
+
+  /// Whether the backend has marked this message as suspicious.
+  final bool isSuspicious;
+
+  /// Optional remark/reason for suspicious flag from backend.
+  final String? suspiciousRemark;
 
   /// Optional media identifier attached to the message.
   final String? mediaId;
@@ -69,6 +75,8 @@ class ChatMessage {
     this.userImage,
     this.category,
     this.group,
+    this.isSuspicious = false,
+    this.suspiciousRemark,
     this.mediaId,
     this.mediaName,
     this.mediaType,
@@ -121,6 +129,9 @@ class ChatMessage {
       userImage: json['UserImage'],
       category: json['Category'],
       group: json['group'] ?? '',
+      isSuspicious: json['suspeciousmessage'] == true ||
+          json['suspeciousmessage']?.toString().toLowerCase() == 'true',
+      suspiciousRemark: json['suspeciousremark']?.toString(),
       mediaId: mId,
       mediaName: mName,
       mediaType: mType,
@@ -142,6 +153,8 @@ class ChatMessage {
     String? userImage,
     String? category,
     String? group,
+    bool? isSuspicious,
+    String? suspiciousRemark,
     String? mediaId,
     String? mediaName,
     String? mediaType,
@@ -161,6 +174,8 @@ class ChatMessage {
       userImage: userImage ?? this.userImage,
       category: category ?? this.category,
       group: group ?? this.group,
+      isSuspicious: isSuspicious ?? this.isSuspicious,
+      suspiciousRemark: suspiciousRemark ?? this.suspiciousRemark,
       mediaId: mediaId ?? this.mediaId,
       mediaName: mediaName ?? this.mediaName,
       mediaType: mediaType ?? this.mediaType,
