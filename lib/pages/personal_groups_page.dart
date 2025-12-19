@@ -1,6 +1,7 @@
 // Dart imports:
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui';
 
 // Flutter imports:
 import 'package:flutter/material.dart';
@@ -329,54 +330,61 @@ class _PersonalGroupsPageState extends State<PersonalGroupsPage> {
           height: 56,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    scheme.primary,
-                    scheme.primary.withValues(alpha: 0.8),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      scheme.primary.withValues(alpha: 0.28),
+                      scheme.primary.withValues(alpha: 0.14),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: scheme.primary.withValues(alpha: 0.30),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.primary.withValues(alpha: 0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: scheme.primary.withValues(alpha: 0.25),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Material(
-                type: MaterialType.transparency,
-                child: InkWell(
-                  splashColor: Colors.white.withValues(alpha: 0.12),
-                  highlightColor: Colors.white.withValues(alpha: 0.06),
-                  customBorder: const CircleBorder(),
-                  onTap: () async {
-                    HapticFeedbackService.buttonPress();
-                    final created = await Navigator.of(context).push(
-                      SlidePageRoute(
-                        page: const NewGroupPage(),
-                        direction: SlideDirection.right,
-                      ),
-                    );
-                    if (created == true && currentUser != null) {
-                      // User data (groups) is refreshed inside ChatApiService.createGroup via authorizeUser.
-                      _initializeGroups();
-                      setState(() {});
-                      if (mounted) {
-                        showAppToast(
-                          context,
-                          'Personal group created successfully',
-                          type: ToastType.success,
-                        );
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    splashColor: Colors.white.withValues(alpha: 0.12),
+                    highlightColor: Colors.white.withValues(alpha: 0.06),
+                    customBorder: const CircleBorder(),
+                    onTap: () async {
+                      HapticFeedbackService.buttonPress();
+                      final created = await Navigator.of(context).push(
+                        SlidePageRoute(
+                          page: const NewGroupPage(),
+                          direction: SlideDirection.right,
+                        ),
+                      );
+                      if (created == true && currentUser != null) {
+                        // User data (groups) is refreshed inside ChatApiService.createGroup via authorizeUser.
+                        _initializeGroups();
+                        setState(() {});
+                        if (mounted) {
+                          showAppToast(
+                            context,
+                            'Personal group created successfully',
+                            type: ToastType.success,
+                          );
+                        }
                       }
-                    }
-                  },
-                  child: const Center(
-                    child: Icon(Icons.add_rounded, color: Colors.white),
+                    },
+                    child: const Center(
+                      child: Icon(Icons.add_rounded, color: Colors.white),
+                    ),
                   ),
                 ),
               ),
